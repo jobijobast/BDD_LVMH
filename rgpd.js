@@ -7,55 +7,72 @@ const RGPD = {
     stats: { total: 0, health: 0, orientation: 0, politics: 0, religion: 0, family: 0, finance: 0, appearance: 0 },
     detectedItems: [],
 
+    // DONNÉES À SUPPRIMER : compromettent la vie privée, aucune justification business possible
+    // Les allergies, régimes, professions, préférences = données LÉGITIMES avec justification LVMH
     patterns: {
-        health: {
-            FR: ['burnout', 'dépression', 'anxiété', 'cancer', 'maladie', 'traitement médical', 'opération', 'chirurgie', 'handicap', 'thérapie', 'psychiatre', 'psychologue', 'hôpital', 'médicament', 'diabète', 'allergie sévère', 'asthme', 'épilepsie', 'trouble', 'santé mentale', 'addiction', 'alcool', 'drogue', 'obésité', 'anorexie', 'boulimie', 'insomnie', 'fatigue chronique', 'stress post-traumatique', 'bipol'],
-            EN: ['burnout', 'depression', 'anxiety', 'cancer', 'disease', 'medical treatment', 'surgery', 'disability', 'therapy', 'psychiatrist', 'psychologist', 'hospital', 'medication', 'diabetes', 'severe allergy', 'asthma', 'epilepsy', 'disorder', 'mental health', 'addiction', 'alcohol', 'drug', 'obesity', 'anorexia', 'bulimia', 'insomnia', 'chronic fatigue', 'ptsd', 'bipolar', 'high cholesterol', 'gout'],
-            ES: ['burnout', 'depresión', 'ansiedad', 'cáncer', 'enfermedad', 'tratamiento médico', 'cirugía', 'discapacidad', 'terapia', 'psiquiatra', 'psicólogo', 'hospital', 'medicamento', 'diabetes', 'alergia severa'],
-            IT: ['burnout', 'depressione', 'ansia', 'cancro', 'malattia', 'trattamento medico', 'chirurgia', 'disabilità', 'terapia', 'psichiatra', 'psicologo', 'ospedale', 'farmaco', 'diabete'],
-            DE: ['burnout', 'depression', 'angst', 'krebs', 'krankheit', 'medizinische behandlung', 'operation', 'behinderung', 'therapie', 'psychiater', 'psychologe', 'krankenhaus', 'medikament', 'diabetes']
+        // Codes et identifiants sensibles
+        accessCodes: {
+            FR: ['code porte', 'digicode', 'mot de passe', 'code secret', 'pin', 'code d\'accès', 'code carte', 'code bancaire'],
+            EN: ['door code', 'password', 'pin code', 'access code', 'secret code', 'card code', 'bank code'],
+            ES: ['código puerta', 'contraseña', 'código secreto', 'código acceso', 'pin'],
+            IT: ['codice porta', 'password', 'codice segreto', 'codice accesso', 'pin'],
+            DE: ['türcode', 'passwort', 'geheimcode', 'zugangscode', 'pin']
         },
+        // Numéros d'identité
+        identity: {
+            FR: ['numéro sécurité sociale', 'numéro passeport', 'numéro permis', 'numéro carte identité', 'iban', 'numéro carte bancaire'],
+            EN: ['social security number', 'passport number', 'driver license', 'id number', 'iban', 'credit card number', 'bank account'],
+            ES: ['número seguridad social', 'número pasaporte', 'número dni', 'iban', 'número tarjeta'],
+            IT: ['codice fiscale', 'numero passaporto', 'numero carta identità', 'iban', 'numero carta'],
+            DE: ['sozialversicherungsnummer', 'passnummer', 'personalausweis', 'iban', 'kontonummer']
+        },
+        // Orientation sexuelle explicite
         orientation: {
-            FR: ['homosexuel', 'gay', 'lesbienne', 'bisexuel', 'transgenre', 'trans', 'lgbtq', 'orientation sexuelle', 'identité de genre', 'coming out', 'asexuel', 'pansexuel', 'queer', 'non-binaire'],
-            EN: ['homosexual', 'gay', 'lesbian', 'bisexual', 'transgender', 'trans', 'lgbtq', 'sexual orientation', 'gender identity', 'coming out', 'asexual', 'pansexual', 'queer', 'non-binary', 'by choice'],
-            ES: ['homosexual', 'gay', 'lesbiana', 'bisexual', 'transgénero', 'orientación sexual', 'identidad de género'],
+            FR: ['homosexuel', 'gay', 'lesbienne', 'bisexuel', 'transgenre', 'lgbtq', 'orientation sexuelle', 'coming out'],
+            EN: ['homosexual', 'gay', 'lesbian', 'bisexual', 'transgender', 'lgbtq', 'sexual orientation', 'coming out'],
+            ES: ['homosexual', 'gay', 'lesbiana', 'bisexual', 'transgénero', 'orientación sexual'],
             IT: ['omosessuale', 'gay', 'lesbica', 'bisessuale', 'transgender', 'orientamento sessuale'],
             DE: ['homosexuell', 'schwul', 'lesbisch', 'bisexuell', 'transgender', 'sexuelle orientierung']
         },
+        // Opinions politiques
         politics: {
-            FR: ['vote', 'électeur', 'parti politique', 'gauche', 'droite', 'extrême', 'militant', 'manifestation', 'grève', 'syndicat', 'président', 'gouvernement', 'politique', 'élection', 'macron', 'le pen', 'mélenchon', 'communiste', 'socialiste', 'républicain'],
-            EN: ['vote', 'voter', 'political party', 'left wing', 'right wing', 'extremist', 'activist', 'protest', 'strike', 'union', 'president', 'government', 'politics', 'election', 'democrat', 'republican', 'conservative', 'liberal', 'trump', 'biden'],
-            ES: ['voto', 'votante', 'partido político', 'izquierda', 'derecha', 'militante', 'manifestación', 'huelga', 'sindicato', 'gobierno', 'elección'],
-            IT: ['voto', 'elettore', 'partito politico', 'sinistra', 'destra', 'militante', 'manifestazione', 'sciopero', 'governo', 'elezione'],
-            DE: ['wahl', 'wähler', 'politische partei', 'links', 'rechts', 'aktivist', 'demonstration', 'streik', 'gewerkschaft', 'regierung']
+            FR: ['vote pour', 'électeur de', 'militant', 'parti politique', 'extrême gauche', 'extrême droite', 'communiste', 'macroniste', 'lepéniste'],
+            EN: ['voted for', 'supporter of', 'political party', 'democrat voter', 'republican voter', 'activist for'],
+            ES: ['voto por', 'militante', 'partido político', 'izquierda', 'derecha'],
+            IT: ['voto per', 'militante', 'partito politico', 'sinistra', 'destra'],
+            DE: ['wähler von', 'aktivist', 'politische partei', 'links', 'rechts']
         },
+        // Religion détaillée
         religion: {
-            FR: ['catholique', 'musulman', 'juif', 'protestant', 'bouddhiste', 'hindou', 'athée', 'église', 'mosquée', 'synagogue', 'temple', 'prière', 'ramadan', 'carême', 'kippour', 'noël religieux', 'pâques', 'religion', 'croyant', 'foi', 'dieu', 'allah', 'jésus', 'coran', 'bible', 'torah', 'halal', 'casher', 'voile', 'hijab'],
-            EN: ['catholic', 'muslim', 'jewish', 'protestant', 'buddhist', 'hindu', 'atheist', 'church', 'mosque', 'synagogue', 'temple', 'prayer', 'ramadan', 'lent', 'religious', 'believer', 'faith', 'god', 'jesus', 'quran', 'bible', 'torah', 'halal', 'kosher', 'hijab'],
-            ES: ['católico', 'musulmán', 'judío', 'budista', 'ateo', 'iglesia', 'mezquita', 'sinagoga', 'oración', 'religión', 'creyente', 'fe', 'dios'],
-            IT: ['cattolico', 'musulmano', 'ebreo', 'buddista', 'ateo', 'chiesa', 'moschea', 'sinagoga', 'preghiera', 'religione', 'credente', 'fede', 'dio'],
-            DE: ['katholisch', 'muslimisch', 'jüdisch', 'buddhistisch', 'atheist', 'kirche', 'moschee', 'synagoge', 'gebet', 'religion', 'gläubig', 'glaube', 'gott']
+            FR: ['pratiquant', 'converti', 'croyant fervent', 'fait le ramadan', 'va à la messe', 'prie tous les jours'],
+            EN: ['practicing', 'converted to', 'devout', 'observes ramadan', 'attends church', 'prays daily'],
+            ES: ['practicante', 'convertido', 'devoto', 'hace ramadán', 'va a misa'],
+            IT: ['praticante', 'convertito', 'devoto', 'fa ramadan', 'va a messa'],
+            DE: ['praktizierend', 'konvertiert', 'gläubig', 'fastet ramadan', 'geht zur kirche']
         },
-        family: {
-            FR: ['divorce', 'séparation', 'garde des enfants', 'pension alimentaire', 'conflit familial', 'violence conjugale', 'violence domestique', 'adultère', 'tromperie', 'procès famille', 'litige succession', 'héritage contesté', 'abandon', 'maltraitance', 'famille recomposée difficile', 'ex-mari', 'ex-femme', 'rupture difficile'],
-            EN: ['divorce', 'separation', 'child custody', 'alimony', 'family conflict', 'domestic violence', 'adultery', 'cheating', 'family court', 'inheritance dispute', 'abandonment', 'abuse', 'difficult breakup', 'ex-husband', 'ex-wife', 'divorced recently', 'post-marriage'],
-            ES: ['divorcio', 'separación', 'custodia', 'pensión', 'conflicto familiar', 'violencia doméstica', 'adulterio', 'herencia', 'abandono', 'maltrato', 'divorciada recientemente'],
-            IT: ['divorzio', 'separazione', 'affidamento', 'alimenti', 'conflitto familiare', 'violenza domestica', 'adulterio', 'eredità', 'abbandono', 'maltrattamento', 'divorziata'],
-            DE: ['scheidung', 'trennung', 'sorgerecht', 'unterhalt', 'familienkonflikt', 'häusliche gewalt', 'untreue', 'erbschaft', 'misshandlung', 'geschieden']
+        // Conflits familiaux graves
+        familyConflict: {
+            FR: ['violence conjugale', 'violence domestique', 'maltraitance', 'conflit garde', 'pension contestée', 'procès famille'],
+            EN: ['domestic violence', 'abuse', 'custody battle', 'alimony dispute', 'family court'],
+            ES: ['violencia doméstica', 'maltrato', 'batalla custodia'],
+            IT: ['violenza domestica', 'maltrattamento', 'battaglia affidamento'],
+            DE: ['häusliche gewalt', 'misshandlung', 'sorgerechtsstreit']
         },
+        // Problèmes financiers
         finance: {
-            FR: ['dette', 'faillite', 'banqueroute', 'surendettement', 'crédit refusé', 'problèmes d\'argent', 'insolvable', 'huissier', 'saisie', 'liquidation', 'chômage', 'rsa', 'aide sociale', 'difficultés financières', 'pauvreté', 'précarité'],
-            EN: ['debt', 'bankruptcy', 'overindebted', 'credit refused', 'money problems', 'insolvent', 'bailiff', 'seizure', 'liquidation', 'unemployment', 'welfare', 'financial difficulties', 'poverty', 'broke'],
-            ES: ['deuda', 'bancarrota', 'embargo', 'problemas de dinero', 'insolvente', 'desempleo', 'ayuda social', 'pobreza', 'dificultades financieras'],
-            IT: ['debito', 'bancarotta', 'pignoramento', 'problemi di soldi', 'insolvente', 'disoccupazione', 'povertà', 'difficoltà finanziarie'],
-            DE: ['schulden', 'insolvenz', 'pleite', 'geldprobleme', 'arbeitslos', 'sozialhilfe', 'armut', 'finanzielle schwierigkeiten']
+            FR: ['dette', 'faillite', 'surendettement', 'huissier', 'saisie', 'interdit bancaire', 'rsa', 'chômeur'],
+            EN: ['debt', 'bankruptcy', 'bailiff', 'foreclosure', 'welfare', 'unemployed broke'],
+            ES: ['deuda', 'bancarrota', 'embargo', 'desempleado'],
+            IT: ['debito', 'bancarotta', 'pignoramento', 'disoccupato'],
+            DE: ['schulden', 'insolvenz', 'pleite', 'arbeitslos', 'hartz']
         },
+        // Jugements physiques dégradants
         appearance: {
-            FR: ['obèse', 'trop gros', 'trop maigre', 'laid', 'moche', 'disgracieux', 'vieux', 'rides', 'calvitie', 'défiguré', 'cicatrice', 'difformité', 'nain', 'géant', 'physique ingrat'],
-            EN: ['obese', 'too fat', 'too skinny', 'ugly', 'unattractive', 'old looking', 'wrinkles', 'bald', 'disfigured', 'scar', 'deformity', 'dwarf', 'giant', 'physical appearance'],
-            ES: ['obeso', 'gordo', 'flaco', 'feo', 'viejo', 'arrugas', 'calvo', 'cicatriz', 'deformidad'],
-            IT: ['obeso', 'grasso', 'magro', 'brutto', 'vecchio', 'rughe', 'calvo', 'cicatrice', 'deformità'],
-            DE: ['fettleibig', 'dick', 'dünn', 'hässlich', 'alt', 'falten', 'kahl', 'narbe', 'missbildung']
+            FR: ['obèse', 'trop gros', 'trop maigre', 'laid', 'moche', 'vieux', 'ridé', 'défiguré'],
+            EN: ['obese', 'too fat', 'ugly', 'unattractive', 'old looking', 'disfigured'],
+            ES: ['obeso', 'gordo', 'feo', 'viejo'],
+            IT: ['obeso', 'grasso', 'brutto', 'vecchio'],
+            DE: ['fettleibig', 'hässlich', 'alt']
         }
     },
 

@@ -142,14 +142,17 @@ document.addEventListener('DOMContentLoaded', () => {
             'irgendwie', 'ungefähr', 'circa', 'etwa', 'ziemlich', 'okay', 'wie', 'gesehen'
         ];
 
+        // RGPD: seulement les données VRAIMENT sensibles (pas de justification business)
+        // Allergies, régimes, préférences = données LÉGITIMES pour le service LVMH
         const rgpdPatterns = [
-            { cat: 'health', words: ['burnout', 'dépression', 'cancer', 'maladie', 'anxiété', 'diabète', 'depression', 'anxiety'] },
-            { cat: 'orientation', words: ['gay', 'lesbienne', 'homosexuel', 'bisexuel', 'transgenre', 'lgbt'] },
-            { cat: 'politics', words: ['vote', 'parti politique', 'élection', 'manifestation', 'militant'] },
-            { cat: 'religion', words: ['catholique', 'musulman', 'juif', 'église', 'mosquée', 'ramadan', 'prière'] },
-            { cat: 'family', words: ['divorce', 'séparation', 'garde des enfants', 'pension', 'violence conjugale'] },
-            { cat: 'finance', words: ['dette', 'faillite', 'surendettement', 'chômage', 'bankrupt', 'debt'] },
-            { cat: 'appearance', words: ['obèse', 'trop gros', 'laid', 'moche', 'vieux', 'ugly', 'fat'] }
+            { cat: 'accessCodes', words: ['code porte', 'digicode', 'mot de passe', 'password', 'pin code'] },
+            { cat: 'identity', words: ['numéro sécurité sociale', 'iban', 'passport number', 'credit card'] },
+            { cat: 'orientation', words: ['homosexuel', 'gay', 'lesbienne', 'bisexuel', 'transgenre', 'lgbtq'] },
+            { cat: 'politics', words: ['vote pour', 'électeur de', 'militant', 'parti politique'] },
+            { cat: 'religion', words: ['pratiquant', 'converti', 'croyant fervent', 'fait le ramadan'] },
+            { cat: 'familyConflict', words: ['violence conjugale', 'violence domestique', 'maltraitance', 'domestic violence'] },
+            { cat: 'finance', words: ['dette', 'faillite', 'surendettement', 'bankruptcy', 'debt'] },
+            { cat: 'appearance', words: ['obèse', 'trop gros', 'laid', 'moche', 'ugly', 'fat'] }
         ];
 
         const stats = { filler: 0, rgpd: { health: 0, orientation: 0, politics: 0, religion: 0, family: 0, finance: 0, appearance: 0 }, tags: 0 };

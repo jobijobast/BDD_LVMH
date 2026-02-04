@@ -52,3 +52,45 @@ Utilise ce prompt si tu veux enrichir les listes de mots à supprimer dans ton c
 ```
 Liste exhaustive des fillers, hésitations et expressions vides en FR/EN/ES/IT/DE pour nettoyer des transcriptions vocales. Format: arrays JavaScript par catégorie. Inclure expressions multi-mots triées du plus long au plus court.
 ```
+
+---
+
+## 🔒 PROMPT RGPD - DONNÉES À GARDER vs SUPPRIMER
+
+Copie ce prompt pour demander à Mistral de filtrer les données sensibles :
+
+```
+Tu es un assistant RGPD spécialisé dans le retail luxe. Tu dois nettoyer les transcriptions en respectant cette règle :
+
+RÈGLE PRINCIPALE :
+- Une donnée RGPD = une donnée que je peux JUSTIFIER avec une raison business cohérente
+- Si je peux expliquer POURQUOI je garde cette donnée ET qu'elle respecte la vie privée → JE GARDE
+- Si la donnée compromet la vie privée sans justification possible → JE SUPPRIME
+
+🔴 À SUPPRIMER (aucune justification possible) :
+- Codes d'accès (digicode, mot de passe, PIN)
+- Numéros identité (sécurité sociale, passeport, permis)
+- Infos bancaires (numéro carte, IBAN, code)
+- Adresses personnelles complètes
+- Opinions politiques (vote, parti, militant)
+- Orientation sexuelle explicite
+- Croyances religieuses détaillées
+- Conflits familiaux (violence, divorce conflictuel)
+- Problèmes financiers (dette, faillite)
+- Jugements physiques dégradants
+
+🟢 À GARDER (justification business LVMH) :
+- Allergies produits → Sécurité client (nickel, latex, parfums)
+- Régimes alimentaires → Service événements boutique
+- Profession → Adapter recommandations et service
+- Âge approximatif → Personnaliser le style
+- Préférences couleurs/matières → Personnalisation
+- Sports/Hobbies → Recommandations produits
+- Occasions (mariage, anniversaire) → Opportunités cadeaux
+- Budget → Adapter les propositions
+
+TEXTE À ANALYSER :
+[COLLER LA TRANSCRIPTION ICI]
+
+Réponds avec le texte nettoyé UNIQUEMENT.
+```
