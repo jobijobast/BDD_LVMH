@@ -624,26 +624,52 @@
         const MISTRAL_API_KEY = 'jdktG6GMjxjSz769BBOpuO7Yr7nD7evc';
         const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
 
-        const CLEANING_PROMPT = `Tu es un expert en nettoyage de transcriptions vocales. Nettoie le texte suivant en supprimant UNIQUEMENT :
-- Les hésitations (euh, hum, uh, um, eh, ah, oh, hmm, bah, ben, pues, ehm, äh, ähm)
-- Les fillers (genre, like, tipo, basically, pratiquement, eigentlich, quoi, right, vale, ok, genau)
-- Les expressions vides (en quelque sorte, you know, tu sais, ya sabes, capisci, weißt du, du coup, en fait, I mean, o sea, cioè, also, sozusagen, plus ou moins, à peu près, roughly, más o menos, pressappoco, ungefähr)
-- Les répétitions inutiles
-- La ponctuation cassée
+        const CLEANING_PROMPT = `Tu es un expert RGPD pour le retail luxe. Tu dois nettoyer ET sécuriser les transcriptions.
 
-GARDE ABSOLUMENT : noms, âges, professions, budgets, produits, préférences, allergies, dates, tout le contenu métier important.
+ÉTAPE 1 - NETTOYER (supprimer uniquement) :
+- Hésitations : euh, hum, uh, um, eh, ah, oh, hmm, bah, ben, pues, ehm, äh, ähm
+- Fillers : genre, like, tipo, basically, en fait, du coup, tu vois, you know, quoi, right, vale, ok, genau, en quelque sorte, plus ou moins
+- Répétitions inutiles
 
-Réponds UNIQUEMENT avec le texte nettoyé, sans commentaire ni explication.
+ÉTAPE 2 - MASQUER LES DONNÉES ULTRA-SENSIBLES (remplacer par le masque) :
+- Numéros de carte bancaire (16 chiffres) → [CARTE-MASQUÉE]
+- Dates expiration cartes (MM/YY) → [EXP-MASQUÉE]
+- Codes CVC/CVV (3 chiffres après carte) → [CVC-MASQUÉ]
+- IBAN/numéros de compte bancaire → [IBAN-MASQUÉ]
+- Codes d'accès/porte/digicode → [CODE-MASQUÉ]
+- Numéros sécurité sociale/SSN → [SSN-MASQUÉ]
+- Numéros passeport/DNI/carte identité → [ID-MASQUÉ]
+- Adresses postales complètes (rue + code postal + ville) → [ADRESSE-MASQUÉE]
+- Numéros de téléphone → [TEL-MASQUÉ]
+- Adresses email → [EMAIL-MASQUÉ]
+- Mots de passe mentionnés → [MDP-MASQUÉ]
 
-Texte à nettoyer :
+GARDER ABSOLUMENT (données business justifiables) :
+- Noms, prénoms, titres (Mme, Mr, Sig., Frau)
+- Professions, fonctions
+- Âges
+- Budgets et montants
+- Préférences produits, couleurs, styles
+- Allergies (nickel, latex, gluten) → sécurité client
+- Régimes alimentaires → service événements
+- Dates d'événements (anniversaires, mariages)
+- Historique client (depuis 2019, etc.)
+
+FORMAT DE RÉPONSE OBLIGATOIRE (2 lignes exactement) :
+RGPD_COUNT: [nombre de données masquées]
+TEXT: [texte nettoyé avec les masques appliqués]
+
+Texte à traiter :
 `;
 
-        // RGPD patterns
-        const RGPD = {
-            'Santé': ['burnout', 'dépression', 'depression', 'anxiété', 'anxiety', 'cancer', 'diabète', 'diabetes', 'handicap', 'addiction'],
-            'Orientation': ['gay', 'lesbienne', 'homosexuel', 'bisexuel', 'transgenre', 'lgbt'],
-            'Religion': ['catholique pratiquant', 'musulman pratiquant', 'juif pratiquant'],
-            'Finances': ['dette', 'faillite', 'surendettement', 'insolvable', 'huissier']
+        // Fallback RGPD patterns (si Mistral échoue)
+        const RGPD_FALLBACK = {
+            'Carte': [/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g],
+            'IBAN': [/\b[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{0,4}/gi],
+            'SSN': [/\b\d{3}[-]?\d{2}[-]?\d{4}\b/g],
+            'Tel': [/\b(\+\d{1,3}[\s]?)?\d{2,4}[\s]?\d{2,4}[\s]?\d{2,4}[\s]?\d{0,4}\b/g],
+            'Email': [/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g],
+            'Code': [/\bcode\s*(porte|accès|digicode)?\s*:?\s*\d{4,6}\b/gi, /\bdigicode\s*:?\s*\d{4,6}\b/gi]
         };
 
         // TAGS
@@ -738,16 +764,66 @@ Texte à nettoyer :
                     body: JSON.stringify({
                         model: 'mistral-small-latest',
                         messages: [{ role: 'user', content: CLEANING_PROMPT + text }],
-                        max_tokens: 1000,
+                        max_tokens: 1500,
                         temperature: 0.1
                     })
                 });
                 if (!response.ok) throw new Error('API Error: ' + response.status);
                 const data = await response.json();
-                return data.choices[0].message.content.trim();
+                const result = data.choices[0].message.content.trim();
+
+                // Parse response format: RGPD_COUNT: X\nTEXT: ...
+                const rgpdMatch = result.match(/RGPD_COUNT:\s*(\d+)/i);
+                const textMatch = result.match(/TEXT:\s*([\s\S]*)/i);
+
+                if (rgpdMatch && textMatch) {
+                    return {
+                        text: textMatch[1].trim(),
+                        rgpdCount: parseInt(rgpdMatch[1], 10),
+                        rgpdItems: []
+                    };
+                }
+
+                // Fallback: Mistral didn't follow format, use regex fallback
+                let cleanText = result;
+                let rgpdCount = 0;
+                const rgpdItems = [];
+
+                Object.entries(RGPD_FALLBACK).forEach(([cat, patterns]) => {
+                    patterns.forEach(re => {
+                        const matches = cleanText.match(re);
+                        if (matches) {
+                            matches.forEach(m => {
+                                rgpdItems.push({ cat, value: m });
+                                rgpdCount++;
+                            });
+                            cleanText = cleanText.replace(re, `[${cat.toUpperCase()}-MASQUÉ]`);
+                        }
+                    });
+                });
+
+                return { text: cleanText, rgpdCount, rgpdItems };
             } catch (err) {
                 console.error('Mistral error:', err);
-                return text; // Fallback: return original
+                // Fallback local cleaning with regex
+                let cleanText = text;
+                let rgpdCount = 0;
+                const rgpdItems = [];
+
+                Object.entries(RGPD_FALLBACK).forEach(([cat, patterns]) => {
+                    patterns.forEach(re => {
+                        const matches = cleanText.match(re);
+                        if (matches) {
+                            matches.forEach(m => {
+                                rgpdItems.push({ cat, value: m });
+                                rgpdCount++;
+                            });
+                            cleanText = cleanText.replace(re, `[${cat.toUpperCase()}-MASQUÉ]`);
+                        }
+                    });
+                });
+
+                return { text: cleanText, rgpdCount, rgpdItems };
             }
         }
 
@@ -759,29 +835,31 @@ Texte à nettoyer :
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
                 const orig = row.Transcription || row.transcription || '';
-                const id = row.ID || 'N/A', date = row.Date || '', lang = (row.Language || 'FR').toUpperCase();
+                const id = row.ID || 'N/A', date = row.Date || '', lang = (row.Language || row.Langue || 'FR').toUpperCase();
 
-                $('loadingMsg').textContent = '🤖 Nettoyage IA...';
+                $('loadingMsg').textContent = '🤖 Nettoyage + RGPD IA...';
                 $('loadingProgress').textContent = `${i + 1}/${rows.length}`;
 
-                // Clean with Mistral AI
-                let clean = await cleanWithMistral(orig);
+                // Clean with Mistral AI (includes RGPD detection)
+                const result = await cleanWithMistral(orig);
                 STATS.ai++;
 
-                // RGPD check
-                Object.entries(RGPD).forEach(([cat, words]) => {
-                    words.forEach(w => {
-                        const re = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                        if (re.test(clean)) { RGPD_BAD.push({ id, cat, w }); STATS.rgpd++; clean = clean.replace(re, ''); }
+                // Count RGPD issues
+                if (result.rgpdCount > 0) {
+                    STATS.rgpd += result.rgpdCount;
+                    // Extract masked items from text
+                    const masks = result.text.match(/\[[A-Z]+-MASQU[ÉE]+\]/gi) || [];
+                    masks.forEach(m => {
+                        RGPD_BAD.push({ id, cat: m.replace(/[\[\]]/g, ''), w: 'Donnée masquée' });
                     });
-                });
+                }
 
-                clean = clean.replace(/\s+/g, ' ').trim();
+                const clean = result.text.replace(/\s+/g, ' ').trim();
                 STATS.notes++;
                 results.push({ id, date, lang, orig, clean, tags: [] });
 
                 // Small delay to avoid rate limiting
-                if (i < rows.length - 1) await new Promise(r => setTimeout(r, 200));
+                if (i < rows.length - 1) await new Promise(r => setTimeout(r, 300));
             }
             return results;
         }
