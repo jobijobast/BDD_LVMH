@@ -102,7 +102,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Process all data
     function processAllData(data) {
-        const fillerWords = ['euh', 'hum', 'hein', 'bah', 'ben', 'quoi', 'genre', 'du coup', 'en fait', 'tu vois', 'donc', 'voilà', 'bref', 'enfin', 'bon', 'uh', 'um', 'like', 'you know', 'basically', 'actually', 'well', 'so', 'right'];
+        // Extended filler words list - sorted longest first to avoid partial replacements
+        const fillerWords = [
+            // Multi-word expressions (longest first)
+            'in a manner of speaking', 'you know what I mean', 'what I mean', 'in some way',
+            'to some extent', 'for example', 'let me see', 'as it were', 'pretty much',
+            'more or less', 'if you will', 'I suppose', 'I guess', 'you see', 'you know',
+            'let\'s see', 'sort of', 'kind of', 'I mean', 'I see', 'or so',
+            'en quelque manière', 'en quelque façon', 'en quelque sorte', 'pour ainsi dire',
+            'si vous voulez', 'on va dire', 'plus ou moins', 'à peu près', 'je veux dire',
+            'grosso modo', 'c\'est-à-dire', 'un petit peu', 'un tantinet', 'si tu veux',
+            'du coup', 'en fait', 'en gros', 'tu vois', 'tu sais', 'par exemple',
+            'más o menos', 'por así decirlo', 'de alguna manera', 'en alguna forma',
+            'alrededor de', 'por ejemplo', 'en cierto modo', 'si queréis', 'digamos que',
+            'ya sabes', 'ya veis', 'un poco', 'un poquito', 'un tantito', 'vamos a ver',
+            'en plan', 'en realidad', 'es decir', 'o sea',
+            'in un certo senso', 'in qualche modo', 'in qualche maniera', 'per così dire',
+            'più o meno', 'se capisci', 'se capite', 'se vuoi', 'un po\'', 'un pochino',
+            'un tantino', 'diciamo che', 'per esempio', 'all\'incirca', 'pressappoco',
+            'in pratica', 'va bene',
+            'in gewisser Weise', 'mehr oder weniger', 'auf eine Art', 'wenn du willst',
+            'weißt du', 'sagen wir', 'sag mal', 'ein bisschen', 'ein wenig', 'ein Tick',
+            'zum Beispiel', 'gewissermaßen', 'sozusagen',
+            // Single words FR
+            'euh', 'hum', 'hein', 'bah', 'ben', 'quoi', 'genre', 'style', 'truc', 'machin',
+            'chose', 'donc', 'voilà', 'enfin', 'bon', 'bref', 'là', 'bien', 'que',
+            // Single words EN
+            'uh', 'um', 'er', 'ah', 'hmm', 'like', 'basically', 'actually', 'well', 'so',
+            'right', 'ok', 'okay', 'yep', 'yeah', 'about', 'roughly', 'something',
+            'approximately', 'what', 'or',
+            // Single words ES
+            'eh', 'pues', 'bueno', 'vale', 'tipo', 'como', 'sí', 'entonces', 'digamos',
+            'aproximadamente', 'em', 'ok',
+            // Single words IT
+            'ehm', 'beh', 'allora', 'tipo', 'cioè', 'insomma', 'diciamo', 'capisci',
+            'capito', 'sai', 'circa', 'piuttosto', 'quindi', 'così', 'bene', 'ok',
+            // Single words DE
+            'äh', 'ähm', 'naja', 'halt', 'also', 'quasi', 'eigentlich', 'genau', 'ja',
+            'irgendwie', 'ungefähr', 'circa', 'etwa', 'ziemlich', 'okay', 'wie', 'gesehen'
+        ];
 
         const rgpdPatterns = [
             { cat: 'health', words: ['burnout', 'dépression', 'cancer', 'maladie', 'anxiété', 'diabète', 'depression', 'anxiety'] },
