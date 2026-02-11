@@ -244,6 +244,17 @@ const SUPER_CATS = {
     '8. OPPORTUNITÉS': ['OPPORTUNITÉS_MANQUÉES', 'ACTION_CRM']
 };
 
+const SUPER_CAT_COLORS = {
+    '1. PROFILS': '#60a5fa',        // Blue
+    '2. INTÉRÊTS & CERCLES': '#f472b6', // Pink
+    '3. VOYAGE': '#2dd4bf',         // Teal
+    '4. INTENTION D\'ACHAT': '#fb923c', // Orange
+    '5. SÉCURITÉ & HOSPITALITY': '#ef4444', // Red
+    '6. L\'UNIVERS LOUIS VUITTON': '#d4af37', // Gold
+    '7. HISTORIQUE & POSSESSIONS': '#a855f7', // Purple
+    '8. OPPORTUNITÉS': '#818cf8'    // Indigo
+};
+
 // ===== INIT =====
 $('selectBtn').onclick = () => $('fileInput').click();
 $('uploadArea').onclick = e => { if (e.target.id !== 'selectBtn') $('fileInput').click(); };
@@ -599,10 +610,9 @@ function renderDashboard() {
 
 // ===== RENDER: CLIENTS =====
 function renderClients() {
-    // Legend
-    const legendColors = { profession: '#60a5fa', product: '#d4af37', pref: '#34d399', style: '#c084fc', lifestyle: '#f472b6', occasion: '#fb923c', budget: '#facc15', service: '#a5b4fc', network: '#2dd4bf' };
-    $('tagLegend').innerHTML = Object.entries(CAT_NAMES).map(([k, v]) =>
-        `<div class="legend-item"><span class="legend-dot" style="background:${legendColors[k] || '#888'}"></span>${v}</div>`
+    // Legend based on Super Categories
+    $('tagLegend').innerHTML = Object.keys(SUPER_CATS).map(cat =>
+        `<div class="legend-item"><span class="legend-dot" style="background:${SUPER_CAT_COLORS[cat]}"></span>${cat}</div>`
     ).join('');
 
     renderGrid();
