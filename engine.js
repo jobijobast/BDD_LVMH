@@ -232,6 +232,18 @@ const CAT_NAMES = {
     'ACTION_CRM': '⚡ Action CRM'
 };
 
+// New Hierarchy based on Markmap
+const SUPER_CATS = {
+    '1. PROFILS': ['PROFIL_GENRE', 'PROFIL_GÉNÉRATION', 'PROFIL_STATUS', 'PROFIL_LANGUE', 'PROFIL_INFLUENCE', 'PROFIL_DIGITAL', 'PROFESSION_SANTÉ', 'PROFESSION_FINANCE', 'PROFESSION_LÉGAL', 'PROFESSION_CRÉATIF', 'PROFESSION_BUSINESS', 'PROFESSION_PUBLIC'],
+    '2. INTÉRÊTS & CERCLES': ['PASSION_CERCLES', 'PASSION_COLLECTION', 'PASSION_SPORT', 'PASSION_CULTURE', 'VALEURS_ÉTHIQUE'],
+    '3. VOYAGE': ['VOYAGE_TYPE', 'VOYAGE_DESTINATION'],
+    '4. INTENTION D\'ACHAT': ['INTENTION_DESTINATAIRE', 'INTENTION_OCCASION', 'INTENTION_STYLE'],
+    '5. SÉCURITÉ & HOSPITALITY': ['SÉCURITÉ_RISQUE', 'SÉCURITÉ_ALIM', 'SÉCURITÉ_CONFORT'],
+    '6. L\'UNIVERS LOUIS VUITTON': ['UNIVERS_LV'],
+    '7. HISTORIQUE & POSSESSIONS': ['HISTO_MARO_FEMME', 'HISTO_MARO_HOMME', 'HISTO_VOYAGE', 'HISTO_SIZING', 'HISTO_STYLE'],
+    '8. OPPORTUNITÉS': ['OPPORTUNITÉS_MANQUÉES', 'ACTION_CRM']
+};
+
 // ===== INIT =====
 $('selectBtn').onclick = () => $('fileInput').click();
 $('uploadArea').onclick = e => { if (e.target.id !== 'selectBtn') $('fileInput').click(); };
@@ -604,21 +616,40 @@ function renderGrid(filter = '') {
     const filtered = DATA.filter(p => !f || p.id.toLowerCase().includes(f) || p.tags.some(t => t.t.toLowerCase().includes(f)) || p.clean.toLowerCase().includes(f));
 
     filtered.forEach(p => {
+        // Group tags by Category
         const cats = {};
         p.tags.forEach(t => { if (!cats[t.c]) cats[t.c] = []; cats[t.c].push(t.t); });
 
         let html = `<div class="person-header"><span class="person-id">${p.id}</span><div class="person-meta"><span>${p.lang}</span><span>${p.date}</span><span>${p.tags.length} tags</span></div></div>`;
 
-        if (Object.keys(cats).length === 0) html += '<div class="no-tags">Aucun tag détecté</div>';
-        else {
-            Object.entries(cats).forEach(([c, tags]) => {
-                html += `<div class="tag-section"><div class="tag-section-title">${CAT_NAMES[c] || c}</div><div class="tag-row">${tags.map(t => `<span class="tag ${c}">${t}</span>`).join('')}</div></div>`;
-            });
+        if (p.tags.length === 0) {
+            html += '<div class="no-tags">Aucun tag détecté</div>';
+        } else {
+            // Iterate over SUPER_CATS to maintain order and grouping
+            for (const [superCat, subCats] of Object.entries(SUPER_CATS)) {
+                // Check if this super category has any active sub-categories for this person
+                const activeSubCats = subCats.filter(sc => cats[sc]);
+
+                if (activeSubCats.length > 0) {
+                    html += `<div class="super-category">
+                        <div class="super-category-title">${superCat}</div>
+                        <div class="super-category-content">`;
+
+                    activeSubCats.forEach(sc => {
+                        html += `<div class="tag-group">
+                            <span class="tag-group-label">${CAT_NAMES[sc] || sc}:</span>
+                            ${cats[sc].map(t => `<span class="tag ${sc}">${t}</span>`).join('')}
+                        </div>`;
+                    });
+
+                    html += `</div></div>`;
+                }
+            }
         }
 
         // Mini NBA preview
         if (p.nba && p.nba.length > 0) {
-            html += `<div class="tag-section"><div class="tag-section-title">Next Best Action</div><div class="tag-row">${p.nba.slice(0, 2).map(a => `<span class="tag nba">🎯 ${a.action.substring(0, 50)}...</span>`).join('')}</div></div>`;
+            html += `<div class="super-category"><div class="super-category-title">🎯 Next Best Action</div><div class="super-category-content"><div class="tag-group">${p.nba.slice(0, 2).map(a => `<span class="tag nba">${a.action.substring(0, 50)}...</span>`).join('')}</div></div></div>`;
         }
 
         const card = document.createElement('div');
