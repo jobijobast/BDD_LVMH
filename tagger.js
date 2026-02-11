@@ -101,7 +101,13 @@ const Tagger = {
                 { regex: /\b(pharmacien).{0,10}(titulaire|owner)|\btitulaire\b/gi, tag: 'Pharma_Titulaire' },
                 { regex: /\b(chercheur|researcher).{0,10}(bio|tech)\b/gi, tag: 'Pharma_Chercheur_Biotech' }
             ],
-            category: 'PROFESSION_SANTÉ'
+            category: 'PROFESSION_SANTÉ',
+            // Fallbacks Level 2
+            fallbacks: [
+                { regex: /\b(chirurgien|surgeon)\b/gi, tag: 'Chirurgien_Général' },
+                { regex: /\b(médecin|doctor|spécialiste)\b/gi, tag: 'Médecin_Spécialiste_Général' },
+                { regex: /\b(pharma|pharmacien)\b/gi, tag: 'Pharmacie_Générale' }
+            ]
         },
         pro_finance: {
             patterns: [
@@ -119,7 +125,13 @@ const Tagger = {
                 { regex: /\b(crypto|bitcoin).{0,10}(whale|gros)/gi, tag: 'Fintech_Crypto_Whale' },
                 { regex: /\b(expert|consultant).{0,10}(blockchain|nft)/gi, tag: 'Fintech_Expert_Blockchain' }
             ],
-            category: 'PROFESSION_FINANCE'
+            category: 'PROFESSION_FINANCE',
+            fallbacks: [
+                { regex: /\b(marché|market|trader|bourse|stock)\b/gi, tag: 'Marchés_Financiers_Général' },
+                { regex: /\b(capital|investis|investor)\b/gi, tag: 'Capital_Investissement_Général' },
+                { regex: /\b(banque|bank|bancaire)\b/gi, tag: 'Banque_Générale' },
+                { regex: /\b(fintech|crypto|blockchain)\b/gi, tag: 'Fintech_Générale' }
+            ]
         },
         pro_legal: {
             patterns: [
@@ -132,7 +144,12 @@ const Tagger = {
                 { regex: /\b(notaire)\b/gi, tag: 'Institutionnel_Notaire' },
                 { regex: /\b(commissaire priseur)\b/gi, tag: 'Institutionnel_Commissaire_Priseur' }
             ],
-            category: 'PROFESSION_LÉGAL'
+            category: 'PROFESSION_LÉGAL',
+            fallbacks: [
+                { regex: /\b(avocat|lawyer|barreau)\b/gi, tag: 'Avocature_Générale' },
+                { regex: /\b(magistrat|juge|notaire|huissier)\b/gi, tag: 'Institutionnel_Général' },
+                { regex: /\b(droit|juriste|legal)\b/gi, tag: 'Profession_Juridique_Générale' }
+            ]
         },
         pro_creatif: {
             patterns: [
@@ -149,7 +166,12 @@ const Tagger = {
                 { regex: /\b(producteur).{0,10}(cinéma|film)\b/gi, tag: 'Performance_Producteur_Cinema' },
                 { regex: /\b(agent).{0,10}(artistique|talent)\b/gi, tag: 'Performance_Agent_Artistique' }
             ],
-            category: 'PROFESSION_CRÉATIF'
+            category: 'PROFESSION_CRÉATIF',
+            fallbacks: [
+                { regex: /\b(art|galerie|curat|musée)\b/gi, tag: 'Art_Market_Général' },
+                { regex: /\b(design|archi|déco)\b/gi, tag: 'Design_Archi_Général' },
+                { regex: /\b(musique|cinéma|film|théâtre|spectacle)\b/gi, tag: 'Performance_Arts_Général' }
+            ]
         },
         pro_business: {
             patterns: [
@@ -209,7 +231,7 @@ const Tagger = {
         },
         passions_sport: {
             patterns: [
-                { regex: /\b(tennis).{0,10}(compétition|tournoi)\b/gi, tag: 'Raquette_Tennis_Compétition' },
+                { regex: /\b(tennis).{0,10}(compétition|tournoi)|(compétition|tournoi).{0,10}(tennis)\b/gi, tag: 'Raquette_Tennis_Compétition' },
                 { regex: /\b(padel)\b/gi, tag: 'Raquette_Padel' },
                 { regex: /\b(squash)\b/gi, tag: 'Raquette_Squash' },
                 { regex: /\b(real tennis|jeu de paume)\b/gi, tag: 'Raquette_Real_Tennis' },
@@ -235,7 +257,15 @@ const Tagger = {
                 { regex: /\b(collection).{0,10}(ferrari|porsche)/gi, tag: 'Mécanique_Collectionneur_Ferrari' },
                 { regex: /\b(f1|paddock)\b/gi, tag: 'Mécanique_F1_Paddock_Club' }
             ],
-            category: 'PASSION_SPORT'
+            category: 'PASSION_SPORT',
+            fallbacks: [
+                { regex: /\b(tennis|padel|squash|raquette)\b/gi, tag: 'Sport_Raquette_Général' },
+                { regex: /\b(golf)\b/gi, tag: 'Sport_Golf_Général' },
+                { regex: /\b(voile|bateau|nautisme|surf|mer)\b/gi, tag: 'Sport_Nautisme_Général' },
+                { regex: /\b(course|running|marathon|triathlon|vélo|cyclisme)\b/gi, tag: 'Sport_Endurance_Général' },
+                { regex: /\b(yoga|pilates|meditation|bien-être)\b/gi, tag: 'Sport_Bien_être_Général' },
+                { regex: /\b(auto|moto|f1|course|mecanique)\b/gi, tag: 'Sport_Mécanique_Général' }
+            ]
         },
         passions_culture: {
             patterns: [
@@ -256,7 +286,13 @@ const Tagger = {
                 { regex: /\b(botanique|orchidée)\b/gi, tag: 'Nature_Botanique' },
                 { regex: /\b(paysagisme|jardin).{0,10}(japonais)/gi, tag: 'Nature_Paysagisme_Japonais' }
             ],
-            category: 'PASSION_CULTURE'
+            category: 'PASSION_CULTURE',
+            fallbacks: [
+                { regex: /\b(art|peinture|sculpture|visuel)\b/gi, tag: 'Culture_Art_Visuel_Général' },
+                { regex: /\b(musique|concert|opéra|jazz)\b/gi, tag: 'Culture_Musique_Générale' },
+                { regex: /\b(cuisine|gastro|repas|food)\b/gi, tag: 'Culture_Gastronomie_Générale' },
+                { regex: /\b(nature|jardin|fleur|botanique)\b/gi, tag: 'Culture_Nature_Générale' }
+            ]
         },
         valeurs: {
             patterns: [
@@ -357,16 +393,16 @@ const Tagger = {
         // ==========================================
         securite_risque: {
             patterns: [
-                { regex: /\b(arachide|cacahuète)\b/gi, tag: 'Anaphylaxie_Arachides' },
-                { regex: /\b(fruit à coque|noisette|noix)\b/gi, tag: 'Anaphylaxie_Fruits_Coque' },
-                { regex: /\b(crustacé|fruit de mer)\b/gi, tag: 'Anaphylaxie_Crustacés' },
+                { regex: /\b(arachide|cacahuète)s?\b/gi, tag: 'Anaphylaxie_Arachides' },
+                { regex: /\b(fruit à coque|noisette|noix|nut)s?\b/gi, tag: 'Anaphylaxie_Fruits_Coque' },
+                { regex: /\b(crustacé|fruit de mer|shellfish)s?\b/gi, tag: 'Anaphylaxie_Crustacés' },
                 { regex: /\b(latex)\b/gi, tag: 'Contact_Latex' },
                 { regex: /\b(nickel)\b/gi, tag: 'Contact_Nickel' },
-                { regex: /\b(laine|mohair)\b/gi, tag: 'Contact_Laine' },
+                { regex: /\b(laine|mohair|alpaga)\b/gi, tag: 'Contact_Laine' },
                 { regex: /\b(parfum|fragrance)\b/gi, tag: 'Environnement_Parfum' },
-                { regex: /\b(poussière|acarien)\b/gi, tag: 'Environnement_Poussière' },
-                { regex: /\b(fleur|pollen)\b/gi, tag: 'Environnement_Fleurs' },
-                { regex: /\b(soleil|photo|sensib).{0,10}(lumière)\b/gi, tag: 'Environnement_Photosensibilité' }
+                { regex: /\b(poussière|acarien)s?\b/gi, tag: 'Environnement_Poussière' },
+                { regex: /\b(fleur|pollen)s?\b/gi, tag: 'Environnement_Fleurs' },
+                { regex: /\b(soleil|photo|sensib).{0,20}(lumière)\b/gi, tag: 'Environnement_Photosensibilité' }
             ],
             category: 'SÉCURITÉ_RISQUE'
         },
@@ -377,8 +413,8 @@ const Tagger = {
                 { regex: /\b(pescatarien)\b/gi, tag: 'Régime_Pescatarien' },
                 { regex: /\b(porc).{0,10}(sans|pas)\b/gi, tag: 'Régime_Sans_Porc' },
                 { regex: /\b(alcool).{0,10}(sans|pas|cuisine)\b/gi, tag: 'Régime_Sans_Alcool_Cuisine' },
-                { regex: /\b(céliaque|gluten).{0,10}(sans|free)\b/gi, tag: 'Santé_Céliaque_Sans_Gluten' },
-                { regex: /\b(lactose|lait).{0,10}(sans|intoléran)\b/gi, tag: 'Santé_Sans_Lactose' },
+                { regex: /\b(céliaque|gluten).{0,10}(sans|free|intoléran)\b/gi, tag: 'Santé_Céliaque_Sans_Gluten' },
+                { regex: /\b(lactose|lait).{0,20}(sans|intoléran)|(intoléran).{0,20}(lactose|lait)\b/gi, tag: 'Santé_Sans_Lactose' },
                 { regex: /\b(diabète|diabétique)\b/gi, tag: 'Santé_Diabétique' },
                 { regex: /\b(keto|cétogène)\b/gi, tag: 'Santé_Keto' },
                 { regex: /\b(alcool).{0,10}(zero|0|teetotaler)\b/gi, tag: 'Boissons_Teetotaler_Zero_Alcool' },
@@ -405,8 +441,8 @@ const Tagger = {
         // ==========================================
         univers_lv: {
             patterns: [
-                { regex: /\b(monogram)\b/gi, tag: 'Profil_Amoureux_Monogram' },
-                { regex: /\b(damier)\b/gi, tag: 'Profil_Fan_Damier' },
+                { regex: /\b(monogram).{0,20}(fan|aime|love|adore)\b/gi, tag: 'Profil_Amoureux_Monogram' },
+                { regex: /\b(damier).{0,20}(fan|aime|love|adore)\b/gi, tag: 'Profil_Fan_Damier' },
                 { regex: /\b(exotique|croco|python)\b/gi, tag: 'Profil_Cuirs_Exotiques' },
                 { regex: /\b(haute horlogerie)\b/gi, tag: 'Profil_Haute_Horlogerie' },
                 { regex: /\b(malle|coffret).{0,10}(propriétaire)\b/gi, tag: 'Profil_Propriétaire_Malles' },
@@ -414,8 +450,8 @@ const Tagger = {
                 { regex: /\b(multi).{0,10}(génération)\b/gi, tag: 'Relation_Multi-Générationnel' },
                 { regex: /\b(commande spéciale|sur mesure)\b/gi, tag: 'Relation_Commande_Spéciale' },
                 { regex: /\b(défilé|show).{0,10}(invité)\b/gi, tag: 'Relation_Invité_Défilé' },
-                { regex: /\b(style).{0,10}(ghesquière)\b/gi, tag: 'Relation_Style_Ghesquière' },
-                { regex: /\b(style).{0,10}(pharrell)\b/gi, tag: 'Relation_Style_Pharrell' }
+                { regex: /\b(style|fan|aime).{0,20}(ghesquière)\b/gi, tag: 'Relation_Style_Ghesquière' },
+                { regex: /\b(style|fan|aime).{0,20}(pharrell)\b/gi, tag: 'Relation_Style_Pharrell' }
             ],
             category: 'UNIVERS_LV'
         },
@@ -549,6 +585,9 @@ const Tagger = {
         const tags = [];
 
         for (const [groupName, group] of Object.entries(this.patterns)) {
+            let foundInGroup = false;
+
+            // 1. Level 3 (Specific)
             for (const pattern of group.patterns) {
                 pattern.regex.lastIndex = 0;
                 if (pattern.regex.test(text)) {
@@ -559,6 +598,32 @@ const Tagger = {
                             group: groupName,
                             confidence: 'Haute'
                         });
+                        foundInGroup = true;
+                    }
+                }
+            }
+
+            // 2. Level 2 (Fallback) - Only if Level 3 not found OR as additive info? 
+            // User said: "Attribue le plus de tags possibles tant qu'ils correspondent".
+            // So we can accept BOTH if pertinent, OR just fallback.
+            // But usually "Tennis Competition" implies "Sport Raquette".
+            // However, to keep it clean, maybe we add Level 2 only if NO Level 3 was found in that group?
+            // "À utiliser comme Tag par défaut si le détail est inconnu." -> This suggests exclusive fallback.
+
+            if (!foundInGroup && group.fallbacks) {
+                for (const fallback of group.fallbacks) {
+                    fallback.regex.lastIndex = 0;
+                    if (fallback.regex.test(text)) {
+                        if (!tags.find(t => t.tag === fallback.tag)) {
+                            tags.push({
+                                tag: fallback.tag,
+                                category: group.category,
+                                group: groupName,
+                                confidence: 'Moyenne (Fallback)'
+                            });
+                            // Once a fallback is found, maybe stop? Or allow multiple fallbacks?
+                            // Let's allow multiple fallbacks within the group (e.g. might like generic Tennis AND generic Golf)
+                        }
                     }
                 }
             }
