@@ -300,8 +300,10 @@ const Tagger = {
                 { regex: /\b(écologie|durabilité|sustainab)\b/gi, tag: 'Valeurs_Durabilité' },
                 { regex: /\b(zéro déchet|vrac)\b/gi, tag: 'Valeurs_Zéro_Déchet' },
                 { regex: /\b(upcycling)\b/gi, tag: 'Valeurs_Upcycling' },
-                { regex: /\b(vegan).{0,10}(strict)\b/gi, tag: 'Valeurs_Vegan_Strict' },
+                { regex: /\b(vegan).{0,10}(strict)?\b/gi, tag: 'Valeurs_Vegan_Strict' }, // "strict" optional now
                 { regex: /\b(cruelty free|sans cruauté)\b/gi, tag: 'Valeurs_Cruelty_Free' },
+                { regex: /(pas de|sans|évite|arrete|arrête).{0,10}(cuir|fourrure|peau)/gi, tag: 'Valeurs_Cruelty_Free' },
+                { regex: /\b(cuir).{0,10}(vegan|végétal)\b/gi, tag: 'Valeurs_Cruelty_Free' },
                 { regex: /\b(artisanat|métier d'art)\b/gi, tag: 'Valeurs_Artisanat' },
                 { regex: /\b(transmission|héritage)\b/gi, tag: 'Valeurs_Transmission' },
                 { regex: /\b(made in france)\b/gi, tag: 'Valeurs_Made_In_France' },
@@ -410,7 +412,7 @@ const Tagger = {
         },
         securite_pref_alim: {
             patterns: [
-                { regex: /\b(végan|végétalien).{0,10}(strict)\b/gi, tag: 'Régime_Végétalien_Strict' },
+                { regex: /\b(végan|végétalien|vegan).{0,10}(strict)?\b/gi, tag: 'Régime_Végétalien_Strict' }, // "strict" optional
                 { regex: /\b(végétarien)\b/gi, tag: 'Régime_Végétarien' },
                 { regex: /\b(pescatarien)\b/gi, tag: 'Régime_Pescatarien' },
                 { regex: /\b(porc).{0,10}(sans|pas)\b/gi, tag: 'Régime_Sans_Porc' },
