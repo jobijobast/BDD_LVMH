@@ -180,53 +180,9 @@ const RGPD_SENSITIVE = [
 ];
 
 // ===== TAGS =====
-const TAGS = [
-    { r: /\bdentist/i, c: 'profession', t: 'Dentiste' }, { r: /\bmédecin|doctor\b/i, c: 'profession', t: 'Médecin' },
-    { r: /\bchirurgien|surgeon/i, c: 'profession', t: 'Chirurgien' }, { r: /\bcardiologue|cardiologist/i, c: 'profession', t: 'Cardiologue' },
-    { r: /\boncologue|oncologist/i, c: 'profession', t: 'Oncologue' }, { r: /\bpsycholog|psychotherap/i, c: 'profession', t: 'Psychologue' },
-    { r: /\bavocat|lawyer|attorney/i, c: 'profession', t: 'Avocat' }, { r: /\barchitecte|architect/i, c: 'profession', t: 'Architecte' },
-    { r: /\bceo|pdg|directeur/i, c: 'profession', t: 'Directeur/CEO' }, { r: /\bentrepreneur|startup/i, c: 'profession', t: 'Entrepreneur' },
-    { r: /\bbanquier|banker/i, c: 'profession', t: 'Banquier' }, { r: /\bjournaliste|journalist/i, c: 'profession', t: 'Journaliste' },
-    { r: /\binfluenceur|influencer/i, c: 'profession', t: 'Influenceur' }, { r: /\bphotographe|photographer/i, c: 'profession', t: 'Photographe' },
-    { r: /\bchef.*michelin|étoilé/i, c: 'profession', t: 'Chef étoilé' }, { r: /\bsommelier/i, c: 'profession', t: 'Sommelier' },
-    { r: /\bprofesseur|professor/i, c: 'profession', t: 'Professeur' }, { r: /\bgaleriste|curator|museum/i, c: 'profession', t: 'Art/Musée' },
-    { r: /\bpilote|pilot/i, c: 'profession', t: 'Pilote' }, { r: /\bdeveloppeur|developer|software/i, c: 'profession', t: 'Tech/Dev' },
-    { r: /\bsac professionnel|work bag/i, c: 'product', t: 'Sac Pro' }, { r: /\bsac voyage|travel/i, c: 'product', t: 'Sac Voyage' },
-    { r: /\bmontre|watch/i, c: 'product', t: 'Montres' }, { r: /\bbijou|jewelry/i, c: 'product', t: 'Bijoux' },
-    { r: /\bparfum|fragrance|perfume/i, c: 'product', t: 'Parfums' }, { r: /\bchaussure|shoe|sneaker/i, c: 'product', t: 'Chaussures' },
-    { r: /\bfoulard|silk|scarf/i, c: 'product', t: 'Foulards' }, { r: /\blunettes|sunglasses/i, c: 'product', t: 'Lunettes' },
-    { r: /cuir noir|black leather|nero|negro/i, c: 'pref', t: 'Noir' }, { r: /\bnavy|marine\b/i, c: 'pref', t: 'Navy' },
-    { r: /\bbeige|champagne/i, c: 'pref', t: 'Beige' }, { r: /\bcognac|camel|marron/i, c: 'pref', t: 'Cognac' },
-    { r: /hardware.*or|gold.*hardware|doré/i, c: 'pref', t: 'Or' }, { r: /rose gold|or rose/i, c: 'pref', t: 'Rose Gold' },
-    { r: /\bclassique|classic|timeless/i, c: 'style', t: 'Classique' }, { r: /\bmoderne|modern/i, c: 'style', t: 'Moderne' },
-    { r: /\bélégant|elegant/i, c: 'style', t: 'Élégant' }, { r: /\bdiscret|understated/i, c: 'style', t: 'Discret' },
-    { r: /\bminimaliste|minimalist/i, c: 'style', t: 'Minimaliste' }, { r: /\bfonctionnel|functional/i, c: 'style', t: 'Fonctionnel' },
-    { r: /\byoga/i, c: 'lifestyle', t: 'Yoga' }, { r: /\bpilates/i, c: 'lifestyle', t: 'Pilates' },
-    { r: /\bgolf/i, c: 'lifestyle', t: 'Golf' }, { r: /\btennis/i, c: 'lifestyle', t: 'Tennis' },
-    { r: /\brunning|marathon/i, c: 'lifestyle', t: 'Running' }, { r: /\bnatation|swimming|triathlon/i, c: 'lifestyle', t: 'Natation' },
-    { r: /\bescalade|climbing/i, c: 'lifestyle', t: 'Escalade' }, { r: /\bsurf/i, c: 'lifestyle', t: 'Surf' },
-    { r: /\bcrossfit/i, c: 'lifestyle', t: 'CrossFit' }, { r: /\bméditation|meditation/i, c: 'lifestyle', t: 'Méditation' },
-    { r: /\bvégétarien|vegetarian/i, c: 'lifestyle', t: 'Végétarien' }, { r: /\bvegan|végane/i, c: 'lifestyle', t: 'Vegan' },
-    { r: /\bpescetarien|pescatarian/i, c: 'lifestyle', t: 'Pescetarien' }, { r: /\bcollectionn|collector/i, c: 'lifestyle', t: 'Collectionneur' },
-    { r: /\ballergie.*nickel/i, c: 'service', t: '⚠️ Nickel' }, { r: /\ballergie.*latex/i, c: 'service', t: '⚠️ Latex' },
-    { r: /\ballergie.*gluten|celiac/i, c: 'service', t: '⚠️ Gluten' }, { r: /\ballergie.*arachide|peanut/i, c: 'service', t: '⚠️ Arachides' },
-    { r: /\bintolérance lactose|lactose/i, c: 'service', t: '⚠️ Lactose' },
-    { r: /\banniversaire|birthday/i, c: 'occasion', t: 'Anniversaire' }, { r: /\bmariage|wedding/i, c: 'occasion', t: 'Mariage' },
-    { r: /\bcadeau|gift/i, c: 'occasion', t: 'Cadeau' }, { r: /\bpetit.enfant|grandchild/i, c: 'occasion', t: 'Petits-enfants' },
-    { r: /\bdivorce|séparation|changement de vie/i, c: 'occasion', t: 'Nouveau départ' },
-    { r: /\bretraite|retirement/i, c: 'occasion', t: 'Retraite' }, { r: /\bpromotion|nouveau poste/i, c: 'occasion', t: 'Promotion' },
-    { r: /\bvip\b/i, c: 'budget', t: 'VIP' }, { r: /budget.{0,15}[3-5]\s*k/i, c: 'budget', t: '3-5K' },
-    { r: /budget.{0,15}[6-9]\s*k/i, c: 'budget', t: '6-9K' }, { r: /budget.{0,15}1[0-5]\s*k/i, c: 'budget', t: '10-15K' },
-    { r: /budget.{0,15}(1[6-9]|2\d)\s*k/i, c: 'budget', t: '15K+' }, { r: /très flexible|very flexible/i, c: 'budget', t: 'Flexible' },
-    { r: /haut potentiel|high potential/i, c: 'budget', t: 'Potentiel' }, { r: /nouveau client|new client|première/i, c: 'budget', t: 'Nouveau' },
-    { r: /client.*régulier|regular/i, c: 'budget', t: 'Régulier' }, { r: /depuis 201|since 201/i, c: 'budget', t: 'Fidèle' },
-    { r: /\brappeler|follow.?up/i, c: 'service', t: 'Rappeler' }, { r: /preview.*privé|private.*preview/i, c: 'service', t: 'Preview' },
-    { r: /\bréseau|network/i, c: 'network', t: 'Réseau' }, { r: /\bréféré|referred/i, c: 'network', t: 'Référent' },
-    { r: /instagram|youtube|followers/i, c: 'network', t: 'Influenceur' }, { r: /sustainab|durable|recyclé/i, c: 'pref', t: 'Durabilité' },
-    { r: /artisan|handcraft/i, c: 'pref', t: 'Artisanat' },
-    { r: /\bjapon|japan|tokyo/i, c: 'pref', t: 'Japon' }, { r: /\bitalie|italy|milan/i, c: 'pref', t: 'Italie' },
-    { r: /\bparis|france/i, c: 'pref', t: 'France' }, { r: /\bnew york|nyc|usa/i, c: 'pref', t: 'USA' }
-];
+// Legacy hardcoded tags removed. Using tagger.js instead.
+const TAGS = []; // Deprecated
+
 
 // ===== LVMH HOUSES =====
 const LVMH_HOUSES = ['Louis Vuitton', 'Dior', 'Fendi', 'Givenchy', 'Celine', 'Loewe', 'Berluti', 'Loro Piana', 'Tiffany & Co.', 'Bulgari', 'TAG Heuer', 'Hublot', 'Moët Hennessy', 'Sephora', 'Rimowa'];
@@ -240,7 +196,41 @@ let SENTIMENT_DATA = [];
 let STATS = { clients: 0, tags: 0, ai: 0, rgpd: 0, nba: 0, privacyAvg: 0, atRisk: 0 };
 
 const $ = id => document.getElementById(id);
-const CAT_NAMES = { profession: 'Profession', product: 'Produit', pref: 'Préférence', style: 'Style', lifestyle: 'Lifestyle', occasion: 'Occasion', budget: 'Budget', service: 'Service', network: 'Réseau' };
+const CAT_NAMES = {
+    'PROFIL_GENRE': '👤 Genre',
+    'PROFIL_GÉNÉRATION': '👶/👴 Génération',
+    'PROFIL_STATUS': '💎 Status',
+    'PROFIL_LANGUE': '🗣️ Langue',
+    'PROFIL_INFLUENCE': '🌟 Influence',
+    'PROFIL_DIGITAL': '📱 Digital',
+    'PROFESSION_SANTÉ': '⚕️ Santé',
+    'PROFESSION_FINANCE': '💰 Finance',
+    'PROFESSION_LÉGAL': '⚖️ Légal',
+    'PROFESSION_CRÉATIF': '🎨 Créatif',
+    'PROFESSION_BUSINESS': '💼 Business',
+    'PROFESSION_PUBLIC': '🏛️ Public',
+    'PASSION_CERCLES': '🤝 Cercles',
+    'PASSION_COLLECTION': '🖼️ Collection',
+    'PASSION_SPORT': '🎾 Sport',
+    'PASSION_CULTURE': '🎭 Culture',
+    'VALEURS_ÉTHIQUE': '🌱 Valeurs',
+    'VOYAGE_TYPE': '✈️ Type Voyage',
+    'VOYAGE_DESTINATION': '📍 Destination',
+    'INTENTION_DESTINATAIRE': '🎁 Pour qui ?',
+    'INTENTION_OCCASION': '🎉 Occasion',
+    'INTENTION_STYLE': '👗 Ref Style',
+    'SÉCURITÉ_RISQUE': '⚠️ Risque',
+    'SÉCURITÉ_ALIM': '🥗 Régime',
+    'SÉCURITÉ_CONFORT': '🛋️ Confort',
+    'UNIVERS_LV': '👜 Univers LV',
+    'HISTO_MARO_FEMME': '👜 Maro Femme',
+    'HISTO_MARO_HOMME': '🎒 Maro Homme',
+    'HISTO_VOYAGE': '🧳 Voyage',
+    'HISTO_SIZING': '📏 Taille',
+    'HISTO_STYLE': '👠 Souliers',
+    'OPPORTUNITÉS_MANQUÉES': '📉 Opportunités',
+    'ACTION_CRM': '⚡ Action CRM'
+};
 
 // ===== INIT =====
 $('selectBtn').onclick = () => $('fileInput').click();
@@ -414,21 +404,14 @@ async function processWithAI(rows) {
 
 // ===== TAG EXTRACTION =====
 function extractAllTags() {
-    const tagMap = new Map();
     DATA.forEach(row => {
-        row.tags = [];
-        const t = row.clean.toLowerCase();
-        TAGS.forEach(p => {
-            if (p.r.test(t)) {
-                p.r.lastIndex = 0;
-                const key = `${row.id}-${p.t}`;
-                if (!tagMap.has(key)) {
-                    row.tags.push({ c: p.c, t: p.t });
-                    tagMap.set(key, true);
-                    STATS.tags++;
-                }
-            }
-        });
+        const text = row.clean || row.orig || '';
+        // Use external Tagger module
+        const extracted = Tagger.extractTags(text);
+
+        // Map to expected format {c: category, t: tag}
+        row.tags = extracted.map(t => ({ c: t.category, t: t.tag }));
+        STATS.tags += row.tags.length;
     });
 }
 
@@ -1004,7 +987,7 @@ function generateFollowupLocal(client, house, channel) {
     return { subject, body };
 }
 
-window.copyFollowup = function(btn) {
+window.copyFollowup = function (btn) {
     const body = btn.closest('.followup-card').querySelector('.followup-body').textContent;
     navigator.clipboard.writeText(body).then(() => {
         btn.textContent = '✅ Copié !';

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
 </head>
+
 <body>
     <!-- NAV -->
     <nav id="mainNav" class="nav hidden">
@@ -44,7 +46,9 @@
     <div class="loading" id="loading">
         <div class="spinner"></div>
         <p id="loadingMsg">Initialisation...</p>
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
         <div class="progress-text" id="loadingProgress">0/0</div>
         <div class="loading-steps" id="loadingSteps"></div>
     </div>
@@ -53,20 +57,62 @@
     <section id="tab-dashboard" class="tab-page hidden">
         <div class="container">
             <div class="stats-row">
-                <div class="stat-card"><div class="stat-icon">👤</div><div><div class="stat-value" id="statClients">0</div><div class="stat-label">Clients</div></div></div>
-                <div class="stat-card accent"><div class="stat-icon">🏷️</div><div><div class="stat-value" id="statTags">0</div><div class="stat-label">Tags extraits</div></div></div>
-                <div class="stat-card purple"><div class="stat-icon">🤖</div><div><div class="stat-value" id="statAI">0</div><div class="stat-label">Nettoyés IA</div></div></div>
-                <div class="stat-card red"><div class="stat-icon">🛡️</div><div><div class="stat-value" id="statRGPD">0</div><div class="stat-label">RGPD masqués</div></div></div>
-                <div class="stat-card green"><div class="stat-icon">🎯</div><div><div class="stat-value" id="statNBA">0</div><div class="stat-label">Actions NBA</div></div></div>
-                <div class="stat-card blue"><div class="stat-icon">📊</div><div><div class="stat-value" id="statPrivacy">--</div><div class="stat-label">Privacy Score</div></div></div>
+                <div class="stat-card">
+                    <div class="stat-icon">👤</div>
+                    <div>
+                        <div class="stat-value" id="statClients">0</div>
+                        <div class="stat-label">Clients</div>
+                    </div>
+                </div>
+                <div class="stat-card accent">
+                    <div class="stat-icon">🏷️</div>
+                    <div>
+                        <div class="stat-value" id="statTags">0</div>
+                        <div class="stat-label">Tags extraits</div>
+                    </div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-icon">🤖</div>
+                    <div>
+                        <div class="stat-value" id="statAI">0</div>
+                        <div class="stat-label">Nettoyés IA</div>
+                    </div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-icon">🛡️</div>
+                    <div>
+                        <div class="stat-value" id="statRGPD">0</div>
+                        <div class="stat-label">RGPD masqués</div>
+                    </div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon">🎯</div>
+                    <div>
+                        <div class="stat-value" id="statNBA">0</div>
+                        <div class="stat-label">Actions NBA</div>
+                    </div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-icon">📊</div>
+                    <div>
+                        <div class="stat-value" id="statPrivacy">--</div>
+                        <div class="stat-label">Privacy Score</div>
+                    </div>
+                </div>
             </div>
 
             <div class="grid-2">
                 <div class="section-box">
                     <h3>🔍 Avant / Après IA</h3>
                     <div class="compare-box">
-                        <div class="compare-panel before"><h4>❌ Brut</h4><pre id="beforeText">...</pre></div>
-                        <div class="compare-panel after"><h4>✅ Nettoyé</h4><pre id="afterText">...</pre></div>
+                        <div class="compare-panel before">
+                            <h4>❌ Brut</h4>
+                            <pre id="beforeText">...</pre>
+                        </div>
+                        <div class="compare-panel after">
+                            <h4>✅ Nettoyé</h4>
+                            <pre id="afterText">...</pre>
+                        </div>
                     </div>
                 </div>
                 <div class="section-box danger" id="rgpdSection">
@@ -77,9 +123,15 @@
 
             <div class="export-section">
                 <div class="export-btns">
-                    <button class="export-btn" id="exportCsv"><span class="icon">📊</span><span><strong>CSV</strong><br><small>Nettoyé IA</small></span></button>
-                    <button class="export-btn" id="exportJson"><span class="icon">🏷️</span><span><strong>JSON</strong><br><small>Tags + NBA</small></span></button>
-                    <button class="export-btn" id="exportReport"><span class="icon">📋</span><span><strong>Rapport</strong><br><small>Privacy + RGPD</small></span></button>
+                    <button class="export-btn" id="exportCsv"><span
+                            class="icon">📊</span><span><strong>CSV</strong><br><small>Nettoyé
+                                IA</small></span></button>
+                    <button class="export-btn" id="exportJson"><span
+                            class="icon">🏷️</span><span><strong>JSON</strong><br><small>Tags +
+                                NBA</small></span></button>
+                    <button class="export-btn" id="exportReport"><span
+                            class="icon">📋</span><span><strong>Rapport</strong><br><small>Privacy +
+                                RGPD</small></span></button>
                 </div>
             </div>
         </div>
@@ -230,6 +282,8 @@
 
     <footer id="mainFooter" class="hidden">◆ LVMH Voice-to-Tag AI Platform — Mistral AI</footer>
 
+    <script src="tagger.js"></script>
     <script src="engine.js"></script>
 </body>
+
 </html>
