@@ -4,7 +4,8 @@
  */
 
 // ===== CONFIG =====
-const MISTRAL_API_KEY = 'jdktG6GMjxjSz769BBOpuO7Yr7nD7evc';
+// Clé API : définie dans config.js (gitignored) ou via window.__MISTRAL_API_KEY__
+const MISTRAL_API_KEY = (typeof window !== 'undefined' && window.__MISTRAL_API_KEY__) || '';
 const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
 const BATCH_SIZE = 5;
 const BATCH_DELAY = 80;
