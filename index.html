@@ -5,622 +5,131 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LVMH Voice-to-Tag | AI Cleaning</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0a0a0a;
-            color: #fff;
-            min-height: 100vh
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px
-        }
-
-        header {
-            text-align: center;
-            padding: 40px 20px;
-            border-bottom: 1px solid #222
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px
-        }
-
-        h1 span {
-            color: #d4af37
-        }
-
-        .tagline {
-            color: #888;
-            font-size: .9rem;
-            text-transform: uppercase;
-            letter-spacing: 2px
-        }
-
-        .upload-area {
-            max-width: 500px;
-            margin: 60px auto;
-            padding: 60px 40px;
-            background: rgba(255, 255, 255, .03);
-            border: 2px dashed #333;
-            border-radius: 16px;
-            text-align: center;
-            cursor: pointer;
-            transition: all .3s
-        }
-
-        .upload-area:hover {
-            border-color: #d4af37;
-            background: rgba(212, 175, 55, .05)
-        }
-
-        .upload-area h2 {
-            margin-bottom: 10px;
-            font-size: 1.3rem
-        }
-
-        .upload-area p {
-            color: #888;
-            margin-bottom: 20px
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 14px 32px;
-            background: linear-gradient(135deg, #d4af37, #b8960c);
-            color: #000;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 1rem
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(212, 175, 55, .3)
-        }
-
-        .results {
-            display: none
-        }
-
-        .results.active {
-            display: block
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 30px
-        }
-
-        @media(max-width:900px) {
-            .stats {
-                grid-template-columns: repeat(2, 1fr)
-            }
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, .03);
-            border: 1px solid #222;
-            border-radius: 12px;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px
-        }
-
-        .stat-icon {
-            font-size: 2rem
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #d4af37
-        }
-
-        .stat-label {
-            color: #888;
-            font-size: .85rem
-        }
-
-        .stat-card.warning .stat-value {
-            color: #ef4444
-        }
-
-        .stat-card.success .stat-value {
-            color: #10b981
-        }
-
-        .section-box {
-            background: rgba(255, 255, 255, .03);
-            border: 1px solid #222;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px
-        }
-
-        .section-box h3 {
-            margin-bottom: 20px;
-            font-size: 1.2rem;
-            display: flex;
-            align-items: center;
-            gap: 10px
-        }
-
-        .section-box.danger {
-            border-color: #ef4444;
-            background: rgba(239, 68, 68, .05)
-        }
-
-        .section-box.danger h3 {
-            color: #ef4444
-        }
-
-        .section-box.ai {
-            border-color: #8b5cf6;
-            background: rgba(139, 92, 246, .05)
-        }
-
-        .section-box.ai h3 {
-            color: #8b5cf6
-        }
-
-        .rgpd-bad-list {
-            max-height: 180px;
-            overflow-y: auto
-        }
-
-        .rgpd-bad-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 10px;
-            background: rgba(0, 0, 0, .3);
-            border-radius: 8px;
-            margin-bottom: 6px;
-            border-left: 3px solid #ef4444;
-            font-size: .85rem
-        }
-
-        .rgpd-bad-item .id {
-            font-weight: 600;
-            color: #d4af37;
-            min-width: 70px
-        }
-
-        .rgpd-bad-item .cat {
-            background: #ef4444;
-            color: #fff;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: .7rem
-        }
-
-        .person-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-            gap: 20px;
-            max-height: 550px;
-            overflow-y: auto
-        }
-
-        @media(max-width:500px) {
-            .person-grid {
-                grid-template-columns: 1fr
-            }
-        }
-
-        .person-card {
-            background: rgba(255, 255, 255, .02);
-            border: 1px solid #222;
-            border-radius: 12px;
-            padding: 16px
-        }
-
-        .person-card:hover {
-            border-color: #d4af37
-        }
-
-        .person-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #222
-        }
-
-        .person-id {
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: #d4af37
-        }
-
-        .person-meta {
-            display: flex;
-            gap: 8px
-        }
-
-        .person-meta span {
-            background: rgba(255, 255, 255, .1);
-            padding: 3px 8px;
-            border-radius: 20px;
-            font-size: .7rem;
-            color: #aaa
-        }
-
-        .tag-section {
-            margin-bottom: 8px
-        }
-
-        .tag-section-title {
-            font-size: .68rem;
-            color: #666;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-            letter-spacing: 1px
-        }
-
-        .tag-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px
-        }
-
-        .tag {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 15px;
-            font-size: .7rem
-        }
-
-        .tag.profession {
-            background: rgba(59, 130, 246, .15);
-            color: #60a5fa
-        }
-
-        .tag.product {
-            background: rgba(212, 175, 55, .15);
-            color: #d4af37
-        }
-
-        .tag.pref {
-            background: rgba(16, 185, 129, .15);
-            color: #34d399
-        }
-
-        .tag.style {
-            background: rgba(168, 85, 247, .15);
-            color: #c084fc
-        }
-
-        .tag.lifestyle {
-            background: rgba(236, 72, 153, .15);
-            color: #f472b6
-        }
-
-        .tag.occasion {
-            background: rgba(251, 146, 60, .15);
-            color: #fb923c
-        }
-
-        .tag.budget {
-            background: rgba(234, 179, 8, .15);
-            color: #facc15
-        }
-
-        .tag.service {
-            background: rgba(99, 102, 241, .15);
-            color: #a5b4fc
-        }
-
-        .tag.network {
-            background: rgba(20, 184, 166, .15);
-            color: #2dd4bf
-        }
-
-        .no-tags {
-            color: #555;
-            font-style: italic;
-            font-size: .85rem
-        }
-
-        .search-box {
-            margin-bottom: 20px
-        }
-
-        .search-input {
-            width: 100%;
-            max-width: 400px;
-            padding: 12px 16px;
-            background: #111;
-            border: 1px solid #333;
-            border-radius: 8px;
-            color: #fff;
-            font-size: .95rem
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: #d4af37
-        }
-
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 20px;
-            padding: 12px;
-            background: rgba(0, 0, 0, .3);
-            border-radius: 8px;
-            font-size: .7rem
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            color: #888
-        }
-
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%
-        }
-
-        .export-section {
-            text-align: center;
-            padding: 30px 0
-        }
-
-        .export-btns {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap
-        }
-
-        .export-btn {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 20px;
-            background: rgba(255, 255, 255, .03);
-            border: 1px solid #333;
-            border-radius: 10px;
-            cursor: pointer
-        }
-
-        .export-btn:hover {
-            border-color: #d4af37
-        }
-
-        .export-btn .icon {
-            font-size: 1.3rem
-        }
-
-        .export-btn strong {
-            color: #fff;
-            font-size: .9rem
-        }
-
-        .export-btn small {
-            color: #888;
-            font-size: .75rem
-        }
-
-        .compare-box {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px
-        }
-
-        @media(max-width:700px) {
-            .compare-box {
-                grid-template-columns: 1fr
-            }
-        }
-
-        .compare-panel {
-            background: rgba(0, 0, 0, .3);
-            border-radius: 8px;
-            padding: 15px
-        }
-
-        .compare-panel h4 {
-            margin-bottom: 10px;
-            font-size: .9rem;
-            color: #888
-        }
-
-        .compare-panel pre {
-            white-space: pre-wrap;
-            font-size: .75rem;
-            max-height: 120px;
-            overflow-y: auto;
-            color: #ccc;
-            line-height: 1.4
-        }
-
-        .compare-panel.before {
-            border-left: 3px solid #ef4444
-        }
-
-        .compare-panel.after {
-            border-left: 3px solid #10b981
-        }
-
-        footer {
-            text-align: center;
-            padding: 30px;
-            border-top: 1px solid #222;
-            margin-top: 40px;
-            color: #666;
-            font-size: .85rem
-        }
-
-        .loading {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, .95);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column
-        }
-
-        .loading.active {
-            display: flex
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid #333;
-            border-top-color: #8b5cf6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg)
-            }
-        }
-
-        .loading p {
-            margin-top: 20px;
-            color: #888
-        }
-
-        .loading .progress {
-            margin-top: 10px;
-            color: #8b5cf6;
-            font-weight: 600
-        }
-    </style>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
 </head>
 
 <body>
-    <header>
-        <h1>◆ LVMH <span>Voice-to-Tag</span></h1>
-        <p class="tagline">🤖 AI-Powered Cleaning (Mistral)</p>
-    </header>
-    <div class="container">
-        <div class="upload-area" id="uploadArea">
-            <h2>📤 Importer CSV</h2>
-            <p>Nettoyage par IA Mistral</p><input type="file" id="fileInput" accept=".csv" hidden><button class="btn"
-                id="selectBtn">Sélectionner</button>
+    <!-- Navigation Bar -->
+    <nav class="lvmh-nav">
+        <div class="nav-left">
+            <!-- Menu removed -->
         </div>
+        <div class="nav-center">
+            <div class="logo">Louis Vuitton</div>
+        </div>
+        <div class="nav-right">
+            <!-- Icons removed -->
+        </div>
+    </nav>
+
+    <!-- Hero / Upload Section -->
+    <header class="hero-section">
+        <div class="hero-content">
+            <p class="hero-subtitle">CLIENT DATA EXCELLENCE</p>
+            <h1>VOICE-TO-TAG</h1>
+            <p class="hero-desc">Transformez vos interactions vocales en données clients exploitables grâce à
+                l'intelligence artificielle.</p>
+
+            <div class="upload-btn-wrapper" id="uploadArea">
+                <button class="btn-upload" id="selectBtn">IMPORTER UNE TRANSCRIPTION (CSV)</button>
+                <input type="file" id="fileInput" accept=".csv" hidden>
+            </div>
+        </div>
+        <div class="hero-overlay"></div>
+    </header>
+
+    <div class="container">
+        <!-- Results Section (Hidden by default) -->
         <div class="results" id="results">
+            <!-- Stats Grid -->
             <div class="stats">
                 <div class="stat-card">
-                    <div class="stat-icon">👤</div>
-                    <div>
-                        <div class="stat-value" id="statNotes">0</div>
-                        <div class="stat-label">Clients</div>
-                    </div>
-                </div>
-                <div class="stat-card success">
-                    <div class="stat-icon">🏷️</div>
-                    <div>
-                        <div class="stat-value" id="statTags">0</div>
-                        <div class="stat-label">Tags</div>
-                    </div>
+                    <div class="stat-value" id="statNotes">0</div>
+                    <div class="stat-label">Clients</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">🤖</div>
-                    <div>
-                        <div class="stat-value" id="statAI">0</div>
-                        <div class="stat-label">Nettoyés par IA</div>
-                    </div>
+                    <div class="stat-value" id="statTags">0</div>
+                    <div class="stat-label">Tags</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statAI">0</div>
+                    <div class="stat-label">Traités IA</div>
                 </div>
                 <div class="stat-card warning">
-                    <div class="stat-icon">🚫</div>
-                    <div>
-                        <div class="stat-value" id="statRgpd">0</div>
-                        <div class="stat-label">RGPD</div>
-                    </div>
+                    <div class="stat-value" id="statRgpd">0</div>
+                    <div class="stat-label">Alerte RGPD</div>
                 </div>
             </div>
-            <div class="section-box ai">
-                <h3>🤖 Nettoyage IA Mistral</h3>
-                <p style="color:#aaa;font-size:.85rem">Chaque transcription a été nettoyée par l'IA pour supprimer les
-                    hésitations, fillers et expressions vides tout en préservant le contenu métier.</p>
-            </div>
+
+            <!-- AI Cleaning Section -->
             <div class="section-box">
-                <h3>🔍 Avant / Après IA</h3>
+                <h3>NETTOYAGE INTELLIGENT</h3>
                 <div class="compare-box">
-                    <div class="compare-panel before">
-                        <h4>❌ Brut</h4>
+                    <div class="compare-panel">
+                        <h4>TRANSCRIPTION BRUTE</h4>
                         <pre id="beforeText">...</pre>
                     </div>
-                    <div class="compare-panel after">
-                        <h4>✅ Nettoyé par IA</h4>
+                    <div class="compare-panel">
+                        <h4>NETTOYÉ & QUALIFIÉ</h4>
                         <pre id="afterText">...</pre>
                     </div>
                 </div>
             </div>
-            <div class="section-box danger" id="rgpdSection">
-                <h3>🚫 RGPD Non Conformes</h3>
+
+            <!-- RGPD Warning Section -->
+            <div class="section-box" id="rgpdSection" style="display:none">
+                <h3 style="color:var(--danger)">DONNÉES SENSIBLES DÉTECTÉES</h3>
                 <div class="rgpd-bad-list" id="rgpdBadList"></div>
             </div>
+
+            <!-- Client Grid -->
             <div class="section-box">
-                <h3>🏷️ Fiches Clients</h3>
-                <div class="legend">
-                    <div class="legend-item"><span class="legend-dot" style="background:#60a5fa"></span>Profession</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#d4af37"></span>Produit</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#34d399"></span>Préférence</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#c084fc"></span>Style</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#f472b6"></span>Lifestyle</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#fb923c"></span>Occasion</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#facc15"></span>Budget</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#a5b4fc"></span>Service</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#2dd4bf"></span>Réseau</div>
+                <h3>PROFILS CLIENTS & TAGS</h3>
+
+                <div class="search-box">
+                    <input type="text" class="search-input" id="personSearch" placeholder="RECHERCHER UN PROFIL...">
                 </div>
-                <div class="search-box"><input type="text" class="search-input" id="personSearch"
-                        placeholder="🔍 Rechercher..."></div>
-                <div class="person-grid" id="personGrid"></div>
+
+                <div class="person-grid" id="personGrid">
+                    <!-- Cards will be injected here -->
+                </div>
             </div>
+
+            <!-- Export -->
             <div class="export-section">
                 <div class="export-btns">
-                    <button class="export-btn" id="exportCsv"><span
-                            class="icon">📊</span><span><strong>CSV</strong><br><small>Nettoyé
-                                IA</small></span></button>
-                    <button class="export-btn" id="exportJson"><span
-                            class="icon">🏷️</span><span><strong>JSON</strong><br><small>Tags</small></span></button>
+                    <button class="export-btn" id="exportCsv">EXPORTER EN CSV</button>
+                    <button class="export-btn" id="exportJson">EXPORTER EN JSON</button>
                 </div>
             </div>
         </div>
     </div>
-    <footer>🤖 Mistral AI Cleaning</footer>
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <p id="loadingMsg">Nettoyage par IA...</p>
-        <div class="progress" id="loadingProgress">0/0</div>
+
+    <footer>
+        <p>LVMH CLIENT DATA PROCESSING SYSTEM</p>
+        <div class="disclaimer">USAGE STRICTEMENT INTERNE - CONFIDENTIEL</div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="loading-content">
+            <div class="loader">
+                <div class="box1"></div>
+                <div class="box2"></div>
+                <div class="box3"></div>
+            </div>
+            <p id="loadingMsg">TRAITEMENT EN COURS...</p>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar"></div>
+                </div>
+                <div id="loadingProgress">0%</div>
+            </div>
+        </div>
     </div>
-    <script src="tagger.js"></script>
     <script>
         const MISTRAL_API_KEY = 'jdktG6GMjxjSz769BBOpuO7Yr7nD7evc';
         const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
@@ -673,8 +182,48 @@ Texte à traiter :
             'Code': [/\bcode\s*(porte|accès|digicode)?\s*:?\s*\d{4,6}\b/gi, /\bdigicode\s*:?\s*\d{4,6}\b/gi]
         };
 
-        // TAGS managed in tagger.js
-
+        // TAGS
+        const TAGS = [
+            { r: /\bdentist/i, c: 'profession', t: 'Dentiste' }, { r: /\bmédecin|doctor\b/i, c: 'profession', t: 'Médecin' },
+            { r: /\bchirurgien|surgeon/i, c: 'profession', t: 'Chirurgien' }, { r: /\bcardiologue|cardiologist/i, c: 'profession', t: 'Cardiologue' },
+            { r: /\boncologue|oncologist/i, c: 'profession', t: 'Oncologue' }, { r: /\bpsycholog|psychotherap/i, c: 'profession', t: 'Psychologue' },
+            { r: /\bavocat|lawyer|attorney/i, c: 'profession', t: 'Avocat' }, { r: /\barchitecte|architect/i, c: 'profession', t: 'Architecte' },
+            { r: /\bceo|pdg|directeur/i, c: 'profession', t: 'Directeur/CEO' }, { r: /\bentrepreneur|startup/i, c: 'profession', t: 'Entrepreneur' },
+            { r: /\bbanquier|banker/i, c: 'profession', t: 'Banquier' }, { r: /\bjournaliste|journalist/i, c: 'profession', t: 'Journaliste' },
+            { r: /\binfluenceur|influencer/i, c: 'profession', t: 'Influenceur' }, { r: /\bphotographe|photographer/i, c: 'profession', t: 'Photographe' },
+            { r: /\bchef.*michelin|étoilé/i, c: 'profession', t: 'Chef étoilé' }, { r: /\bsommelier/i, c: 'profession', t: 'Sommelier' },
+            { r: /\bprofesseur|professor/i, c: 'profession', t: 'Professeur' }, { r: /\bgaleriste|curator|museum/i, c: 'profession', t: 'Art/Musée' },
+            { r: /\bpilote|pilot/i, c: 'profession', t: 'Pilote' }, { r: /\bdeveloppeur|developer|software/i, c: 'profession', t: 'Tech/Dev' },
+            { r: /\bsac professionnel|work bag/i, c: 'product', t: '🛍️ Sac Pro' }, { r: /\bsac voyage|travel/i, c: 'product', t: '🛍️ Sac Voyage' },
+            { r: /\bmontre|watch/i, c: 'product', t: '⌚ Montres' }, { r: /\bbijou|jewelry/i, c: 'product', t: '💎 Bijoux' },
+            { r: /cuir noir|black leather|nero|negro/i, c: 'pref', t: '⬛ Noir' }, { r: /\bnavy|marine\b/i, c: 'pref', t: '🔵 Navy' },
+            { r: /\bbeige|champagne/i, c: 'pref', t: '🟤 Beige' }, { r: /\bcognac|camel|marron/i, c: 'pref', t: '🟫 Cognac' },
+            { r: /hardware.*or|gold.*hardware|doré/i, c: 'pref', t: '✨ Or' }, { r: /rose gold|or rose/i, c: 'pref', t: '💕 Rose Gold' },
+            { r: /\bclassique|classic|timeless/i, c: 'style', t: 'Classique' }, { r: /\bmoderne|modern/i, c: 'style', t: 'Moderne' },
+            { r: /\bélégant|elegant/i, c: 'style', t: 'Élégant' }, { r: /\bdiscret|understated/i, c: 'style', t: 'Discret' },
+            { r: /\bminimaliste|minimalist/i, c: 'style', t: 'Minimaliste' }, { r: /\bfonctionnel|functional/i, c: 'style', t: 'Fonctionnel' },
+            { r: /\byoga/i, c: 'lifestyle', t: '🧘 Yoga' }, { r: /\bpilates/i, c: 'lifestyle', t: 'Pilates' },
+            { r: /\bgolf/i, c: 'lifestyle', t: '⛳ Golf' }, { r: /\btennis/i, c: 'lifestyle', t: '🎾 Tennis' },
+            { r: /\brunning|marathon/i, c: 'lifestyle', t: '🏃 Running' }, { r: /\bnatation|swimming|triathlon/i, c: 'lifestyle', t: '🏊 Natation' },
+            { r: /\bescalade|climbing/i, c: 'lifestyle', t: '🧗 Escalade' }, { r: /\bsurf/i, c: 'lifestyle', t: '🏄 Surf' },
+            { r: /\bcrossfit/i, c: 'lifestyle', t: '💪 CrossFit' }, { r: /\bméditation|meditation/i, c: 'lifestyle', t: '🧘 Méditation' },
+            { r: /\bvégétarien|vegetarian/i, c: 'lifestyle', t: '🥗 Végétarien' }, { r: /\bvegan|végane/i, c: 'lifestyle', t: '🌱 Vegan' },
+            { r: /\bpescetarien|pescatarian/i, c: 'lifestyle', t: '🐟 Pescetarien' }, { r: /\bcollectionn|collector/i, c: 'lifestyle', t: '🎨 Collectionneur' },
+            { r: /\ballergie.*nickel/i, c: 'service', t: '⚠️ Nickel' }, { r: /\ballergie.*latex/i, c: 'service', t: '⚠️ Latex' },
+            { r: /\ballergie.*gluten|celiac/i, c: 'service', t: '⚠️ Gluten' }, { r: /\ballergie.*arachide|peanut/i, c: 'service', t: '⚠️ Arachides' },
+            { r: /\bintolérance lactose|lactose/i, c: 'service', t: '⚠️ Lactose' }, { r: /\ballergie.*pollen/i, c: 'service', t: '⚠️ Pollen' },
+            { r: /\banniversaire|birthday/i, c: 'occasion', t: '🎂 Anniversaire' }, { r: /\bmariage|wedding/i, c: 'occasion', t: '💒 Mariage' },
+            { r: /\bcadeau|gift/i, c: 'occasion', t: '🎁 Cadeau' }, { r: /\bpetit.enfant|grandchild/i, c: 'occasion', t: '👶 Petits-enfants' },
+            { r: /\bvip\b/i, c: 'budget', t: '⭐ VIP' }, { r: /budget.{0,15}[3-5]\s*k/i, c: 'budget', t: '💰 3-5K' },
+            { r: /budget.{0,15}[6-9]\s*k/i, c: 'budget', t: '💰 6-9K' }, { r: /budget.{0,15}1[0-5]\s*k/i, c: 'budget', t: '💰 10-15K' },
+            { r: /budget.{0,15}(1[6-9]|2\d)\s*k/i, c: 'budget', t: '💰💰 15K+' }, { r: /très flexible|very flexible/i, c: 'budget', t: '💎 Flexible' },
+            { r: /haut potentiel|high potential/i, c: 'budget', t: '📈 Potentiel' }, { r: /nouveau client|new client|première/i, c: 'budget', t: '🆕 Nouveau' },
+            { r: /client.*régulier|regular/i, c: 'budget', t: '🔄 Régulier' }, { r: /depuis 201|since 201/i, c: 'budget', t: '🏆 Fidèle' },
+            { r: /\brappeler|follow.?up/i, c: 'service', t: '📞 Rappeler' }, { r: /preview.*privé|private.*preview/i, c: 'service', t: '👁️ Preview' },
+            { r: /\bréseau|network/i, c: 'network', t: '🔗 Réseau' }, { r: /\bréféré|referred/i, c: 'network', t: '👥 Référent' },
+            { r: /instagram|youtube|followers/i, c: 'network', t: '📱 Influenceur' }, { r: /sustainab|durable/i, c: 'pref', t: '🌍 Durabilité' },
+            { r: /artisan|handcraft/i, c: 'pref', t: '🛠️ Artisanat' }
+        ];
 
         let DATA = [], RGPD_BAD = [], STATS = { notes: 0, tags: 0, ai: 0, rgpd: 0 };
         const $ = id => document.getElementById(id);
@@ -798,8 +347,10 @@ Texte à traiter :
                 const orig = row.Transcription || row.transcription || '';
                 const id = row.ID || 'N/A', date = row.Date || '', lang = (row.Language || row.Langue || 'FR').toUpperCase();
 
-                $('loadingMsg').textContent = '🤖 Nettoyage + RGPD IA...';
-                $('loadingProgress').textContent = `${i + 1}/${rows.length}`;
+                const percent = Math.round(((i + 1) / rows.length) * 100);
+                $('loadingMsg').textContent = 'NETTOYAGE + RGPD IA...';
+                $('loadingProgress').textContent = `${percent}%`;
+                $('progressBar').style.width = `${percent}%`;
 
                 // Clean with Mistral AI (includes RGPD detection)
                 const result = await cleanWithMistral(orig);
@@ -827,9 +378,8 @@ Texte à traiter :
 
         function extractTags() {
             DATA.forEach(row => {
-                const extracted = Tagger.extractTags(row.clean || row.orig);
-                row.tags = extracted;
-                STATS.tags += extracted.length;
+                row.tags = [];
+                TAGS.forEach(p => { if (p.r.test(row.clean)) { p.r.lastIndex = 0; if (!row.tags.find(x => x.t === p.t)) { row.tags.push({ c: p.c, t: p.t }); STATS.tags++; } } });
             });
         }
 
@@ -859,46 +409,11 @@ Texte à traiter :
         function renderGrid(filter = '') {
             const g = $('personGrid'); g.innerHTML = '';
             const f = filter.toLowerCase();
-            DATA.filter(p => !f || p.id.toLowerCase().includes(f) || p.tags.some(t => t.tag.toLowerCase().includes(f)) || p.clean.toLowerCase().includes(f))
+            DATA.filter(p => !f || p.id.toLowerCase().includes(f) || p.tags.some(t => t.t.toLowerCase().includes(f)) || p.clean.toLowerCase().includes(f))
                 .forEach(p => {
                     const cats = {};
-                    p.tags.forEach(t => { if (!cats[t.category]) cats[t.category] = []; cats[t.category].push(t.tag); });
-
-                    const names = {
-                        'PROFIL_GENRE': '👤 Genre',
-                        'PROFIL_GÉNÉRATION': '👶/👴 Génération',
-                        'PROFIL_STATUS': '💎 Status',
-                        'PROFIL_LANGUE': '🗣️ Langue',
-                        'PROFIL_INFLUENCE': '✨ Influence',
-                        'PROFIL_DIGITAL': '📱 Digital',
-                        'PROFESSION_SANTÉ': '⚕️ Santé',
-                        'PROFESSION_FINANCE': '💰 Finance',
-                        'PROFESSION_LÉGAL': '⚖️ Légal',
-                        'PROFESSION_CRÉATIF': '🎨 Créatif',
-                        'PROFESSION_BUSINESS': '💼 Business',
-                        'PROFESSION_PUBLIC': '🏛️ Public',
-                        'PASSION_CERCLES': '⭕ Cercles',
-                        'PASSION_COLLECTION': '🖼️ Collection',
-                        'PASSION_SPORT': '🎾 Sport',
-                        'PASSION_CULTURE': '🎭 Culture',
-                        'VALEURS_ÉTHIQUE': '🌱 Valeurs',
-                        'VOYAGE_TYPE': '✈️ Type Voyage',
-                        'VOYAGE_DESTINATION': '📍 Destination',
-                        'INTENTION_DESTINATAIRE': '🎁 Destinataire',
-                        'INTENTION_OCCASION': '🎉 Occasion',
-                        'INTENTION_STYLE': '👗 Le Style',
-                        'SÉCURITÉ_RISQUE': '⚠️ Risque Vital',
-                        'SÉCURITÉ_ALIM': '🍽️ Régime',
-                        'SÉCURITÉ_CONFORT': '🛋️ Confort',
-                        'UNIVERS_LV': '👜 Univers LV',
-                        'HISTO_MARO_FEMME': '👜 Maro Femme',
-                        'HISTO_MARO_HOMME': '💼 Maro Homme',
-                        'HISTO_VOYAGE': '🧳 Voyage (Histo)',
-                        'HISTO_SIZING': '📏 Sizing',
-                        'HISTO_STYLE': '👠 Style Histo',
-                        'OPPORTUNITÉS_MANQUÉES': '❌ Opportunités',
-                        'ACTION_CRM': '⚡ Action CRM'
-                    };
+                    p.tags.forEach(t => { if (!cats[t.c]) cats[t.c] = []; cats[t.c].push(t.t); });
+                    const names = { profession: 'Profession', product: 'Produit', pref: 'Préférence', style: 'Style', lifestyle: 'Lifestyle', occasion: 'Occasion', budget: 'Budget', service: 'Service', network: 'Réseau' };
                     let html = `<div class="person-header"><span class="person-id">${p.id}</span><div class="person-meta"><span>${p.lang}</span><span>${p.date}</span><span>${p.tags.length} tags</span></div></div>`;
                     if (Object.keys(cats).length === 0) html += '<div class="no-tags">Aucun tag</div>';
                     else Object.entries(cats).forEach(([c, tags]) => { html += `<div class="tag-section"><div class="tag-section-title">${names[c] || c}</div><div class="tag-row">${tags.map(t => `<span class="tag ${c}">${t}</span>`).join('')}</div></div>`; });
@@ -906,7 +421,7 @@ Texte à traiter :
                 });
         }
 
-        function exportCSV() { const l = ['ID,Date,Langue,Transcription_AI_Clean,Tags']; DATA.forEach(r => l.push([r.id, r.date, r.lang, '"' + r.clean.replace(/"/g, '""') + '"', '"' + r.tags.map(t => t.tag).join('|') + '"'].join(','))); dl(l.join('\n'), 'lvmh_ai_cleaned.csv', 'text/csv'); }
+        function exportCSV() { const l = ['ID,Date,Langue,Transcription_AI_Clean,Tags']; DATA.forEach(r => l.push([r.id, r.date, r.lang, '"' + r.clean.replace(/"/g, '""') + '"', '"' + r.tags.map(t => t.t).join('|') + '"'].join(','))); dl(l.join('\n'), 'lvmh_ai_cleaned.csv', 'text/csv'); }
         function exportJSON() { dl(JSON.stringify(DATA.map(r => ({ id: r.id, date: r.date, lang: r.lang, clean: r.clean, tags: r.tags })), null, 2), 'lvmh_ai_tags.json', 'application/json'); }
         function dl(c, n, t) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c], { type: t })); a.download = n; a.click(); }
     </script>
