@@ -641,14 +641,18 @@ function renderGrid(filter = '') {
                 const activeSubCats = subCats.filter(sc => cats[sc]);
 
                 if (activeSubCats.length > 0) {
+                    // Get color for this super category
+                    const color = SUPER_CAT_COLORS[superCat] || '#888';
+                    const bgStyle = `background: ${color}20; color: ${color};`;
+
                     html += `<div class="super-category">
-                        <div class="super-category-title">${superCat}</div>
+                        <div class="super-category-title" style="color:${color}">${superCat}</div>
                         <div class="super-category-content">`;
 
                     activeSubCats.forEach(sc => {
                         html += `<div class="tag-group">
                             <span class="tag-group-label">${CAT_NAMES[sc] || sc}:</span>
-                            ${cats[sc].map(t => `<span class="tag ${sc}">${t}</span>`).join('')}
+                            ${cats[sc].map(t => `<span class="tag" style="${bgStyle}">${t}</span>`).join('')}
                         </div>`;
                     });
 

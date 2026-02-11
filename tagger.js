@@ -105,8 +105,9 @@ const Tagger = {
             // Fallbacks Level 2
             fallbacks: [
                 { regex: /\b(chirurgien|surgeon)\b/gi, tag: 'Chirurgien_Général' },
-                { regex: /\b(médecin|doctor|spécialiste)\b/gi, tag: 'Médecin_Spécialiste_Général' },
-                { regex: /\b(pharma|pharmacien)\b/gi, tag: 'Pharmacie_Générale' }
+                { regex: /\b(médecin|doctor|spécialiste|cardiologue|neurologue|dermatologue|dentiste|orthodontiste)\b/gi, tag: 'Médecin_Spécialiste_Général' },
+                { regex: /\b(pharma|pharmacien|chercheur)\b/gi, tag: 'Pharmacie_Générale' },
+                { regex: /\b(chirurgien|surgeon|médecin|doctor|cardiologue|neurologue|dermatologue|dentiste|pharmacien|chercheur)\b/gi, tag: 'Profession_Santé_Médecine' }
             ]
         },
         pro_finance: {
@@ -135,10 +136,10 @@ const Tagger = {
         },
         pro_legal: {
             patterns: [
-                { regex: /\b(avocat).{0,20}(m&a|corporate|affaires)/gi, tag: 'Avocature_M&A_Corporate' },
-                { regex: /\b(avocat).{0,20}(pi|propriété|intellectuelle)/gi, tag: 'Avocature_PI' },
-                { regex: /\b(avocat).{0,20}(famille|divorce)/gi, tag: 'Avocature_Droit_Famille' },
-                { regex: /\b(avocat).{0,20}(droits|homme|ong)/gi, tag: 'Avocature_Droits_Homme' },
+                { regex: /\b(avocate?).{0,20}(m&a|corporate|affaires)/gi, tag: 'Avocature_M&A_Corporate' },
+                { regex: /\b(avocate?).{0,20}(pi|propriété|intellectuelle)/gi, tag: 'Avocature_PI' },
+                { regex: /\b(avocate?).{0,20}(famille|divorce)/gi, tag: 'Avocature_Droit_Famille' },
+                { regex: /\b(avocate?).{0,20}(droits|homme|ong)/gi, tag: 'Avocature_Droits_Homme' },
 
                 { regex: /\b(magistrat|juge|judge)\b/gi, tag: 'Institutionnel_Magistrat' },
                 { regex: /\b(notaire)\b/gi, tag: 'Institutionnel_Notaire' },
@@ -146,9 +147,9 @@ const Tagger = {
             ],
             category: 'PROFESSION_LÉGAL',
             fallbacks: [
-                { regex: /\b(avocat|lawyer|barreau)\b/gi, tag: 'Avocature_Générale' },
+                { regex: /\b(avocate?|lawyer|barreau)\b/gi, tag: 'Avocature_Générale' },
                 { regex: /\b(magistrat|juge|notaire|huissier)\b/gi, tag: 'Institutionnel_Général' },
-                { regex: /\b(droit|juriste|legal)\b/gi, tag: 'Profession_Juridique_Générale' }
+                { regex: /\b(avocate?|droit|juriste|legal|magistrat|juge|notaire)\b/gi, tag: 'Profession_Juridique_Générale' }
             ]
         },
         pro_creatif: {
@@ -342,7 +343,8 @@ const Tagger = {
         achat_destinataire: {
             patterns: [
                 { regex: /\b(pour soi|moi|me faire plaisir)\b/gi, tag: 'Dest_Intime_Pour_Soi' },
-                { regex: /\b(conjoint|mari|femme|époux)\b/gi, tag: 'Dest_Intime_Pour_Conjoint' },
+                { regex: /\b(pour|sa|son|cadeau).{0,10}(conjoint|mari|époux|épouse)\b/gi, tag: 'Dest_Intime_Pour_Conjoint' },
+                { regex: /\b(pour).{0,10}(sa femme|son homme)\b/gi, tag: 'Dest_Intime_Pour_Conjoint' },
                 { regex: /\b(amant|maitresse)\b/gi, tag: 'Dest_Intime_Pour_Amant' },
                 { regex: /\b(parent|mère|père)\b/gi, tag: 'Dest_Famille_Pour_Parents' },
                 { regex: /\b(enfant|fils|fille)\b/gi, tag: 'Dest_Famille_Pour_Enfant' },
@@ -551,16 +553,69 @@ const Tagger = {
         // ==========================================
         opportunites: {
             patterns: [
-                { regex: /\b(objet désir|veut|cherche)\b/gi, tag: 'Objet_Désir_Détecté' }, // Générique
-                // Shadow Order
+                // Shadow Order - Raison Échec
                 { regex: /\b(rupture|sold out)\b/gi, tag: 'Raison_Echec_Rupture_Mondiale' },
                 { regex: /\b(waitlist|liste d'attente)\b/gi, tag: 'Raison_Echec_Waitlist_Fermée' },
                 { regex: /\b(taille).{0,10}(indispo|pas de)\b/gi, tag: 'Raison_Echec_Taille_Indispo' },
                 { regex: /\b(couleur).{0,10}(indispo|pas de)\b/gi, tag: 'Raison_Echec_Couleur_Indispo' },
-                // Douleur
-                { regex: /\b(déçu|déception)\b/gi, tag: 'Douleur_Client_Déception_Dispo' },
-                { regex: /\b(attente|frustration)\b/gi, tag: 'Douleur_Client_Frustration_Attente' },
-                { regex: /\b(retard|livraison)\b/gi, tag: 'Douleur_Client_Livraison_Retardée' }
+                // Douleur Client
+                { regex: /\b(déçu|déception)\b/gi, tag: 'Douleur_Déception_Dispo' },
+                { regex: /\b(attente|frustration)\b/gi, tag: 'Douleur_Frustration_Attente' },
+                { regex: /\b(retard).{0,15}(livraison)|(livraison).{0,15}(retard)\b/gi, tag: 'Douleur_Livraison_Retardée' },
+                // Shadow Order - Femme Sacs
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(speedy|neverfull|alma|noé)\b/gi, tag: 'Shadow_Sacs_Icônes_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(épaule|croisé|bandoulière)\b/gi, tag: 'Shadow_Sacs_Épaule_Croisé_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(cabas|seau)\b/gi, tag: 'Shadow_Cabas_Seau_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(mini sac|sac à dos|petit sac)\b/gi, tag: 'Shadow_Mini_Sacs_Dos_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(exotique|croco|python)\b/gi, tag: 'Shadow_Cuirs_Exotiques' },
+                // Shadow Order - Femme Petite Maro
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(portefeuille|compact)\b/gi, tag: 'Shadow_Portefeuilles_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(porte-carte|porte-monnaie)\b/gi, tag: 'Shadow_Porte_Cartes_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(pochette|accessoire de sac)\b/gi, tag: 'Shadow_Pochettes_Femme' },
+                // Shadow Order - Femme PAP
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(manteau|veste|blazer)\b/gi, tag: 'Shadow_Manteaux_Vestes_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(robe|jupe)\b/gi, tag: 'Shadow_Robes_Jupes' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(haut|maille|t-shirt|pull)\b/gi, tag: 'Shadow_Hauts_Mailles_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(pantalon|denim|jean)\b/gi, tag: 'Shadow_Pantalons_Denim' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(maillot de bain|swimwear)\b/gi, tag: 'Shadow_Maillots_Bain' },
+                // Shadow Order - Femme Souliers
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(sneaker|archlight)\b/gi, tag: 'Shadow_Sneakers_Femme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(bottine|botte)\b/gi, tag: 'Shadow_Bottes_Bottines' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(escarpin|mule)\b/gi, tag: 'Shadow_Escarpins_Mules' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(sandale|compensée)\b/gi, tag: 'Shadow_Sandales_Femme' },
+                // Shadow Order - Femme Accessoires
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(carré|foulard|bandeau|soie)\b/gi, tag: 'Shadow_Carrés_Soie' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(écharpe|châle)\b/gi, tag: 'Shadow_Écharpes_Châles' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(lunettes|soleil)\b/gi, tag: 'Shadow_Lunettes_Soleil' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(ceinture|belt)\b/gi, tag: 'Shadow_Ceintures' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(bijou|chapeau)\b/gi, tag: 'Shadow_Bijoux_Chapeaux' },
+                // Shadow Order - Homme Sacs
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(sac business|porte-documents)\b/gi, tag: 'Shadow_Sacs_Business_Homme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(sac à dos|sac banane|bumbag)\b/gi, tag: 'Shadow_Sacs_Dos_Banane_Homme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(messenger|cabas)\b/gi, tag: 'Shadow_Messenger_Cabas_Homme' },
+                // Shadow Order - Homme PAP
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(costume|blazer)\b/gi, tag: 'Shadow_Costumes_Blazers_Homme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(blouson|ext[ée]rieur)\b/gi, tag: 'Shadow_Blousons_Homme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(chemise|tricot)\b/gi, tag: 'Shadow_Chemises_Tricots_Homme' },
+                // Shadow Order - Homme Souliers
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(sneaker).{0,10}(homme)\b/gi, tag: 'Shadow_Sneakers_Homme' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(mocassin|soulier de ville)\b/gi, tag: 'Shadow_Mocassins_Ville_Homme' },
+                // Shadow Order - Homme Accessoires
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(cravate|nœud papillon)\b/gi, tag: 'Shadow_Cravates_Homme' },
+                // Shadow Order - Voyage
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(bagage|valise|roulette)\b/gi, tag: 'Shadow_Bagages_Roulettes' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(sac de voyage|keepall)\b/gi, tag: 'Shadow_Sacs_Voyage_Souples' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(accessoire de voyage|trousse)\b/gi, tag: 'Shadow_Accessoires_Voyage' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(malle|rigide)\b/gi, tag: 'Shadow_Malles_Rigides' },
+                // Shadow Order - Montres & Joaillerie
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(joailler|bijou fin|bague|collier|bracelet)\b/gi, tag: 'Shadow_Joaillerie' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(haute joaillerie)\b/gi, tag: 'Shadow_Haute_Joaillerie' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(montre|tambour|tambour)\b/gi, tag: 'Shadow_Montres' },
+                // Shadow Order - Parfums
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(parfum|fragrance|cologne|extrait)\b/gi, tag: 'Shadow_Parfums' },
+                // Shadow Order - Art de Vivre
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(objet nomade|meuble|déco)\b/gi, tag: 'Shadow_Objets_Nomades' },
+                { regex: /\b(cherch|veut|aimerait|rêve|envie).{0,30}(jeu|sport|skateboard|ballon)\b/gi, tag: 'Shadow_Sport_Jeux' }
             ],
             category: 'OPPORTUNITÉS_MANQUÉES'
         },
@@ -569,12 +624,12 @@ const Tagger = {
                 { regex: /\b(rappeler|stock).{0,10}(dès que)\b/gi, tag: 'Action_Rappeler_Stock' },
                 { regex: /\b(alerte|restock)\b/gi, tag: 'Action_Alerte_Restock' },
                 { regex: /\b(invitation|inviter)\b/gi, tag: 'Action_Invitation' },
-                { regex: /\b(cadeau|envoyer)\b/gi, tag: 'Action_Cadeau' },
-                { regex: /\b(whatsapp|message)\b/gi, tag: 'Action_Message_WhatsApp' },
+                { regex: /\b(cadeau).{0,10}(envoyer|offrir)|(envoyer|offrir).{0,10}(cadeau)\b/gi, tag: 'Action_Cadeau' },
+                { regex: /\b(whatsapp|message).{0,10}(envoyer|contacter)\b/gi, tag: 'Action_Message_WhatsApp' },
                 { regex: /\b(urgent)\b/gi, tag: 'Timing_Urgent' },
-                { regex: /\b(fin mois)\b/gi, tag: 'Timing_Fin_Mois' },
-                { regex: /\b(prochaine saison)\b/gi, tag: 'Timing_Saison_Prochaine' },
-                { regex: /\b(date fixe)\b/gi, tag: 'Timing_Date_Fixe' }
+                { regex: /\b(fin (du )?mois)\b/gi, tag: 'Timing_Fin_Mois' },
+                { regex: /\b(prochaine saison|saison prochaine)\b/gi, tag: 'Timing_Saison_Prochaine' },
+                { regex: /\b(date fixe|date précise)\b/gi, tag: 'Timing_Date_Fixe' }
             ],
             category: 'ACTION_CRM'
         }
@@ -584,10 +639,10 @@ const Tagger = {
         if (!text) return [];
         const tags = [];
 
+        // Checklist order: PROFIL → INTÉRÊTS → VOYAGE → INTENTION → SÉCURITÉ → UNIVERS LV → HISTORIQUE → OPPORTUNITÉS
         for (const [groupName, group] of Object.entries(this.patterns)) {
-            let foundInGroup = false;
 
-            // 1. Level 3 (Specific)
+            // 1. Level 3 (Specific Tags)
             for (const pattern of group.patterns) {
                 pattern.regex.lastIndex = 0;
                 if (pattern.regex.test(text)) {
@@ -598,19 +653,15 @@ const Tagger = {
                             group: groupName,
                             confidence: 'Haute'
                         });
-                        foundInGroup = true;
                     }
                 }
             }
 
-            // 2. Level 2 (Fallback) - Only if Level 3 not found OR as additive info? 
-            // User said: "Attribue le plus de tags possibles tant qu'ils correspondent".
-            // So we can accept BOTH if pertinent, OR just fallback.
-            // But usually "Tennis Competition" implies "Sport Raquette".
-            // However, to keep it clean, maybe we add Level 2 only if NO Level 3 was found in that group?
-            // "À utiliser comme Tag par défaut si le détail est inconnu." -> This suggests exclusive fallback.
-
-            if (!foundInGroup && group.fallbacks) {
+            // 2. Level 2 (Additive Fallbacks — Hierarchy)
+            // ALWAYS check parent-level tags, even if specific tags were found.
+            // "Si Cardiologue → Médecin_Spécialiste ET Santé & Médecine"
+            // This ensures maximum coverage & hierarchy respect.
+            if (group.fallbacks) {
                 for (const fallback of group.fallbacks) {
                     fallback.regex.lastIndex = 0;
                     if (fallback.regex.test(text)) {
@@ -619,10 +670,8 @@ const Tagger = {
                                 tag: fallback.tag,
                                 category: group.category,
                                 group: groupName,
-                                confidence: 'Moyenne (Fallback)'
+                                confidence: 'Moyenne (Parent)'
                             });
-                            // Once a fallback is found, maybe stop? Or allow multiple fallbacks?
-                            // Let's allow multiple fallbacks within the group (e.g. might like generic Tennis AND generic Golf)
                         }
                     }
                 }
