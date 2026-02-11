@@ -1,7 +1,7 @@
 /**
  * LVMH Voice-to-Tag - Module Tagger
  * Extraction de tags ultra-précis pour enrichir la taxonomie CRM
- * Basé sur la Taxonomie 360° - Louis Vuitton (Version Ultra-Deep)
+ * Basé sur le Guide d'Utilisation de la Taxonomie (taxo.pdf)
  */
 
 const Tagger = {
@@ -9,416 +9,555 @@ const Tagger = {
     extractedTags: [],
 
     patterns: {
+        // ==========================================
         // 1. PROFILS (Identity & Power)
-        identity: {
+        // ==========================================
+        identity_genre: {
             patterns: [
                 { regex: /\b(femme|woman|donna|mujer|frau)\b/gi, tag: 'Genre_Femme' },
                 { regex: /\b(homme|man|uomo|hombre|mann)\b/gi, tag: 'Genre_Homme' },
                 { regex: /\b(couple|pareja|coppia|paar)\b/gi, tag: 'Genre_Couple' },
-                { regex: /\b(non[\s-]?binaire|non[\s-]?binary)\b/gi, tag: 'Genre_Non-Binaire' },
-                // Générations (approximatif via âge si mentionné, sinon keywords)
+                { regex: /\b(non[\s-]?binaire|non[\s-]?binary)\b/gi, tag: 'Genre_Non-Binaire' }
+            ],
+            category: 'PROFIL_GENRE'
+        },
+        identity_generation: {
+            patterns: [
                 { regex: /\b(gen z|zoommers?|<25|moins de 25)\b/gi, tag: 'Gen_Z' },
                 { regex: /\b(millennial|y|25[\s-]?40)\b/gi, tag: 'Millennial' },
                 { regex: /\b(gen x|40[\s-]?60)\b/gi, tag: 'Gen_X' },
                 { regex: /\b(boomer|60[\s-]?80|60\+)\b/gi, tag: 'Boomer' },
-                { regex: /\b(silent|80\+|plus de 80)\b/gi, tag: 'Silent_Generation' },
-                // Langues
-                { regex: /\b(français|french|francese)\b/gi, tag: 'Langue_Français' },
-                { regex: /\b(anglais|english|inglese)\b/gi, tag: 'Langue_Anglais' },
-                { regex: /\b(italien|italian|italiano)\b/gi, tag: 'Langue_Italien' },
-                { regex: /\b(espagnol|spanish|spagnolo)\b/gi, tag: 'Langue_Espagnol' },
-                { regex: /\b(allemand|german|deutsch)\b/gi, tag: 'Langue_Allemand' },
-                { regex: /\b(mandarin|chinese|cinese|chino)\b/gi, tag: 'Langue_Mandarin' },
-                { regex: /\b(japonais|japanese|giapponese)\b/gi, tag: 'Langue_Japonais' },
-                { regex: /\b(arabe|arabic|arabo)\b/gi, tag: 'Langue_Arabe' },
-                { regex: /\b(russe|russian|russo)\b/gi, tag: 'Langue_Russe' }
+                { regex: /\b(silent|80\+|plus de 80)\b/gi, tag: 'Silent_Generation' }
             ],
-            category: 'PROFIL_IDENTITÉ'
+            category: 'PROFIL_GÉNÉRATION'
         },
-        // Santé & Médecine
-        profession_sante: {
+        identity_status: {
+            patterns: [
+                { regex: /\b(prospect|potentiel)\b/gi, tag: 'Status_Prospect' },
+                { regex: /\b(nouveau client|new client|première visite)\b/gi, tag: 'Status_Nouveau_Client' },
+                { regex: /\b(occasionnel|parfois|rarement)\b/gi, tag: 'Status_Client_Occasionnel' },
+                { regex: /\b(régulier|habituel|fidèle|regular)\b/gi, tag: 'Status_Client_Régulier' },
+                { regex: /\b(vip|top client|très bon client)\b/gi, tag: 'Status_VIP' },
+                { regex: /\b(vvip|top tier|elite)\b/gi, tag: 'Status_VVIP_Top_Tier' },
+                { regex: /\b(dormant|inactif|pausé)\b/gi, tag: 'Status_Client_Dormant' },
+                { regex: /\b(ancien|ex).{0,10}(top|vip|client)\b/gi, tag: 'Status_Ancien_Top_Client' }
+            ],
+            category: 'PROFIL_STATUS'
+        },
+        identity_langue: {
+            patterns: [
+                { regex: /\b(français|french)\b/gi, tag: 'Langue_Français' },
+                { regex: /\b(anglais|english)\b/gi, tag: 'Langue_Anglais' },
+                { regex: /\b(italien|italian)\b/gi, tag: 'Langue_Italien' },
+                { regex: /\b(espagnol|spanish)\b/gi, tag: 'Langue_Espagnol' },
+                { regex: /\b(allemand|german)\b/gi, tag: 'Langue_Allemand' },
+                { regex: /\b(mandarin|chinese|chinois)\b/gi, tag: 'Langue_Mandarin' },
+                { regex: /\b(japonais|japanese)\b/gi, tag: 'Langue_Japonais' },
+                { regex: /\b(arabe|arabic)\b/gi, tag: 'Langue_Arabe' },
+                { regex: /\b(russe|russian)\b/gi, tag: 'Langue_Russe' }
+            ],
+            category: 'PROFIL_LANGUE'
+        },
+        identity_influence: {
+            patterns: [
+                { regex: /\b(micro).{0,10}(influence|follower)\b/gi, tag: 'Influence_Micro' },
+                { regex: /\b(macro).{0,10}(influence|follower)\b/gi, tag: 'Influence_Macro' },
+                { regex: /\b(mega|million).{0,10}(influence|follower)\b/gi, tag: 'Influence_Mega' },
+                { regex: /\b(célébrité|star|famous|mondiale)\b/gi, tag: 'Influence_Célébrité_Mondiale' },
+                { regex: /\b(opinion|b2b|linkedin).{0,10}(leader|expert)\b/gi, tag: 'Influence_Leader_Opinion_B2B' }
+            ],
+            category: 'PROFIL_INFLUENCE'
+        },
+        identity_digital: {
+            patterns: [
+                { regex: /\b(instagram|insta)\b/gi, tag: 'Digital_Instagram' },
+                { regex: /\b(tiktok)\b/gi, tag: 'Digital_TikTok' },
+                { regex: /\b(linkedin)\b/gi, tag: 'Digital_LinkedIn' },
+                { regex: /\b(twitch)\b/gi, tag: 'Digital_Twitch' },
+                { regex: /\b(crypto|web3|native)\b/gi, tag: 'Digital_Crypto_Native' }
+            ],
+            category: 'PROFIL_DIGITAL'
+        },
+
+        // ==========================================
+        // PROFESSION & EXPERTISE
+        // ==========================================
+        pro_sante: {
             patterns: [
                 { regex: /\b(chirurgien|surgeon).{0,20}(cardi|thorac)/gi, tag: 'Chirurgien_Cardiothoracique' },
                 { regex: /\b(chirurgien|surgeon).{0,20}(ortho)/gi, tag: 'Chirurgien_Orthopédique' },
                 { regex: /\b(chirurgien|surgeon).{0,20}(maxillo|facial)/gi, tag: 'Chirurgien_Maxillo_Facial' },
-                { regex: /\b(chirurgien|surgeon).{0,20}(esthétique|plastique|plastic)/gi, tag: 'Chirurgien_Esthetique' },
-                { regex: /\b(neurologue|neurologist)\b/gi, tag: 'Neurologue' },
-                { regex: /\b(cardiologue|cardiologist)\b/gi, tag: 'Cardiologue' },
-                { regex: /\b(dermatologue|dermatologist|derma)\b/gi, tag: 'Dermatologue' },
-                { regex: /\b(dentiste|dentist|orthodontiste)\b/gi, tag: 'Dentiste_Orthodontiste' },
-                { regex: /\b(pharmacien|pharmacist).{0,20}(titulaire|owner)/gi, tag: 'Pharmacien_Titulaire' },
-                { regex: /\b(chercheur|researcher).{0,20}(bio|tech|pharma)/gi, tag: 'Chercheur_Biotech' },
-                { regex: /\b(médecin|doctor|docteur)\b/gi, tag: 'Médecin_Généraliste' }
+                { regex: /\b(chirurgien|surgeon).{0,20}(esthétique|plastique)/gi, tag: 'Chirurgien_Esthetique' },
+                // Fallback Niveau 2
+                { regex: /\b(chirurgien|surgeon)\b/gi, tag: 'Chirurgien_Général' },
+
+                { regex: /\b(neurologue|neurologist)\b/gi, tag: 'Médecin_Spé_Neurologue' },
+                { regex: /\b(cardiologue|cardiologist)\b/gi, tag: 'Médecin_Spé_Cardiologue' },
+                { regex: /\b(dermatologue|dermatologist)\b/gi, tag: 'Médecin_Spé_Dermatologue' },
+                { regex: /\b(dentiste|orthodontiste)\b/gi, tag: 'Médecin_Spé_Dentiste' },
+                // Fallback Niveau 2
+                { regex: /\b(médecin|doctor|spécialiste)\b/gi, tag: 'Médecin_Spécialiste' },
+
+                { regex: /\b(pharmacien).{0,10}(titulaire|owner)|\btitulaire\b/gi, tag: 'Pharma_Titulaire' },
+                { regex: /\b(chercheur|researcher).{0,10}(bio|tech)\b/gi, tag: 'Pharma_Chercheur_Biotech' }
             ],
-            category: 'PROFIL_PRO_SANTÉ'
+            category: 'PROFESSION_SANTÉ'
         },
-        // Finance
-        profession_finance: {
+        pro_finance: {
             patterns: [
-                { regex: /\b(hedge fund|fonds spéculatif)\b/gi, tag: 'Hedge_Fund_Manager' },
-                { regex: /\b(trader).{0,15}(forex|commodit|matières|bourse)/gi, tag: 'Trader_Forex_Commodities' },
-                { regex: /\b(asset manager|gestionnaire d'actifs)\b/gi, tag: 'Asset_Manager' },
-                { regex: /\b(private equity|capital investissement)\b/gi, tag: 'Partner_Private_Equity' },
-                { regex: /\b(venture capital|vc|capital risque)\b/gi, tag: 'Venture_Capitalist' },
-                { regex: /\b(angel investor|business angel)\b/gi, tag: 'Angel_Investor' },
-                { regex: /\b(investment bank|banquier d'affaires|m&a)\b/gi, tag: 'Investment_Banker_M&A' },
-                { regex: /\b(wealth manager|banquier privé|gestion de fortune)\b/gi, tag: 'Banquier_Privé' },
-                { regex: /\b(crypto|bitcoin|eth|blockchain|nft).{0,20}(expert|whale|investor)/gi, tag: 'Expert_Crypto_Blockchain' },
-                { regex: /\b(finance|banque|bank).{0,20}(directeur|director|vp|head)/gi, tag: 'Finance_Executive' }
+                { regex: /\b(hedge fund|fonds spéculatif)\b/gi, tag: 'Marchés_Hedge_Fund_Manager' },
+                { regex: /\b(trader).{0,20}(forex|commo|matières)\b/gi, tag: 'Marchés_Trader' },
+                { regex: /\b(asset manager|gestionnaire d'actifs)\b/gi, tag: 'Marchés_Asset_Manager' },
+
+                { regex: /\b(private equity|capital investissement)\b/gi, tag: 'Capital_Partner_PE' },
+                { regex: /\b(vc|venture capital|capital risque)\b/gi, tag: 'Capital_Venture_Capitalist' },
+                { regex: /\b(angel|investisseur).{0,10}(angel|business)\b/gi, tag: 'Capital_Angel_Investor' },
+
+                { regex: /\b(banquier|banker).{0,10}(m&a|fusion|acquis)/gi, tag: 'Banque_Investment_Banker' },
+                { regex: /\b(banquier|banker|gestion).{0,10}(privé|private|wealth|fortune)/gi, tag: 'Banque_Wealth_Manager' },
+
+                { regex: /\b(crypto|bitcoin).{0,10}(whale|gros)/gi, tag: 'Fintech_Crypto_Whale' },
+                { regex: /\b(expert|consultant).{0,10}(blockchain|nft)/gi, tag: 'Fintech_Expert_Blockchain' }
             ],
-            category: 'PROFIL_PRO_FINANCE'
+            category: 'PROFESSION_FINANCE'
         },
-        // Droit & Légal
-        profession_legal: {
+        pro_legal: {
             patterns: [
-                { regex: /\b(avocat|lawyer|attorney).{0,20}(m&a|corporate|affaires)/gi, tag: 'Avocat_M&A_Corporate' },
-                { regex: /\b(avocat|lawyer).{0,20}(propriété|intellectuelle|ip|brevet)/gi, tag: 'Avocat_IP' },
-                { regex: /\b(avocat|lawyer).{0,20}(famille|divorce)/gi, tag: 'Avocat_Droit_Famille' },
-                { regex: /\b(avocat|lawyer).{0,20}(droits de l'homme|human rights|ong)/gi, tag: 'Avocat_Droits_Homme' },
-                { regex: /\b(magistrat|juge|judge)\b/gi, tag: 'Magistrat_Juge' },
-                { regex: /\b(notaire|notary)\b/gi, tag: 'Notaire' },
-                { regex: /\b(commissaire priseur|auctioneer)\b/gi, tag: 'Commissaire_Priseur' }
+                { regex: /\b(avocat).{0,20}(m&a|corporate|affaires)/gi, tag: 'Avocature_M&A_Corporate' },
+                { regex: /\b(avocat).{0,20}(pi|propriété|intellectuelle)/gi, tag: 'Avocature_PI' },
+                { regex: /\b(avocat).{0,20}(famille|divorce)/gi, tag: 'Avocature_Droit_Famille' },
+                { regex: /\b(avocat).{0,20}(droits|homme|ong)/gi, tag: 'Avocature_Droits_Homme' },
+
+                { regex: /\b(magistrat|juge|judge)\b/gi, tag: 'Institutionnel_Magistrat' },
+                { regex: /\b(notaire)\b/gi, tag: 'Institutionnel_Notaire' },
+                { regex: /\b(commissaire priseur)\b/gi, tag: 'Institutionnel_Commissaire_Priseur' }
             ],
-            category: 'PROFIL_PRO_LÉGAL'
+            category: 'PROFESSION_LÉGAL'
         },
-        // Art & Créatif
-        profession_art: {
+        pro_creatif: {
             patterns: [
-                { regex: /\b(galeriste|gallery owner)\b/gi, tag: 'Galeriste' },
-                { regex: /\b(curateur|curator)\b/gi, tag: 'Curateur_Musée' },
-                { regex: /\b(art advisor|conseiller art)\b/gi, tag: 'Consultant_Art' },
-                { regex: /\b(architecte|architect).{0,10}(dplg|senior|principal)?\b/gi, tag: 'Architecte' },
-                { regex: /\b(designer|décorateur).{0,20}(intérieur|interior)/gi, tag: 'Designer_Intérieur' },
-                { regex: /\b(paysagiste|landscape)\b/gi, tag: 'Paysagiste' },
-                { regex: /\b(chef d'orchestre|conductor)\b/gi, tag: 'Chef_Orchestre' },
-                { regex: /\b(soliste|soloist|pianiste|violoniste)\b/gi, tag: 'Soliste_Classique' },
-                { regex: /\b(producteur|producer).{0,10}(cinéma|film|movie)/gi, tag: 'Producteur_Cinema' },
-                { regex: /\b(agent artistique|talent agent)\b/gi, tag: 'Agent_Artistique' },
-                { regex: /\b(artiste|artist|peintre|sculpteur)\b/gi, tag: 'Artiste' }
+                { regex: /\b(galeriste)\b/gi, tag: 'ArtMarket_Galeriste' },
+                { regex: /\b(curateur|musée)\b/gi, tag: 'ArtMarket_Curateur' },
+                { regex: /\b(consultant|advisor).{0,10}(art)\b/gi, tag: 'ArtMarket_Consultant_Advisor' },
+
+                { regex: /\b(architecte).{0,10}(dplg)\b/gi, tag: 'Design_Architecte_DPLG' },
+                { regex: /\b(designer|décorateur).{0,10}(intérieur)/gi, tag: 'Design_Designer_Intérieur' },
+                { regex: /\b(paysagiste)\b/gi, tag: 'Design_Paysagiste' },
+
+                { regex: /\b(chef|orchestre|conductor)\b/gi, tag: 'Performance_Chef_Orchestre' },
+                { regex: /\b(soliste|concertiste)\b/gi, tag: 'Performance_Soliste_Classique' },
+                { regex: /\b(producteur).{0,10}(cinéma|film)\b/gi, tag: 'Performance_Producteur_Cinema' },
+                { regex: /\b(agent).{0,10}(artistique|talent)\b/gi, tag: 'Performance_Agent_Artistique' }
             ],
-            category: 'PROFIL_PRO_ART'
+            category: 'PROFESSION_CRÉATIF'
         },
-        // Corporate Business
-        profession_biz: {
+        pro_business: {
             patterns: [
-                { regex: /\b(ceo|pdg|dg|directeur général|chief executive)\b/gi, tag: 'CEO_Dirigeant' },
-                { regex: /\b(board member|conseil d'administration|administrateur)\b/gi, tag: 'Board_Member' },
-                { regex: /\b(fondateur|founder|cofondateur).{0,20}(family office)/gi, tag: 'Fondateur_Family_Office' },
-                { regex: /\b(immobilier|real estate|promoteur).{0,20}(luxe|luxury)/gi, tag: 'Immobilier_Luxe' },
-                { regex: /\b(tech|startup).{0,10}(founder|fondateur|entrepreneur)/gi, tag: 'Tech_Founder' },
-                { regex: /\b(fashion|mode|pr|communication)\b/gi, tag: 'Fashion_PR_Com' }
+                { regex: /\b(ceo|dirigeant|dg)\b/gi, tag: 'Leadership_CEO_Dirigeant' },
+                { regex: /\b(board|conseil).{0,10}(administration|membre)\b/gi, tag: 'Leadership_Board_Member' },
+                { regex: /\b(fondateur|founder).{0,10}(family office)\b/gi, tag: 'Leadership_Fondateur_Family_Office' },
+
+                { regex: /\b(immobilier|développeur).{0,10}(luxe|prestige)\b/gi, tag: 'Secteurs_Immobilier_Luxe' },
+                { regex: /\b(tech|startup).{0,10}(founder|fondateur)\b/gi, tag: 'Secteurs_Tech_Founder' },
+                { regex: /\b(pr|relation).{0,10}(presse|public|fashion)\b/gi, tag: 'Secteurs_Fashion_PR' }
             ],
-            category: 'PROFIL_PRO_BIZ'
+            category: 'PROFESSION_BUSINESS'
         },
-        // Sphère Publique
-        profession_public: {
+        pro_public: {
             patterns: [
-                { regex: /\b(diplomate|diplomat|ambassadeur|ambassador)\b/gi, tag: 'Diplomate_Ambassadeur' },
-                { regex: /\b(athlète|athlete|sportif|player|joueur).{0,10}(pro|haut niveau)/gi, tag: 'Athlète_Pro' },
-                { regex: /\b(football|tennis|f1|formule 1)/gi, tag: 'Athlète_Pro_Sport' },
-                { regex: /\b(politique|politician|deputé|senateur|ministre)\b/gi, tag: 'Politique' }
+                { regex: /\b(diplomate|ambassadeur)\b/gi, tag: 'Public_Diplomate_Ambassadeur' },
+                { regex: /\b(athlète|sportif).{0,10}(pro|haut niveau)\b/gi, tag: 'Public_Athlète_Pro' },
+                { regex: /\b(politique|ministre|député|sénateur)\b/gi, tag: 'Public_Politique' }
             ],
-            category: 'PROFIL_PRO_PUBLIC'
-        },
-        // Influence
-        influence: {
-            patterns: [
-                { regex: /\b(micro).{0,10}(influence|follower)/gi, tag: 'Influence_Micro' },
-                { regex: /\b(macro).{0,10}(influence|follower)/gi, tag: 'Influence_Macro' },
-                { regex: /\b(mega|million).{0,10}(influence|follower)/gi, tag: 'Influence_Mega' },
-                { regex: /\b(célébrité|celebrity|star|famous)/gi, tag: 'Célébrité_Mondiale' },
-                { regex: /\b(opinion leader|b2b|linkedin)/gi, tag: 'Leader_Opinion_B2B' },
-                { regex: /\b(instagram|tiktok|linkedin|twitch|crypto native)/gi, tag: 'Digital_Active' }
-            ],
-            category: 'PROFIL_INFLUENCE'
+            category: 'PROFESSION_PUBLIC'
         },
 
+        // ==========================================
         // 2. INTÉRÊTS & CERCLES (Passion Points)
-        cercles: {
+        // ==========================================
+        passions_cercles: {
             patterns: [
-                { regex: /\b(racing club|lagardère|boulie|stade français)/gi, tag: 'Club_Sportif_Paris' },
-                { regex: /\b(queens club|hurlingham|mcc|lords|wentworth)/gi, tag: 'Club_Sportif_UK' },
-                { regex: /\b(soho house|cercle interallié|arts club|silencio)/gi, tag: 'Club_Social_Arts' },
-                { regex: /\b(yacht club|monaco|ycm)/gi, tag: 'Club_Yachting' },
-                { regex: /\b(alumni|ancien élève).{0,20}(harvard|yale|oxford|cambridge)/gi, tag: 'Alumni_Ivy_League' },
-                { regex: /\b(alumni|ancien élève).{0,20}(hec|polytechnique|sorbonne|essec|ena)/gi, tag: 'Alumni_Grandes_Ecoles' }
+                { regex: /\b(racing club|lagardère|polo de paris)/gi, tag: 'Clubs_Sportifs_Prestige_Paris' },
+                { regex: /\b(queens|hurlingham|mcc|lords|wentworth)/gi, tag: 'Clubs_Sportifs_Prestige_UK' },
+                { regex: /\b(soho house|cercle interallié|arts club)\b/gi, tag: 'Clubs_Sociaux_Arts' },
+                { regex: /\b(yacht club|monaco|ycm)/gi, tag: 'Réseaux_Exclusifs_Yachting' },
+                { regex: /\b(alumni|ancien).{0,10}(ivy|harvard|yale|columbia)/gi, tag: 'Réseaux_Exclusifs_Ivy_League' },
+                { regex: /\b(alumni|ancien).{0,10}(hec|polytechnique|ena|essec)/gi, tag: 'Réseaux_Exclusifs_Grandes_Ecoles' }
             ],
             category: 'PASSION_CERCLES'
         },
-        collection: {
+        passions_collection: {
             patterns: [
-                { regex: /\b(montre|watch).{0,15}(vintage|ancienne)/gi, tag: 'Montres_Vintage' },
-                { regex: /\b(montre|watch).{0,15}(complication|tourbillon)/gi, tag: 'Montres_Complications' },
-                { regex: /\b(patek|rolex|audemars)/gi, tag: 'Montres_Collector' },
-                { regex: /\b(livre|book|bibliophil).{0,15}(rare|ancien|manuscrit|édition originale)/gi, tag: 'Bibliophilie' },
-                { regex: /\b(art).{0,15}(contemporain|emergent|jeune création)/gi, tag: 'Art_Contemporain' },
-                { regex: /\b(maître|master|ancien).{0,15}(peinture|tableau)/gi, tag: 'Art_Maîtres_Anciens' },
-                { regex: /\b(photo).{0,15}(fine art|tirage|print)/gi, tag: 'Photographie_Art' },
-                { regex: /\b(nft|digital art)/gi, tag: 'NFT_Art' },
-                { regex: /\b(vin|wine|grand cru|bordeaux|modena|mouton)/gi, tag: 'Vins_Grands_Crus' },
-                { regex: /\b(bourgogne|burgundy|romanée|tâche)/gi, tag: 'Vins_Bourgogne_Rare' },
-                { regex: /\b(whisky|whiskey).{0,15}(japon|japan|suntory)/gi, tag: 'Whisky_Japonais' },
-                { regex: /\b(cognac|armagnac).{0,15}(prestige|louis xiii)/gi, tag: 'Cognac_Prestige' }
+                { regex: /\b(montre|watch).{0,10}(vintage|ancienne)/gi, tag: 'Horlogerie_Vintage' },
+                { regex: /\b(montre|watch).{0,10}(complication)/gi, tag: 'Horlogerie_Complications' },
+                { regex: /\b(patek|rolex).{0,10}(collector|collection)/gi, tag: 'Horlogerie_Patek_Rolex' },
+
+                { regex: /\b(livre|manuscrit).{0,10}(rare|ancien|précieux)/gi, tag: 'Bibliophilie_Rares' },
+                { regex: /\b(carte).{0,10}(géographique|ancienne)/gi, tag: 'Bibliophilie_Cartes' },
+
+                { regex: /\b(art).{0,10}(contemporain)/gi, tag: 'Art_Contemporain' },
+                { regex: /\b(maître|master).{0,10}(ancien)/gi, tag: 'Art_Maîtres_Anciens' },
+                { regex: /\b(photo).{0,10}(art|fine)/gi, tag: 'Art_Photographie' },
+                { regex: /\b(nft|digital art)\b/gi, tag: 'Art_NFT' },
+
+                { regex: /\b(bordeaux|grand cru)\b/gi, tag: 'Vins_Grands_Crus_Bordeaux' },
+                { regex: /\b(bourgogne).{0,10}(rare|romanée)/gi, tag: 'Vins_Bourgogne_Rare' },
+                { regex: /\b(whisky).{0,10}(japonais|yamazaki)/gi, tag: 'Vins_Whisky_Japonais' },
+                { regex: /\b(cognac).{0,10}(prestige|louis xiii)/gi, tag: 'Vins_Cognac_Prestige' }
             ],
             category: 'PASSION_COLLECTION'
         },
-        sport: {
+        passions_sport: {
             patterns: [
-                { regex: /\b(tennis).{0,20}(compétition|tournoi|match)/gi, tag: 'Tennis_Compétition' },
-                { regex: /\b(padel|paddle)/gi, tag: 'Padel' },
-                { regex: /\b(squash)/gi, tag: 'Squash' },
-                { regex: /\b(real tennis|jeu de paume)/gi, tag: 'Jeu_de_Paume' },
-                { regex: /\b(golf).{0,20}(handicap|bas| <10|single)/gi, tag: 'Golf_Expert' },
-                { regex: /\b(golf).{0,30}(collection|matériel|equipment)/gi, tag: 'Golf_Collectionneur' },
-                { regex: /\b(yacht|superyacht|boat|bateau).{0,20}(owner|propriétaire)/gi, tag: 'Propriétaire_Yacht' },
-                { regex: /\b(voile|sail|regatta|régate)/gi, tag: 'Voile_Compétition' },
-                { regex: /\b(kitesurf|kite|surf|windsurf)/gi, tag: 'Surf_Kite_Freestyle' },
-                { regex: /\b(triathlon|ironman)/gi, tag: 'Triathlon_Ironman' },
-                { regex: /\b(marathon|major)/gi, tag: 'Marathon_Six_Majors' },
-                { regex: /\b(alpinisme|himalaya|climbing|everest|mont blanc)/gi, tag: 'Alpinisme_Extreme' },
-                { regex: /\b(yoga).{0,20}(ashtanga|vinyasa)/gi, tag: 'Yoga_Expert' },
-                { regex: /\b(pilates).{0,20}(reformer|machine)/gi, tag: 'Pilates_Reformer' },
-                { regex: /\b(méditation|meditation|mindfulness)/gi, tag: 'Méditation' },
-                { regex: /\b(pilote|driver|racing).{0,20}(gentleman|amateur)/gi, tag: 'Pilote_Gentleman_Driver' },
-                { regex: /\b(ferrari|porsche|lamborghini|aston).{0,20}(collection)/gi, tag: 'Collectionneur_Cars' },
-                { regex: /\b(f1|paddock|club)/gi, tag: 'F1_Paddock_Club' }
+                { regex: /\b(tennis).{0,10}(compétition|tournoi)\b/gi, tag: 'Raquette_Tennis_Compétition' },
+                { regex: /\b(padel)\b/gi, tag: 'Raquette_Padel' },
+                { regex: /\b(squash)\b/gi, tag: 'Raquette_Squash' },
+                { regex: /\b(real tennis|jeu de paume)\b/gi, tag: 'Raquette_Real_Tennis' },
+
+                { regex: /\b(golf).{0,15}(handicap|bas| <10)\b/gi, tag: 'Golf_Handicap_Bas' },
+                { regex: /\b(golf).{0,15}(collection|matériel)\b/gi, tag: 'Golf_Collectionneur_Matériel' },
+
+                { regex: /\b(yacht|superyacht).{0,10}(propriétaire|owner)/gi, tag: 'Nautisme_Propriétaire_Superyacht' },
+                { regex: /\b(voile|régate|sailing)\b/gi, tag: 'Nautisme_Voile_Régate' },
+                { regex: /\b(kitesurf|kite)\b/gi, tag: 'Nautisme_Kitesurf' },
+                { regex: /\b(surf).{0,10}(big|gros|wave|vague)/gi, tag: 'Nautisme_Surf_Big_Wave' },
+
+                { regex: /\b(triathlon|ironman)\b/gi, tag: 'Endurance_Triathlon_Ironman' },
+                { regex: /\b(marathon).{0,10}(major|six|6)/gi, tag: 'Endurance_Marathon_Six_Majors' },
+                { regex: /\b(alpinisme|himalaya|sommet)\b/gi, tag: 'Endurance_Alpinisme' },
+
+                // Allow generic Yoga if Ashtanga not specified (User wants max tags)
+                { regex: /\b(yoga).{0,10}(ashtanga|vinyasa)|\b(yoga)\b/gi, tag: 'Bien-être_Yoga_Ashtanga' },
+                { regex: /\b(pilates).{0,10}(reformer)/gi, tag: 'Bien-être_Pilates_Reformer' },
+                { regex: /\b(méditation|pleine conscience)\b/gi, tag: 'Bien-être_Méditation' },
+
+                { regex: /\b(pilote|driver).{0,10}(gentleman|amateur)/gi, tag: 'Mécanique_Pilote_Gentleman' },
+                { regex: /\b(collection).{0,10}(ferrari|porsche)/gi, tag: 'Mécanique_Collectionneur_Ferrari' },
+                { regex: /\b(f1|paddock)\b/gi, tag: 'Mécanique_F1_Paddock_Club' }
             ],
             category: 'PASSION_SPORT'
         },
-        culture: {
+        passions_culture: {
             patterns: [
-                { regex: /\b(ukiyo-e|estampe|japon)/gi, tag: 'Art_Japonais' },
-                { regex: /\b(minimalis)/gi, tag: 'Art_Minimalisme' },
-                { regex: /\b(wabi.?sabi)/gi, tag: 'Art_Wabi_Sabi' },
-                { regex: /\b(bauhaus)/gi, tag: 'Art_Bauhaus' },
-                { regex: /\b(art déco|art deco)/gi, tag: 'Art_Déco' },
-                { regex: /\b(opéra|opera).{0,20}(bayreuth|scala|garnier|met)/gi, tag: 'Opéra_Expert' },
-                { regex: /\b(classique|symphoni|philharmoni)/gi, tag: 'Musique_Symphonique' },
-                { regex: /\b(jazz).{0,20}(festival|montreux)/gi, tag: 'Jazz_Festival' },
-                { regex: /\b(michelin|étoilé|starred).{0,20}(chef|restaurant)/gi, tag: 'Gastro_Michelin' },
-                { regex: /\b(kaiseki|omakase)/gi, tag: 'Gastro_Japonaise' },
-                { regex: /\b(chef).{0,20}(domicile|privé|private)/gi, tag: 'Chef_à_Domicile' },
-                { regex: /\b(botanique|botanic|orchidée|orchid)/gi, tag: 'Botanique_Orchidées' },
-                { regex: /\b(paysagisme|jardin).{0,20}(japonais|anglais)/gi, tag: 'Jardin_Paysagisme' }
+                { regex: /\b(ukiyo|estampe|japon)\b/gi, tag: 'ArtVisuel_Ukiyo-e' },
+                { regex: /\b(minimalis)\b/gi, tag: 'ArtVisuel_Minimalisme' },
+                { regex: /\b(wabi sabi)\b/gi, tag: 'ArtVisuel_Wabi-Sabi' },
+                { regex: /\b(bauhaus)\b/gi, tag: 'ArtVisuel_Bauhaus' },
+                { regex: /\b(art déco|déco)\b/gi, tag: 'ArtVisuel_Art_Déco' },
+
+                { regex: /\b(opéra|bayreuth|wagner)\b/gi, tag: 'Musique_Opéra' },
+                { regex: /\b(symphoni|classique)\b/gi, tag: 'Musique_Symphonique' },
+                { regex: /\b(jazz).{0,10}(festival|montreux)/gi, tag: 'Musique_Jazz_Festival' },
+
+                { regex: /\b(michelin|étoilé|starred)\b/gi, tag: 'Gastronomie_Chasseur_Etoiles' },
+                { regex: /\b(kaiseki)\b/gi, tag: 'Gastronomie_Cuisine_Kaiseki' },
+                { regex: /\b(chef).{0,10}(domicile|privé)/gi, tag: 'Gastronomie_Chef_Domicile' },
+
+                { regex: /\b(botanique|orchidée)\b/gi, tag: 'Nature_Botanique' },
+                { regex: /\b(paysagisme|jardin).{0,10}(japonais)/gi, tag: 'Nature_Paysagisme_Japonais' }
             ],
             category: 'PASSION_CULTURE'
         },
         valeurs: {
             patterns: [
-                { regex: /\b(écologie|ecolo|durability|sustainab).{0,20}(éco|eco)/gi, tag: 'Écologie_Durabilité' },
-                { regex: /\b(zéro déchet|zero waste|upcycling)/gi, tag: 'Zéro_Déchet' },
-                { regex: /\b(vegan).{0,10}(strict)/gi, tag: 'Vegan_Strict' },
-                { regex: /\b(cruelty.?free|sans cruauté)/gi, tag: 'Cruelty_Free' },
-                { regex: /\b(héritage|heritage|patrimoine)/gi, tag: 'Héritage_Patrimoine' },
-                { regex: /\b(artisanat|crafts|métiers d'art)/gi, tag: 'Artisanat_Art' },
-                { regex: /\b(made in france|fabriqué en france)/gi, tag: 'Made_In_France' }
+                { regex: /\b(écologie|durabilité|sustainab)\b/gi, tag: 'Valeurs_Durabilité' },
+                { regex: /\b(zéro déchet|vrac)\b/gi, tag: 'Valeurs_Zéro_Déchet' },
+                { regex: /\b(upcycling)\b/gi, tag: 'Valeurs_Upcycling' },
+                { regex: /\b(vegan).{0,10}(strict)\b/gi, tag: 'Valeurs_Vegan_Strict' },
+                { regex: /\b(cruelty free|sans cruauté)\b/gi, tag: 'Valeurs_Cruelty_Free' },
+                { regex: /\b(artisanat|métier d'art)\b/gi, tag: 'Valeurs_Artisanat' },
+                { regex: /\b(transmission|héritage)\b/gi, tag: 'Valeurs_Transmission' },
+                { regex: /\b(made in france)\b/gi, tag: 'Valeurs_Made_In_France' },
+                { regex: /\b(web3|ownership)\b/gi, tag: 'Valeurs_Tech_Web3' },
+                { regex: /\b(transhumanisme|bio-hacking)\b/gi, tag: 'Valeurs_Tech_Transhumanisme' },
+                { regex: /\b(philanthropie|mécénat)\b/gi, tag: 'Valeurs_Société_Philanthropie' },
+                { regex: /\b(inclusivité|diversité)\b/gi, tag: 'Valeurs_Société_Inclusivité' },
+                { regex: /\b(droits humains)\b/gi, tag: 'Valeurs_Société_Droits_Humains' }
             ],
-            category: 'VALEURS'
+            category: 'VALEURS_ÉTHIQUE'
         },
 
-        // 3. VOYAGE
-        voyage: {
+        // ==========================================
+        // 3. VOYAGE (Travel)
+        // ==========================================
+        voyage_type: {
             patterns: [
-                // Types
-                { regex: /\b(resort|palace|grand hotel|5 stars).{0,20}(maldives|seychelles|poly)/gi, tag: 'Voyage_Loisir_Luxe' },
-                { regex: /\b(chalet|ski).{0,20}(privé|private|courchevel|gstaad)/gi, tag: 'Voyage_Ski_Luxe' },
-                { regex: /\b(safari).{0,20}(big 5|botswana|kenya|tanzani|africa)/gi, tag: 'Voyage_Safari' },
-                { regex: /\b(polaire|polar|antarctique|arctic)/gi, tag: 'Expédition_Polaire' },
-                { regex: /\b(trek|hike).{0,20}(himalaya|nepal|andes)/gi, tag: 'Trekking_Aventure' },
-                { regex: /\b(retraite|retreat|ashram).{0,20}(ayurved|inde|india)/gi, tag: 'Retraite_Ayurvédique' },
-                { regex: /\b(detox|clinic|clinique).{0,20}(suisse|swiss|chenot|laprairie)/gi, tag: 'Detox_Clinic_Suisse' },
-                { regex: /\b(grand tour|italie|italy|venise|rome|florence)/gi, tag: 'Grand_Tour_Italie' },
-                { regex: /\b(tour).{0,20}(japon|japan|kyoto|temple)/gi, tag: 'Immersion_Japon' },
-                { regex: /\b(festival).{0,20}(cannes|venise|berlin)/gi, tag: 'Festival_Cinéma' },
-                { regex: /\b(roadshow|déplacement pro|business trip)/gi, tag: 'Voyage_Business' },
-                { regex: /\b(fashion week|fw|pfw|mfw|nyfw)/gi, tag: 'Voyage_Fashion_Week' },
-                // Destinations
-                { regex: /\b(tokyo|kyoto|naoshima|seoul|bali|australi)/gi, tag: 'Dest_Asie_Pacifique' },
-                { regex: /\b(nyc|new york|manhattan|hamptons|miami|basel|aspen|vail|st barth|patagoni)/gi, tag: 'Dest_Amériques' },
-                { regex: /\b(londres|london|mayfair|chelsea|paris|triangle d'or|côte d'azur|monaco|st tropez|cap ferrat)/gi, tag: 'Dest_Europe_Luxe' },
-                { regex: /\b(gstaad|verbier|st moritz|zermatt)/gi, tag: 'Dest_Alpes_Suisses' },
-                { regex: /\b(toscane|tuscany|como|côme|amalfi)/gi, tag: 'Dest_Italie' },
-                { regex: /\b(dubaï|dubai|abu dhabi|marrakech|cap|cape town)/gi, tag: 'Dest_Afrique_MO' }
+                { regex: /\b(loisir|resort|palace|maldives|seychelles|polynésie).{0,10}(luxe)?\b/gi, tag: 'Voyage_Loisir_Luxe' },
+                { regex: /\b(aventure|safari|nature)\b/gi, tag: 'Voyage_Aventure_Nature' },
+                { regex: /\b(bien-être|retraite|detox)\b/gi, tag: 'Voyage_Bien_être' },
+                { regex: /\b(culturel|tour|musée)\b/gi, tag: 'Voyage_Culturel' },
+                { regex: /\b(business|roadshow|pro)\b/gi, tag: 'Voyage_Business' }
             ],
-            category: 'VOYAGE'
+            category: 'VOYAGE_TYPE'
+        },
+        voyage_dest: {
+            patterns: [
+                { regex: /\b(japon|tokyo|kyoto|corée|séoul|bali|australie)\b/gi, tag: 'Dest_Asie_Pacifique' },
+                { regex: /\b(nyc|miami|aspen|st barth|patagonie)\b/gi, tag: 'Dest_Amériques' },
+                { regex: /\b(londres|paris|côte d'azur|alpes|suisse|italie|toscane)\b/gi, tag: 'Dest_Europe' },
+                { regex: /\b(dubaï|marrakech|le cap|safari)\b/gi, tag: 'Dest_Afrique_Moyen_Orient' }
+            ],
+            category: 'VOYAGE_DESTINATION'
         },
 
-        // 4. INTENTION D'ACHAT
-        intention_destinataire: {
+        // ==========================================
+        // 4. INTENTION D'ACHAT (Sales Context)
+        // ==========================================
+        achat_destinataire: {
             patterns: [
-                { regex: /\b(pour moi|for me|mon plaisir|my treat|auto.cadeau)/gi, tag: 'Pour_Soi_Reward' },
-                { regex: /\b(conjoint|mari|femme|époux|épouse|partner|husband|wife).{0,10}(cadeau|gift)/gi, tag: 'Pour_Partner' },
-                { regex: /\b(amant|mistress|lover|discret)/gi, tag: 'Pour_Amant_Secret' },
-                { regex: /\b(mère|mother|maman|père|father|papa).{0,10}(cadeau|gift)/gi, tag: 'Pour_Parents' },
-                { regex: /\b(enfant|kid|child|teen|ado).{0,10}(cadeau|gift)/gi, tag: 'Pour_Enfant' },
-                { regex: /\b(assistant|pa|secrétaire).{0,10}(cadeau|gift)/gi, tag: 'Pour_Assistant' },
-                { regex: /\b(client|business).{0,10}(cadeau|gift|deal)/gi, tag: 'Pour_Client_VIP' },
-                { regex: /\b(employé|employee|staff|équipe).{0,10}(cadeau|reward)/gi, tag: 'Pour_Employé' },
-                { regex: /\b(host|hote|hotesse|invitation).{0,10}(cadeau|gift)/gi, tag: 'Cadeau_Hôtesse' },
-                { regex: /\b(wedding list|liste mariage)/gi, tag: 'Pour_Liste_Mariage' }
+                { regex: /\b(pour soi|moi|me faire plaisir)\b/gi, tag: 'Dest_Intime_Pour_Soi' },
+                { regex: /\b(conjoint|mari|femme|époux)\b/gi, tag: 'Dest_Intime_Pour_Conjoint' },
+                { regex: /\b(amant|maitresse)\b/gi, tag: 'Dest_Intime_Pour_Amant' },
+                { regex: /\b(parent|mère|père)\b/gi, tag: 'Dest_Famille_Pour_Parents' },
+                { regex: /\b(enfant|fils|fille)\b/gi, tag: 'Dest_Famille_Pour_Enfant' },
+                { regex: /\b(ado|teen).{0,10}(premier luxe)\b/gi, tag: 'Dest_Famille_Pour_Ado_First_Luxury' },
+                { regex: /\b(petit-enfant)\b/gi, tag: 'Dest_Famille_Pour_Petit_Enfant' },
+                { regex: /\b(assistant|pa)\b/gi, tag: 'Dest_Pro_Pour_Assistant' },
+                { regex: /\b(client|vip).{0,10}(cadeau)\b/gi, tag: 'Dest_Pro_Pour_Client_VIP' },
+                { regex: /\b(employé|staff)\b/gi, tag: 'Dest_Pro_Pour_Employé' },
+                { regex: /\b(hote|hotesse|invitation)\b/gi, tag: 'Dest_Social_Pour_Hôte' },
+                { regex: /\b(mariés|wedding list)\b/gi, tag: 'Dest_Social_Pour_Mariés' }
             ],
-            category: 'SALES_DESTINATAIRE'
+            category: 'INTENTION_DESTINATAIRE'
         },
-        intention_occasion: {
+        achat_occasion: {
             patterns: [
-                { regex: /\b(18|21|30|40|50|60).{0,5}(ans|years|bday|anniversaire)/gi, tag: 'Anniversaire_Marquant' },
-                { regex: /\b(naissance|birth|babyshower|baby shower)/gi, tag: 'Naissance_Babyshower' },
-                { regex: /\b(baptême|communion|christening)/gi, tag: 'Baptême_Communion' },
-                { regex: /\b(mariage|wedding|fiançailles|engagement)/gi, tag: 'Mariage_Fiançailles' },
-                { regex: /\b(divorce|separation|breakup).{0,10}(party|fête)/gi, tag: 'Divorce_Party' },
-                { regex: /\b(premier job|first job|embauche|promotion|bonus)/gi, tag: 'Carrière_Milestone' },
-                { regex: /\b(retraite|retirement|départ)/gi, tag: 'Retraite' },
-                { regex: /\b(vente|sale|exit).{0,10}(entreprise|company|business)/gi, tag: 'Vente_Entreprise_Exit' },
-                { regex: /\b(diplôme|graduation|phd|master|bachelor)/gi, tag: 'Diplomation' },
-                { regex: /\b(noël|christmas|xmas|hanoucca|hanukkah)/gi, tag: 'Fêtes_Fin_Année' },
-                { regex: /\b(nouvel an chinois|cny|lunar)/gi, tag: 'Nouvel_An_Chinois' },
-                { regex: /\b(ramadan|eid|aïd)/gi, tag: 'Ramadan_Eid' },
-                { regex: /\b(diwali)/gi, tag: 'Diwali' },
-                { regex: /\b(saint valentin|valentine)/gi, tag: 'Saint_Valentin' },
-                { regex: /\b(fête des mères|fête des pères|mothers day|fathers day)/gi, tag: 'Fête_Parents' }
+                { regex: /\b(anniversaire|marquant|18|20|30|40|50|60)\b/gi, tag: 'Occasion_Anniversaire_Marquant' },
+                { regex: /\b(naissance|babyshower)\b/gi, tag: 'Occasion_Naissance' },
+                { regex: /\b(mariage|divorce)\b/gi, tag: 'Occasion_Mariage_Divorce' },
+                { regex: /\b(premier job|embauche)\b/gi, tag: 'Occasion_Carrière_Premier_Job' },
+                { regex: /\b(promotion|bonus)\b/gi, tag: 'Occasion_Carrière_Promotion' },
+                { regex: /\b(retraite)\b/gi, tag: 'Occasion_Carrière_Retraite' },
+                { regex: /\b(vente|exit).{0,10}(entreprise)\b/gi, tag: 'Occasion_Carrière_Exit_Vente' },
+                { regex: /\b(diplomation|diplôme)\b/gi, tag: 'Occasion_Carrière_Diplomation' },
+                { regex: /\b(noël|fin d'année|fêtes)\b/gi, tag: 'TempsFort_Cadeaux_Fin_Année' },
+                { regex: /\b(renouveau|nouvel an|cny)\b/gi, tag: 'TempsFort_Célébration_Renouveau' },
+                { regex: /\b(ramadan|eid|diwali)\b/gi, tag: 'TempsFort_Traditionnel' },
+                { regex: /\b(saint valentin|romantique)\b/gi, tag: 'TempsFort_Occasion_Romantique' },
+                { regex: /\b(fête des mères|pères)\b/gi, tag: 'TempsFort_Célébration_Parentale' },
+                { regex: /\b(impulsion|coup de tête)\b/gi, tag: 'Plaisir_Impulsion' },
+                { regex: /\b(thérapie|moral)\b/gi, tag: 'Plaisir_Shopping_Thérapie' },
+                { regex: /\b(souvenir|voyage)\b/gi, tag: 'Plaisir_Souvenir' }
             ],
-            category: 'SALES_OCCASION'
+            category: 'INTENTION_OCCASION'
         },
-        intention_nature: {
+        achat_style: {
             patterns: [
-                { regex: /\b(coup de tête|impuls|impulsif|craquage)/gi, tag: 'Achat_Impulsif' },
-                { regex: /\b(thérapie|therapy|remonter le moral|consolation)/gi, tag: 'Shopping_Thérapie' },
-                { regex: /\b(souvenir|paris).{0,10}(trip|voyage)/gi, tag: 'Souvenir_Voyage' }
+                { regex: /\b(classique|classic)\b/gi, tag: 'Style_Classique' },
+                { regex: /\b(moderne|modern)\b/gi, tag: 'Style_Moderne' },
+                { regex: /\b(trendy|tendance)\b/gi, tag: 'Style_Trendy' },
+                { regex: /\b(logo|monogram)\b/gi, tag: 'Style_Logo' },
+                { regex: /\b(quiet|discret)\b/gi, tag: 'Style_Quiet_Luxury' }
             ],
-            category: 'SALES_NATURE'
-        },
-
-        // 5. SÉCURITÉ & HOSPITALITY (RGPD - Justification Service)
-        securite_sante: {
-            patterns: [
-                { regex: /\b(arachide|peanut|fruit à coque|nut|noisette|hazelnut)/gi, tag: 'DANGER_Allergie_Arachides' },
-                { regex: /\b(crustacé|shellfish|fruit de mer)/gi, tag: 'DANGER_Allergie_Crustacés' },
-                { regex: /\b(latex)/gi, tag: 'Allergie_Contact_Latex' },
-                { regex: /\b(nickel|bijoux|metal)/gi, tag: 'Allergie_Contact_Nickel' },
-                { regex: /\b(laine|wool|mohair|alpaga)/gi, tag: 'Allergie_Contact_Laine' },
-                { regex: /\b(parfum|fragrance|scent).{0,20}(asthme|toux|gêne)/gi, tag: 'Allergie_Parfum_Asthme' },
-                { regex: /\b(poussière|dust|acarien)/gi, tag: 'Allergie_Poussière' },
-                { regex: /\b(fleur|flower|pollen|bouquet)/gi, tag: 'Allergie_Fleurs_Pollen' },
-                { regex: /\b(gluten|céliaque|celiac)/gi, tag: 'Maladie_Céliaque_Sans_Gluten' },
-                { regex: /\b(lactose|lait|milk|dairy)/gi, tag: 'Intolérance_Lactose' },
-                { regex: /\b(diabète|diabétique|diabetes|sucre|sugar)/gi, tag: 'Régime_Diabétique' },
-                { regex: /\b(keto|low carb|cétogène)/gi, tag: 'Régime_Keto' },
-                { regex: /\b(vegan|végétalien).{0,20}(cuir|leather|laine|wool)/gi, tag: 'Vegan_Strict_No_Leather' },
-                { regex: /\b(végétarien|vegetarian)/gi, tag: 'Végétarien' },
-                { regex: /\b(halal)/gi, tag: 'Halal' },
-                { regex: /\b(casher|kosher)/gi, tag: 'Casher' },
-                { regex: /\b(alcool|alcohol|vin|wine).{0,10}(pas|no|zero|0)/gi, tag: 'Teetotaler_Zéro_Alcool' },
-                { regex: /\b(fauteuil|wheelchair|roulant)/gi, tag: 'Access_Fauteuil_Roulant' },
-                { regex: /\b(marcher|walk|escalier|stairs).{0,20}(difficil|hard|pain)/gi, tag: 'Access_Difficulté_Marche' },
-                { regex: /\b(assis|sit|chair|chaise).{0,10}(besoin|need|immédiat)/gi, tag: 'Besoin_Assise_Immédiate' }
-            ],
-            category: 'SÉCURITÉ_HOSPITALITY'
-        },
-        privacy: {
-            patterns: [
-                { regex: /\b(entrée privée|private entrance|back door)/gi, tag: 'MANDATORY_Entrée_Privée' },
-                { regex: /\b(salon privé|private room|salon isolé)/gi, tag: 'MANDATORY_Salon_Privé' },
-                { regex: /\b(photo|picture|camera).{0,10}(pas|no|interdit)/gi, tag: 'MANDATORY_Pas_de_Photos' }
-            ],
-            category: 'SÉCURITÉ_PRIVACY'
+            category: 'INTENTION_STYLE'
         },
 
-        // 6. UNIVERS LV
-        relation_lv: {
+        // ==========================================
+        // 5. SÉCURITÉ & HOSPITALITY (Risk Management)
+        // ==========================================
+        securite_risque: {
             patterns: [
-                { regex: /\b(monogram).{0,20}(aime|love|fan|adore)/gi, tag: 'Profil_Amoureux_Monogram' },
-                { regex: /\b(damier).{0,20}(aime|love|fan|adore)/gi, tag: 'Profil_Fan_Damier' },
-                { regex: /\b(exotique|exotic|croco|python|leZard).{0,20}(aime|love|fan|adore|cherche|buy)/gi, tag: 'Profil_Cuirs_Exotiques' },
-                { regex: /\b(haute horlogerie|high watch|tambour)/gi, tag: 'Profil_Haute_Horlogerie' },
-                { regex: /\b(malle|trunk).{0,20}(propriétaire|owner|collection)/gi, tag: 'Profil_Propriétaire_Malles' },
-                { regex: /\b(objets nomades|furniture|meuble)/gi, tag: 'Profil_Objets_Nomades' },
-                { regex: /\b(génération|famille|mère|fille).{0,30}(client|lv|vuitton)/gi, tag: 'Client_Multi-Générationnel' },
-                { regex: /\b(commande spéciale|special order|mto|sur mesure)/gi, tag: 'Client_Commande_Spéciale' },
-                { regex: /\b(défilé|show|catwalk).{0,20}(invité|guest)/gi, tag: 'Invité_Défilé' },
-                { regex: /\b(ghesquière|nicolas).{0,20}(style|fan)/gi, tag: 'Style_Ghesquière' },
-                { regex: /\b(pharrell|williams|homme).{0,20}(style|fan)/gi, tag: 'Style_Pharrell' }
+                { regex: /\b(arachide|cacahuète)\b/gi, tag: 'Anaphylaxie_Arachides' },
+                { regex: /\b(fruit à coque|noisette|noix)\b/gi, tag: 'Anaphylaxie_Fruits_Coque' },
+                { regex: /\b(crustacé|fruit de mer)\b/gi, tag: 'Anaphylaxie_Crustacés' },
+                { regex: /\b(latex)\b/gi, tag: 'Contact_Latex' },
+                { regex: /\b(nickel)\b/gi, tag: 'Contact_Nickel' },
+                { regex: /\b(laine|mohair)\b/gi, tag: 'Contact_Laine' },
+                { regex: /\b(parfum|fragrance)\b/gi, tag: 'Environnement_Parfum' },
+                { regex: /\b(poussière|acarien)\b/gi, tag: 'Environnement_Poussière' },
+                { regex: /\b(fleur|pollen)\b/gi, tag: 'Environnement_Fleurs' },
+                { regex: /\b(soleil|photo|sensib).{0,10}(lumière)\b/gi, tag: 'Environnement_Photosensibilité' }
+            ],
+            category: 'SÉCURITÉ_RISQUE'
+        },
+        securite_pref_alim: {
+            patterns: [
+                { regex: /\b(végan|végétalien).{0,10}(strict)\b/gi, tag: 'Régime_Végétalien_Strict' },
+                { regex: /\b(végétarien)\b/gi, tag: 'Régime_Végétarien' },
+                { regex: /\b(pescatarien)\b/gi, tag: 'Régime_Pescatarien' },
+                { regex: /\b(porc).{0,10}(sans|pas)\b/gi, tag: 'Régime_Sans_Porc' },
+                { regex: /\b(alcool).{0,10}(sans|pas|cuisine)\b/gi, tag: 'Régime_Sans_Alcool_Cuisine' },
+                { regex: /\b(céliaque|gluten).{0,10}(sans|free)\b/gi, tag: 'Santé_Céliaque_Sans_Gluten' },
+                { regex: /\b(lactose|lait).{0,10}(sans|intoléran)\b/gi, tag: 'Santé_Sans_Lactose' },
+                { regex: /\b(diabète|diabétique)\b/gi, tag: 'Santé_Diabétique' },
+                { regex: /\b(keto|cétogène)\b/gi, tag: 'Santé_Keto' },
+                { regex: /\b(alcool).{0,10}(zero|0|teetotaler)\b/gi, tag: 'Boissons_Teetotaler_Zero_Alcool' },
+                { regex: /\b(champagne).{0,10}(amateur)\b/gi, tag: 'Boissons_Amateur_Champagne' },
+                { regex: /\b(thé|matcha).{0,10}(amateur)\b/gi, tag: 'Boissons_Amateur_Thé_Matcha' },
+                { regex: /\b(eau).{0,10}(tempérée|ambiante)\b/gi, tag: 'Boissons_Eau_Tempérée' }
+            ],
+            category: 'SÉCURITÉ_ALIM'
+        },
+        securite_confort: {
+            patterns: [
+                { regex: /\b(fauteuil roulant|pmr)\b/gi, tag: 'Mobilité_Fauteuil_Roulant' },
+                { regex: /\b(marche|escalier).{0,10}(difficile)\b/gi, tag: 'Mobilité_Difficulté_Marche' },
+                { regex: /\b(assise|asseoir).{0,10}(besoin)\b/gi, tag: 'Mobilité_Besoin_Assise' },
+                { regex: /\b(entrée privée)\b/gi, tag: 'Privacy_Entrée_Privée' },
+                { regex: /\b(salon isolé|privé)\b/gi, tag: 'Privacy_Salon_Isolé' },
+                { regex: /\b(photo).{0,10}(pas|no|interdit)\b/gi, tag: 'Privacy_Pas_de_Photos' }
+            ],
+            category: 'SÉCURITÉ_CONFORT'
+        },
+
+        // ==========================================
+        // 6. L'UNIVERS LOUIS VUITTON
+        // ==========================================
+        univers_lv: {
+            patterns: [
+                { regex: /\b(monogram)\b/gi, tag: 'Profil_Amoureux_Monogram' },
+                { regex: /\b(damier)\b/gi, tag: 'Profil_Fan_Damier' },
+                { regex: /\b(exotique|croco|python)\b/gi, tag: 'Profil_Cuirs_Exotiques' },
+                { regex: /\b(haute horlogerie)\b/gi, tag: 'Profil_Haute_Horlogerie' },
+                { regex: /\b(malle|coffret).{0,10}(propriétaire)\b/gi, tag: 'Profil_Propriétaire_Malles' },
+                { regex: /\b(objets nomades|meuble)\b/gi, tag: 'Profil_Objets_Nomades' },
+                { regex: /\b(multi).{0,10}(génération)\b/gi, tag: 'Relation_Multi-Générationnel' },
+                { regex: /\b(commande spéciale|sur mesure)\b/gi, tag: 'Relation_Commande_Spéciale' },
+                { regex: /\b(défilé|show).{0,10}(invité)\b/gi, tag: 'Relation_Invité_Défilé' },
+                { regex: /\b(style).{0,10}(ghesquière)\b/gi, tag: 'Relation_Style_Ghesquière' },
+                { regex: /\b(style).{0,10}(pharrell)\b/gi, tag: 'Relation_Style_Pharrell' }
             ],
             category: 'UNIVERS_LV'
         },
 
-        // 7. HISTORIQUE & PRODUITS (Succès)
-        historique_produit: {
+        // ==========================================
+        // 7. HISTORIQUE & POSSESSIONS
+        // ==========================================
+        histo_maro_femme: {
             patterns: [
-                // Sacs Femme
-                { regex: /\b(neverfull|loop|diane)\b/gi, tag: 'Owns_Sac_Épaule' },
-                { regex: /\b(pochette métis|metis|multi pochette)\b/gi, tag: 'Owns_Sac_Crossbody' },
-                { regex: /\b(capucines|alma|speedy)\b/gi, tag: 'Owns_Sac_TopHandle' },
-                { regex: /\b(onthego)\b/gi, tag: 'Owns_Cabas_Tote' },
-                { regex: /\b(petite malle|twist|coussin)\b/gi, tag: 'Owns_Sac_Soir' },
-                { regex: /\b(palm springs)\b/gi, tag: 'Owns_Sac_Dos_F' },
-                // SLG Femme
-                { regex: /\b(zippy|sarah|victorine)\b/gi, tag: 'Owns_Portefeuille_F' },
-                { regex: /\b(recto verso|rosalie)\b/gi, tag: 'Owns_Porte-Cartes_F' },
-                // Voyage
-                { regex: /\b(keepall)\b/gi, tag: 'Owns_Bagage_Souple' },
-                { regex: /\b(horizon|valise|rolling)\b/gi, tag: 'Owns_Valise' },
-                { regex: /\b(malle courrier|coffret montre|watch case)\b/gi, tag: 'Owns_Malle_Rigide' },
-                // Homme
-                { regex: /\b(christopher|discovery|dean).{0,10}(back|dos)/gi, tag: 'Owns_Sac_Dos_H' },
-                { regex: /\b(trio|messenger|district|s-lock|slock)/gi, tag: 'Owns_Messenger_H' },
-                { regex: /\b(porte-documents|pdv|business bag)/gi, tag: 'Owns_Business_Bag' },
-                { regex: /\b(bumbag|body bag|keepall xs)/gi, tag: 'Owns_Body_Bag' },
-                { regex: /\b(sac plat|tote)\b/gi, tag: 'Owns_Tote_H' },
-                { regex: /\b(organizer|pocket|poche).{0,10}(organise|organiz)/gi, tag: 'Owns_Pocket_Organizer' },
-                { regex: /\b(brazza|multiple).{0,10}(wallet|portefeuille)/gi, tag: 'Owns_Portefeuille_H' },
-                // Wear
-                { regex: /\b(taille|size|tag).{0,10}(34|36|38|40|42|44)\b/gi, tag: 'Taille_Femme_Connu' },
-                { regex: /\b(taille|size|tag).{0,10}(48|50|52|54|56)\b/gi, tag: 'Taille_Homme_Connu' },
-                { regex: /\b(taille|size|tag|pointure).{0,10}(36|37|38|39|40|41|42|43|44|45)\b/gi, tag: 'Pointure_Soulier_Connu' }
+                { regex: /\b(neverfull)\b/gi, tag: 'Possède_Neverfull' },
+                { regex: /\b(loop)\b/gi, tag: 'Possède_Loop' },
+                { regex: /\b(diane)\b/gi, tag: 'Possède_Diane' },
+                { regex: /\b(pochette métis|metis)\b/gi, tag: 'Possède_Pochette_Métis' },
+                { regex: /\b(multi pochette)\b/gi, tag: 'Possède_Multi_Pochette' },
+                { regex: /\b(capucines)\b/gi, tag: 'Possède_Capucines' },
+                { regex: /\b(alma)\b/gi, tag: 'Possède_Alma' },
+                { regex: /\b(speedy)\b/gi, tag: 'Possède_Speedy' },
+                { regex: /\b(onthego)\b/gi, tag: 'Possède_OnTheGo' },
+                { regex: /\b(petite malle)\b/gi, tag: 'Possède_Petite_Malle' },
+                { regex: /\b(twist)\b/gi, tag: 'Possède_Twist' },
+                { regex: /\b(coussin)\b/gi, tag: 'Possède_Coussin' },
+                { regex: /\b(palm springs)\b/gi, tag: 'Possède_Palm_Springs' },
+                { regex: /\b(zippy)\b/gi, tag: 'Possède_Zippy' },
+                { regex: /\b(sarah)\b/gi, tag: 'Possède_Sarah' },
+                { regex: /\b(victorine)\b/gi, tag: 'Possède_Victorine' },
+                { regex: /\b(recto verso)\b/gi, tag: 'Possède_Recto_Verso' }
             ],
-            category: 'HISTORIQUE_POSSESSION'
+            category: 'HISTO_MARO_FEMME'
+        },
+        histo_maro_homme: {
+            patterns: [
+                { regex: /\b(christopher)\b/gi, tag: 'Possède_Christopher' },
+                { regex: /\b(discovery)\b/gi, tag: 'Possède_Discovery' },
+                { regex: /\b(dean)\b/gi, tag: 'Possède_Dean' },
+                { regex: /\b(trio)\b/gi, tag: 'Possède_Trio' },
+                { regex: /\b(district)\b/gi, tag: 'Possède_District' },
+                { regex: /\b(s-lock|slock)\b/gi, tag: 'Possède_S-Lock' },
+                { regex: /\b(pdv|porte-documents)\b/gi, tag: 'Possède_PDV' },
+                { regex: /\b(discovery bumbag)\b/gi, tag: 'Possède_Discovery_Bumbag' },
+                { regex: /\b(keepall xs)\b/gi, tag: 'Possède_Keepall_XS' },
+                { regex: /\b(sac plat)\b/gi, tag: 'Possède_Sac_Plat' },
+                { regex: /\b(pocket organizer)\b/gi, tag: 'Possède_Pocket_Organizer' },
+                { regex: /\b(multiple)\b/gi, tag: 'Possède_Multiple' },
+                { regex: /\b(brazza)\b/gi, tag: 'Possède_Brazza' }
+            ],
+            category: 'HISTO_MARO_HOMME'
+        },
+        histo_voyage: {
+            patterns: [
+                { regex: /\b(keepall)\b/gi, tag: 'Possède_Keepall' },
+                { regex: /\b(horizon|valise)\b/gi, tag: 'Possède_Horizon' },
+                { regex: /\b(malle courrier)\b/gi, tag: 'Possède_Malle_Courrier' },
+                { regex: /\b(coffret montre)\b/gi, tag: 'Possède_Coffret_Montre' }
+            ],
+            category: 'HISTO_VOYAGE'
+        },
+        histo_sizing: {
+            patterns: [
+                { regex: /\b(taille).{0,5}(34)\b/gi, tag: 'Femme_Taille_34' },
+                { regex: /\b(taille).{0,5}(36)\b/gi, tag: 'Femme_Taille_36' },
+                { regex: /\b(taille).{0,5}(38)\b/gi, tag: 'Femme_Taille_38' },
+                { regex: /\b(taille).{0,5}(40)\b/gi, tag: 'Femme_Taille_40' },
+                { regex: /\b(taille).{0,5}(42)\b/gi, tag: 'Femme_Taille_42' },
+                { regex: /\b(taille).{0,5}(48)\b/gi, tag: 'Homme_Taille_48' },
+                { regex: /\b(taille).{0,5}(50)\b/gi, tag: 'Homme_Taille_50' },
+                { regex: /\b(taille).{0,5}(52)\b/gi, tag: 'Homme_Taille_52' },
+                { regex: /\b(pointure).{0,5}(36)\b/gi, tag: 'Pointure_36' },
+                { regex: /\b(pointure).{0,5}(37)\b/gi, tag: 'Pointure_37' },
+                { regex: /\b(pointure).{0,5}(38)\b/gi, tag: 'Pointure_38' },
+                { regex: /\b(pointure).{0,5}(39)\b/gi, tag: 'Pointure_39' },
+                { regex: /\b(pointure).{0,5}(40)\b/gi, tag: 'Pointure_40' },
+                { regex: /\b(pointure).{0,5}(41)\b/gi, tag: 'Pointure_41' },
+                { regex: /\b(pointure).{0,5}(42)\b/gi, tag: 'Pointure_42' },
+                { regex: /\b(pointure).{0,5}(43)\b/gi, tag: 'Pointure_43' },
+                { regex: /\b(pointure).{0,5}(44)\b/gi, tag: 'Pointure_44' }
+            ],
+            category: 'HISTO_SIZING'
+        },
+        histo_style: {
+            patterns: [
+                { regex: /\b(escarpin)\b/gi, tag: 'Possède_Escarpins' },
+                { regex: /\b(sandale).{0,10}(talon)\b/gi, tag: 'Possède_Sandales_Talons' },
+                { regex: /\b(mule|plat)\b/gi, tag: 'Possède_Sandales_Plates_Mules' },
+                { regex: /\b(botte|bottine)\b/gi, tag: 'Possède_Bottes_Bottines' },
+                { regex: /\b(sneaker).{0,10}(femme)\b/gi, tag: 'Possède_Sneakers_Femme' },
+                { regex: /\b(ballerine|mocassin)\b/gi, tag: 'Possède_Ballerines_Mocassins' },
+                { regex: /\b(sneaker).{0,10}(homme)\b/gi, tag: 'Possède_Sneakers_Homme' },
+                { regex: /\b(soulier).{0,10}(ville)\b/gi, tag: 'Possède_Souliers_Ville' },
+                { regex: /\b(mocassin).{0,10}(homme)\b/gi, tag: 'Possède_Mocassins_Homme' },
+                { regex: /\b(lv trainer|trainer)\b/gi, tag: 'Possède_LV_Trainer' }
+            ],
+            category: 'HISTO_STYLE'
         },
 
-        // 8. OPÉRATIONNEL (Actions)
+        // ==========================================
+        // 8. OPPORTUNITÉS & OPÉRATIONNEL
+        // ==========================================
+        opportunites: {
+            patterns: [
+                { regex: /\b(objet désir|veut|cherche)\b/gi, tag: 'Objet_Désir_Détecté' }, // Générique
+                // Shadow Order
+                { regex: /\b(rupture|sold out)\b/gi, tag: 'Raison_Echec_Rupture_Mondiale' },
+                { regex: /\b(waitlist|liste d'attente)\b/gi, tag: 'Raison_Echec_Waitlist_Fermée' },
+                { regex: /\b(taille).{0,10}(indispo|pas de)\b/gi, tag: 'Raison_Echec_Taille_Indispo' },
+                { regex: /\b(couleur).{0,10}(indispo|pas de)\b/gi, tag: 'Raison_Echec_Couleur_Indispo' },
+                // Douleur
+                { regex: /\b(déçu|déception)\b/gi, tag: 'Douleur_Client_Déception_Dispo' },
+                { regex: /\b(attente|frustration)\b/gi, tag: 'Douleur_Client_Frustration_Attente' },
+                { regex: /\b(retard|livraison)\b/gi, tag: 'Douleur_Client_Livraison_Retardée' }
+            ],
+            category: 'OPPORTUNITÉS_MANQUÉES'
+        },
         action_crm: {
             patterns: [
-                { regex: /\b(rappeler|call back|recontacter).{0,20}(urgent|demain|soon)/gi, tag: 'ACTION_Rappeler_Urgent' },
-                { regex: /\b(whatsapp|message|sms|text).{0,20}(envoyer|send)/gi, tag: 'ACTION_Message_WhatsApp' },
-                { regex: /\b(email|mail).{0,20}(envoyer|send|confirmer)/gi, tag: 'ACTION_Email' },
-                { regex: /\b(invit|invite).{0,20}(défilé|event|show|dîner)/gi, tag: 'ACTION_Invitation' },
-                { regex: /\b(envoyer|send|livrer).{0,20}(cadeau|gift|fleur)/gi, tag: 'ACTION_Envoi_Cadeau' },
-                { regex: /\b(fin du mois|end of month)\b/gi, tag: 'TIMING_Fin_Mois' },
-                { regex: /\b(saison prochaine|next season|collection prochaine)/gi, tag: 'TIMING_Saison_Prochaine' }
+                { regex: /\b(rappeler|stock).{0,10}(dès que)\b/gi, tag: 'Action_Rappeler_Stock' },
+                { regex: /\b(alerte|restock)\b/gi, tag: 'Action_Alerte_Restock' },
+                { regex: /\b(invitation|inviter)\b/gi, tag: 'Action_Invitation' },
+                { regex: /\b(cadeau|envoyer)\b/gi, tag: 'Action_Cadeau' },
+                { regex: /\b(whatsapp|message)\b/gi, tag: 'Action_Message_WhatsApp' },
+                { regex: /\b(urgent)\b/gi, tag: 'Timing_Urgent' },
+                { regex: /\b(fin mois)\b/gi, tag: 'Timing_Fin_Mois' },
+                { regex: /\b(prochaine saison)\b/gi, tag: 'Timing_Saison_Prochaine' },
+                { regex: /\b(date fixe)\b/gi, tag: 'Timing_Date_Fixe' }
             ],
-            category: 'ACTION_REQUISE'
-        },
-
-        // 9. DOULEURS & MANQUÉS
-        douleurs: {
-            patterns: [
-                { regex: /\b(rupture|out of stock|unavailable|pas disponible)/gi, tag: 'MISS_Rupture_Stock' },
-                { regex: /\b(taille|size|fit).{0,20}(pas bon|wrong|indisponible|trop grand|trop petit)/gi, tag: 'MISS_Problème_Taille' },
-                { regex: /\b(voulait|wanted).{0,20}(or|gold).{0,20}(vu|saw).{0,20}(argent|silver)/gi, tag: 'MISS_Finition_Non_Dispo' },
-                { regex: /\b(déçu|disappointed|frustré|frustrated|attente|wait)\b/gi, tag: 'PAIN_Expérience_Négative' },
-                { regex: /\b(livraison|delivery).{0,20}(retard|late|long|problème)/gi, tag: 'PAIN_Problème_Logistique' },
-                { regex: /\b(sav|repair|réparation).{0,20}(long|problème|cours)/gi, tag: 'PAIN_SAV_En_Cours' }
-            ],
-            category: 'OPPORTUNITÉ_MANQUÉE'
+            category: 'ACTION_CRM'
         }
     },
 
     extractTags(text) {
         if (!text) return [];
         const tags = [];
-        // Normalisation légère pour la recherche (garder accents pour précision FR)
-        // Mais regex sont généralement case-insensitive (/gi)
-        
+
         for (const [groupName, group] of Object.entries(this.patterns)) {
             for (const pattern of group.patterns) {
-                // Reset lastIndex à chaque fois car on utilise le pattern plusieurs fois
                 pattern.regex.lastIndex = 0;
                 if (pattern.regex.test(text)) {
                     if (!tags.find(t => t.tag === pattern.tag)) {
-                        tags.push({ 
-                            tag: pattern.tag, 
-                            category: group.category, 
+                        tags.push({
+                            tag: pattern.tag,
+                            category: group.category,
                             group: groupName,
-                            confidence: 'Haute (Regex Expert)'
+                            confidence: 'Haute'
                         });
                     }
                 }
@@ -428,26 +567,15 @@ const Tagger = {
         return tags;
     },
 
-    // Méthode pour obtenir des statistiques sur un dataset complet
     processDataset(dataset) {
-        this.stats = { totalTags: 0, categories: {} };
         const results = dataset.map(row => {
             const text = row.clean || row.cleanedText || row.Transcription || '';
-            const tags = this.extractTags(text);
-            
-            tags.forEach(t => {
-                this.stats.totalTags++;
-                if (!this.stats.categories[t.category]) this.stats.categories[t.category] = 0;
-                this.stats.categories[t.category]++;
-            });
-
-            return { ...row, tags };
+            return { ...row, tags: this.extractTags(text) };
         });
         return results;
     }
 };
 
-// Export pour utilisation module ou browser
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Tagger;
 } else {

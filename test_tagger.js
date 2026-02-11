@@ -5,22 +5,22 @@ const testCases = [
     {
         name: "Chirurgien Cardiothoracique",
         text: "Il est chirurgien cardiothoracique à Paris.",
-        expected: ["Chirurgien_Cardiothoracique"]
+        expected: ["Chirurgien_Cardiothoracique", "Dest_Europe"]
     },
     {
         name: "Intérêts Multiples",
         text: "Elle adore le yoga, collectionne les montres vintage et voyage souvent aux Maldives.",
-        expected: ["Yoga_Expert", "Montres_Vintage", "Voyage_Loisir_Luxe"]
+        expected: ["Bien-être_Yoga_Ashtanga", "Horlogerie_Vintage", "Voyage_Loisir_Luxe"]
     },
     {
         name: "Sécurité & Allergies",
         text: "Attention, allergie sévère aux arachides et intolérance au lactose.",
-        expected: ["DANGER_Allergie_Arachides", "Intolérance_Lactose"]
+        expected: ["Anaphylaxie_Arachides", "Santé_Sans_Lactose"]
     },
     {
         name: "Univers LV & Achats",
         text: "Fan de Pharrell, possède déjà un Speedy et un Keepall. Cherche un cadeau pour son mari.",
-        expected: ["Style_Pharrell", "Owns_Sac_TopHandle", "Owns_Bagage_Souple", "Pour_Partner"]
+        expected: ["Relation_Style_Pharrell", "Possède_Speedy", "Possède_Keepall", "Dest_Intime_Pour_Conjoint"]
     }
 ];
 
