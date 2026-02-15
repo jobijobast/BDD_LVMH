@@ -1,584 +1,101 @@
 /**
- * LVMH Voice-to-Tag — AI Platform Engine
- * NBA + Privacy Score + Cross-Brand + Luxury Pulse
+ * LVMH Voice-to-Tag — Rendering Engine
+ * All rendering functions for vendeur & manager views.
+ * State (DATA, STATS, etc.) is managed by app.js.
  */
-
-// ===== CONFIG =====
-// Clé API : définie dans config.js (gitignored) ou via window.__MISTRAL_API_KEY__
-const MISTRAL_API_KEY = (typeof window !== 'undefined' && window.__MISTRAL_API_KEY__) || '';
-const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
-const BATCH_SIZE = 5;
-const BATCH_DELAY = 80;
-
-// ===== PROMPTS =====
-const CLEANING_PROMPT = `Tu es un expert RGPD retail luxe. Nettoie ET sécurise la transcription.
-
-SUPPRIMER: hésitations (euh,hum,uh,um,eh,ah,oh,hmm,bah,ben,pues,ehm,äh,ähm), fillers (genre,like,tipo,basically,en fait,du coup,tu vois,you know,quoi,right,vale,ok,genau,en quelque sorte,plus ou moins), répétitions.
-
-MASQUER:
-- Carte bancaire → [CARTE-MASQUÉE]
-- IBAN → [IBAN-MASQUÉ]
-- Code accès/digicode → [CODE-MASQUÉ]
-- SSN/passeport → [ID-MASQUÉ]
-- Adresse complète → [ADRESSE-MASQUÉE]
-- Téléphone → [TEL-MASQUÉ]
-- Email → [EMAIL-MASQUÉ]
-- Mot de passe → [MDP-MASQUÉ]
-
-GARDER: noms, professions, âges, budgets, préférences, allergies, régimes, dates événements, historique.
-
-RÉPONSE (2 lignes):
-RGPD_COUNT: [nombre]
-TEXT: [texte nettoyé]
-
-Texte: `;
-
-const FOLLOWUP_PROMPT = `Tu es un Client Advisor expert de la Maison {house}. Rédige un {channel} de suivi personnalisé après un rendez-vous client.
-
-PROFIL CLIENT:
-Tags: {tags}
-Résumé: {text}
-
-RÈGLES:
-- Ton raffiné, chaleureux, personnalisé
-- Mentionner des éléments spécifiques du profil
-- {channel_rules}
-- NE PAS inclure de données personnelles sensibles
-- Signer au nom de la Maison
-
-RÉPONSE FORMAT:
-SUBJECT: [objet du message]
-BODY: [corps du message]`;
-
-const SENTIMENT_KEYWORDS = {
-    positive: ['ravi', 'enchanté', 'magnifique', 'parfait', 'excellent', 'adore', 'love', 'amazing', 'wonderful', 'happy', 'impressed', 'satisfait', 'superbe', 'merveilleux', 'content', 'fidèle', 'recommande', 'plaisir'],
-    negative: ['déçu', 'disappointed', 'frustré', 'attente', 'delay', 'retard', 'problème', 'problem', 'défaut', 'cassé', 'broken', 'mauvais', 'poor', 'cher', 'expensive', 'lent', 'slow', 'erreur', 'error', 'plainte', 'complaint', 'insatisfait', 'médiocre', 'décevant', 'jamais reçu', 'perdu', 'endommagé', 'damaged']
-};
 
 // ===== PRODUCT CATALOG (LVMH simulated) =====
 const PRODUCT_CATALOG = {
     'Golf': [
-        { name: 'LV Damier Golf Bag', desc: 'Sac de golf en toile Damier enduite, finitions cuir', price: '4 200€', img: '⛳' },
-        { name: 'Berluti Golf Glove', desc: 'Gant de golf en cuir patiné Venezia', price: '580€', img: '🧤' },
-        { name: 'Loro Piana Cashmere Polo', desc: 'Polo en baby cashmere, coupe sport-chic', price: '1 150€', img: '👕' }
+        { name: 'LV Damier Golf Bag', desc: 'Sac de golf en toile Damier enduite, finitions cuir', price: '4 200\u20AC', img: '\u26F3' },
+        { name: 'Berluti Golf Glove', desc: 'Gant de golf en cuir patin\u00E9 Venezia', price: '580\u20AC', img: '\uD83E\uDDE4' },
+        { name: 'Loro Piana Cashmere Polo', desc: 'Polo en baby cashmere, coupe sport-chic', price: '1 150\u20AC', img: '\uD83D\uDC55' }
     ],
     'Ski': [
-        { name: 'LV Ski Capsule Jacket', desc: 'Doudoune monogram réversible, collection ski', price: '3 800€', img: '🎿' },
-        { name: 'Fendi Ski Goggles', desc: 'Masque FF logo, verres anti-buée haute montagne', price: '690€', img: '🥽' },
-        { name: 'Rimowa Original Cabin', desc: 'Valise aluminium pour week-end ski', price: '1 340€', img: '🧳' }
+        { name: 'LV Ski Capsule Jacket', desc: 'Doudoune monogram r\u00E9versible', price: '3 800\u20AC', img: '\uD83C\uDFBF' },
+        { name: 'Fendi Ski Goggles', desc: 'Masque FF logo, verres anti-bu\u00E9e', price: '690\u20AC', img: '\uD83E\uDD7D' },
+        { name: 'Rimowa Original Cabin', desc: 'Valise aluminium pour week-end ski', price: '1 340\u20AC', img: '\uD83E\uDDF3' }
     ],
     'Tennis': [
-        { name: 'LV Tennis Sneakers', desc: 'Baskets Charlie en cuir, semelle technique', price: '1 080€', img: '🎾' },
-        { name: 'Celine Sport Band', desc: 'Bandeau éponge Triomphe en coton bio', price: '320€', img: '🏅' },
-        { name: 'Berluti Leather Racket Cover', desc: 'Housse raquette en cuir Venezia patiné', price: '1 450€', img: '🎒' }
+        { name: 'LV Tennis Sneakers', desc: 'Baskets Charlie en cuir, semelle technique', price: '1 080\u20AC', img: '\uD83C\uDFBE' },
+        { name: 'Celine Sport Band', desc: 'Bandeau \u00E9ponge Triomphe en coton bio', price: '320\u20AC', img: '\uD83C\uDFC5' },
+        { name: 'Berluti Leather Racket Cover', desc: 'Housse raquette en cuir Venezia patin\u00E9', price: '1 450\u20AC', img: '\uD83C\uDF92' }
     ],
     'Yoga': [
-        { name: 'Loewe Yoga Mat Case', desc: 'Housse tapis yoga en cuir Anagram', price: '890€', img: '🧘' },
-        { name: 'Loro Piana Stretch Cashmere Set', desc: 'Ensemble yoga en cashmere stretch', price: '2 400€', img: '👗' },
-        { name: 'Dior Wellness Candle', desc: 'Bougie parfumée relaxation Maison Dior', price: '180€', img: '🕯️' }
+        { name: 'Loewe Yoga Mat Case', desc: 'Housse tapis yoga en cuir Anagram', price: '890\u20AC', img: '\uD83E\uDDD8' },
+        { name: 'Loro Piana Stretch Cashmere Set', desc: 'Ensemble yoga en cashmere stretch', price: '2 400\u20AC', img: '\uD83D\uDC57' },
+        { name: 'Dior Wellness Candle', desc: 'Bougie parfum\u00E9e relaxation Maison Dior', price: '180\u20AC', img: '\uD83D\uDD6F\uFE0F' }
     ],
     'Running': [
-        { name: 'LV Run Away Sneakers', desc: 'Sneakers running en mesh et cuir technique', price: '980€', img: '🏃' },
-        { name: 'Givenchy Sport Hoodie', desc: 'Sweat à capuche en jersey technique', price: '1 190€', img: '🧥' },
-        { name: 'TAG Heuer Connected', desc: 'Montre connectée, GPS et cardio intégrés', price: '2 150€', img: '⌚' }
+        { name: 'LV Run Away Sneakers', desc: 'Sneakers running en mesh et cuir technique', price: '980\u20AC', img: '\uD83C\uDFC3' },
+        { name: 'Givenchy Sport Hoodie', desc: 'Sweat \u00E0 capuche en jersey technique', price: '1 190\u20AC', img: '\uD83E\uDDE5' },
+        { name: 'TAG Heuer Connected', desc: 'Montre connect\u00E9e, GPS et cardio int\u00E9gr\u00E9s', price: '2 150\u20AC', img: '\u231A' }
     ],
     'Montres': [
-        { name: 'TAG Heuer Carrera', desc: 'Chronographe automatique, boîtier 42mm', price: '5 950€', img: '⌚' },
-        { name: 'Hublot Big Bang', desc: 'Mouvement UNICO, boîtier céramique noire', price: '18 500€', img: '⌚' },
-        { name: 'Bulgari Octo Finissimo', desc: 'Ultra-plat automatique, record mondial', price: '12 800€', img: '⌚' }
+        { name: 'TAG Heuer Carrera', desc: 'Chronographe automatique, bo\u00EEtier 42mm', price: '5 950\u20AC', img: '\u231A' },
+        { name: 'Hublot Big Bang', desc: 'Mouvement UNICO, bo\u00EEtier c\u00E9ramique noire', price: '18 500\u20AC', img: '\u231A' },
+        { name: 'Bulgari Octo Finissimo', desc: 'Ultra-plat automatique', price: '12 800\u20AC', img: '\u231A' }
     ],
     'Bijoux': [
-        { name: 'Tiffany T Wire Bracelet', desc: 'Bracelet en or rose 18k, design T iconic', price: '1 850€', img: '💎' },
-        { name: 'Bulgari Serpenti Necklace', desc: 'Collier Serpenti Viper en or blanc et diamants', price: '8 900€', img: '💎' },
-        { name: 'Chaumet Joséphine Tiara Ring', desc: 'Bague tiare en or blanc et diamants', price: '5 200€', img: '💍' }
+        { name: 'Tiffany T Wire Bracelet', desc: 'Bracelet en or rose 18k', price: '1 850\u20AC', img: '\uD83D\uDC8E' },
+        { name: 'Bulgari Serpenti Necklace', desc: 'Collier Serpenti Viper en or blanc et diamants', price: '8 900\u20AC', img: '\uD83D\uDC8E' },
+        { name: 'Chaumet Jos\u00E9phine Tiara Ring', desc: 'Bague tiare en or blanc et diamants', price: '5 200\u20AC', img: '\uD83D\uDC8D' }
     ],
     'Parfums': [
-        { name: 'Dior Sauvage Elixir', desc: 'Parfum concentré, notes boisées intenses', price: '165€', img: '🧴' },
-        { name: 'Givenchy L\'Interdit', desc: 'Eau de parfum, tubéreuse et vétiver noir', price: '145€', img: '🧴' },
-        { name: 'Maison Francis Kurkdjian Baccarat Rouge', desc: 'Extrait de parfum, ambre et jasmin', price: '325€', img: '🧴' }
+        { name: 'Dior Sauvage Elixir', desc: 'Parfum concentr\u00E9, notes bois\u00E9es intenses', price: '165\u20AC', img: '\uD83E\uDDF4' },
+        { name: "Givenchy L'Interdit", desc: 'Eau de parfum, tub\u00E9reuse et v\u00E9tiver noir', price: '145\u20AC', img: '\uD83E\uDDF4' },
+        { name: 'MFK Baccarat Rouge', desc: 'Extrait de parfum, ambre et jasmin', price: '325\u20AC', img: '\uD83E\uDDF4' }
     ],
     'Anniversaire': [
-        { name: 'LV Petite Malle', desc: 'Sac iconique en cuir Epi, édition collector', price: '5 500€', img: '🎁' },
-        { name: 'Tiffany Heart Tag Pendant', desc: 'Pendentif cœur en argent 925, gravure possible', price: '280€', img: '💝' },
-        { name: 'Dom Pérignon Vintage', desc: 'Champagne millésimé, coffret prestige', price: '250€', img: '🍾' }
+        { name: 'LV Petite Malle', desc: 'Sac iconique en cuir Epi', price: '5 500\u20AC', img: '\uD83C\uDF81' },
+        { name: 'Tiffany Heart Tag Pendant', desc: 'Pendentif c\u0153ur en argent 925', price: '280\u20AC', img: '\uD83D\uDC9D' },
+        { name: 'Dom P\u00E9rignon Vintage', desc: 'Champagne mill\u00E9sim\u00E9', price: '250\u20AC', img: '\uD83C\uDF7E' }
     ],
     'Mariage': [
-        { name: 'Tiffany Setting Engagement', desc: 'Solitaire diamant 1ct, monture platine iconique', price: '14 500€', img: '💍' },
-        { name: 'Bulgari Wedding Band', desc: 'Alliance B.zero1 en or rose et céramique', price: '1 290€', img: '💍' },
-        { name: 'LV Trunk Gift Box', desc: 'Malle cadeau personnalisée pour couple', price: '3 200€', img: '🎁' }
+        { name: 'Tiffany Setting Engagement', desc: 'Solitaire diamant 1ct, platine', price: '14 500\u20AC', img: '\uD83D\uDC8D' },
+        { name: 'Bulgari Wedding Band', desc: 'Alliance B.zero1 en or rose', price: '1 290\u20AC', img: '\uD83D\uDC8D' },
+        { name: 'LV Trunk Gift Box', desc: 'Malle cadeau personnalis\u00E9e', price: '3 200\u20AC', img: '\uD83C\uDF81' }
     ],
     'Cadeau': [
-        { name: 'Dior Prestige Coffret', desc: 'Coffret soins prestige La Micro-Huile de Rose', price: '420€', img: '🎁' },
-        { name: 'LV Pocket Organizer', desc: 'Organiseur de poche Monogram Eclipse', price: '420€', img: '👛' },
-        { name: 'Rimowa Personal Case', desc: 'Trousse en aluminium anodisé, édition limitée', price: '680€', img: '🧳' }
+        { name: 'Dior Prestige Coffret', desc: 'Coffret soins prestige', price: '420\u20AC', img: '\uD83C\uDF81' },
+        { name: 'LV Pocket Organizer', desc: 'Organiseur Monogram Eclipse', price: '420\u20AC', img: '\uD83D\uDC5B' },
+        { name: 'Rimowa Personal Case', desc: 'Trousse en aluminium', price: '680\u20AC', img: '\uD83E\uDDF3' }
     ],
     'Vegan': [
-        { name: 'Stella McCartney x LV Capsule', desc: 'Sac Falabella en matériaux recyclés', price: '1 295€', img: '🌱' },
-        { name: 'Loewe Cactus Leather Bag', desc: 'Sac en cuir de cactus, collection durable', price: '2 100€', img: '🌵' },
-        { name: 'Sephora Clean Beauty Set', desc: 'Coffret cosmétiques vegan et cruelty-free', price: '89€', img: '🧴' }
+        { name: 'Stella McCartney x LV Capsule', desc: 'Sac en mat\u00E9riaux recycl\u00E9s', price: '1 295\u20AC', img: '\uD83C\uDF31' },
+        { name: 'Loewe Cactus Leather Bag', desc: 'Sac en cuir de cactus', price: '2 100\u20AC', img: '\uD83C\uDF35' },
+        { name: 'Sephora Clean Beauty Set', desc: 'Coffret cosm\u00E9tiques vegan', price: '89\u20AC', img: '\uD83E\uDDF4' }
     ],
-    'Durabilité': [
-        { name: 'LV Felt Line Collection', desc: 'Sac en feutre recyclé, édition éco-responsable', price: '2 200€', img: '🌍' },
-        { name: 'Loro Piana The Gift of Kings', desc: 'Écharpe en laine mérinos traçable', price: '890€', img: '🧣' },
-        { name: 'Berluti Upcycled Leather Wallet', desc: 'Portefeuille en cuirs revalorisés', price: '580€', img: '👛' }
+    'Durabilit\u00E9': [
+        { name: 'LV Felt Line Collection', desc: 'Sac en feutre recycl\u00E9', price: '2 200\u20AC', img: '\uD83C\uDF0D' },
+        { name: 'Loro Piana Gift of Kings', desc: '\u00C9charpe laine m\u00E9rinos tra\u00E7able', price: '890\u20AC', img: '\uD83E\uDDE3' },
+        { name: 'Berluti Upcycled Wallet', desc: 'Portefeuille cuirs revaloris\u00E9s', price: '580\u20AC', img: '\uD83D\uDC5B' }
     ],
     'Classique': [
-        { name: 'LV Capucines MM', desc: 'Sac en cuir Taurillon, hardware LV signature', price: '5 900€', img: '👜' },
-        { name: 'Dior Lady Dior Medium', desc: 'Sac iconique cannage en agneau noir', price: '5 500€', img: '👜' },
-        { name: 'Celine Triomphe Canvas Bag', desc: 'Sac en toile Triomphe, cuir de veau naturel', price: '2 100€', img: '👜' }
+        { name: 'LV Capucines MM', desc: 'Sac en cuir Taurillon', price: '5 900\u20AC', img: '\uD83D\uDC5C' },
+        { name: 'Dior Lady Dior Medium', desc: 'Sac iconique cannage en agneau noir', price: '5 500\u20AC', img: '\uD83D\uDC5C' },
+        { name: 'Celine Triomphe Canvas Bag', desc: 'Sac en toile Triomphe', price: '2 100\u20AC', img: '\uD83D\uDC5C' }
     ],
     'Minimaliste': [
-        { name: 'Celine Trio Bag', desc: 'Pochette triple en agneau lisse, minimaliste', price: '1 050€', img: '👝' },
-        { name: 'Loewe Puzzle Small', desc: 'Sac Puzzle géométrique, cuir souple', price: '2 650€', img: '👜' },
-        { name: 'Berluti Scritto Card Holder', desc: 'Porte-cartes en cuir Venezia gravé', price: '380€', img: '💳' }
+        { name: 'Celine Trio Bag', desc: 'Pochette triple en agneau lisse', price: '1 050\u20AC', img: '\uD83D\uDC5D' },
+        { name: 'Loewe Puzzle Small', desc: 'Sac Puzzle g\u00E9om\u00E9trique', price: '2 650\u20AC', img: '\uD83D\uDC5C' },
+        { name: 'Berluti Scritto Card Holder', desc: 'Porte-cartes cuir Venezia', price: '380\u20AC', img: '\uD83D\uDCB3' }
     ],
     'VIP': [
-        { name: 'LV Malle Personalisation', desc: 'Service sur-mesure, malle personnalisée', price: 'Sur devis', img: '✨' },
-        { name: 'Tiffany High Jewelry Private Viewing', desc: 'Invitation viewing haute joaillerie privé', price: 'Sur invitation', img: '💎' },
-        { name: 'Dior Atelier Experience', desc: 'Visite privée atelier couture Avenue Montaigne', price: 'Exclusif', img: '🏛️' }
+        { name: 'LV Malle Personnalisation', desc: 'Service sur-mesure', price: 'Sur devis', img: '\u2728' },
+        { name: 'Tiffany High Jewelry Viewing', desc: 'Invitation haute joaillerie priv\u00E9', price: 'Sur invitation', img: '\uD83D\uDC8E' },
+        { name: 'Dior Atelier Experience', desc: 'Visite priv\u00E9e atelier couture', price: 'Exclusif', img: '\uD83C\uDFDB\uFE0F' }
     ]
 };
 
-const NBA_PROMPT = `Tu es un expert clienteling luxe LVMH. Analyse le profil client et génère 3 actions concrètes pour le Client Advisor.
-
-Profil client:
-TAGS: {tags}
-TEXTE NETTOYÉ: {text}
-
-Génère exactement 3 actions au format JSON array. Chaque action:
-- "action": description concrète (1-2 phrases max)
-- "type": "immediate"|"short_term"|"long_term"
-- "category": "product"|"experience"|"relationship"|"event"
-
-Exemples de bonnes actions:
-- "Proposer la nouvelle collection capsule cuir cognac pour son prochain rendez-vous"
-- "Inviter au private viewing joaillerie prévu le mois prochain"
-- "Envoyer un message personnalisé pour son anniversaire avec sélection pré-curée"
-
-RÉPONSE JSON UNIQUEMENT (pas de texte avant/après):
-[{"action":"...","type":"...","category":"..."},{"action":"...","type":"...","category":"..."},{"action":"...","type":"...","category":"..."}]`;
-
-// ===== RGPD FALLBACK =====
-const RGPD_FALLBACK = {
-    'Carte': [/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g],
-    'IBAN': [/\b[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{0,4}/gi],
-    'SSN': [/\b\d{3}[-]?\d{2}[-]?\d{4}\b/g],
-    'Tel': [/\b(\+\d{1,3}[\s]?)?\d{2,4}[\s]?\d{2,4}[\s]?\d{2,4}[\s]?\d{0,4}\b/g],
-    'Email': [/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g],
-    'Code': [/\bcode\s*(porte|accès|digicode)?\s*:?\s*\d{4,6}\b/gi]
-};
-
-// ===== RGPD SENSITIVE KEYWORDS =====
-const RGPD_SENSITIVE = [
-    { cat: 'accessCodes', words: ['code porte', 'digicode', 'mot de passe', 'password', 'pin code'] },
-    { cat: 'identity', words: ['numéro sécurité sociale', 'iban', 'passport number', 'credit card'] },
-    { cat: 'orientation', words: ['homosexuel', 'gay', 'lesbienne', 'bisexuel', 'transgenre'] },
-    { cat: 'politics', words: ['vote pour', 'électeur de', 'militant', 'parti politique'] },
-    { cat: 'religion', words: ['pratiquant', 'converti', 'croyant fervent', 'fait le ramadan'] },
-    { cat: 'familyConflict', words: ['violence conjugale', 'violence domestique', 'maltraitance'] },
-    { cat: 'finance', words: ['dette', 'faillite', 'surendettement', 'bankruptcy'] },
-    { cat: 'appearance', words: ['obèse', 'trop gros', 'laid', 'moche'] }
-];
-
-// ===== TAGS =====
-const TAGS = [
-    { r: /\bdentist/i, c: 'profession', t: 'Dentiste' }, { r: /\bmédecin|doctor\b/i, c: 'profession', t: 'Médecin' },
-    { r: /\bchirurgien|surgeon/i, c: 'profession', t: 'Chirurgien' }, { r: /\bcardiologue|cardiologist/i, c: 'profession', t: 'Cardiologue' },
-    { r: /\boncologue|oncologist/i, c: 'profession', t: 'Oncologue' }, { r: /\bpsycholog|psychotherap/i, c: 'profession', t: 'Psychologue' },
-    { r: /\bavocat|lawyer|attorney/i, c: 'profession', t: 'Avocat' }, { r: /\barchitecte|architect/i, c: 'profession', t: 'Architecte' },
-    { r: /\bceo|pdg|directeur/i, c: 'profession', t: 'Directeur/CEO' }, { r: /\bentrepreneur|startup/i, c: 'profession', t: 'Entrepreneur' },
-    { r: /\bbanquier|banker/i, c: 'profession', t: 'Banquier' }, { r: /\bjournaliste|journalist/i, c: 'profession', t: 'Journaliste' },
-    { r: /\binfluenceur|influencer/i, c: 'profession', t: 'Influenceur' }, { r: /\bphotographe|photographer/i, c: 'profession', t: 'Photographe' },
-    { r: /\bchef.*michelin|étoilé/i, c: 'profession', t: 'Chef étoilé' }, { r: /\bsommelier/i, c: 'profession', t: 'Sommelier' },
-    { r: /\bprofesseur|professor/i, c: 'profession', t: 'Professeur' }, { r: /\bgaleriste|curator|museum/i, c: 'profession', t: 'Art/Musée' },
-    { r: /\bpilote|pilot/i, c: 'profession', t: 'Pilote' }, { r: /\bdeveloppeur|developer|software/i, c: 'profession', t: 'Tech/Dev' },
-    { r: /\bsac professionnel|work bag/i, c: 'product', t: 'Sac Pro' }, { r: /\bsac voyage|travel/i, c: 'product', t: 'Sac Voyage' },
-    { r: /\bmontre|watch/i, c: 'product', t: 'Montres' }, { r: /\bbijou|jewelry/i, c: 'product', t: 'Bijoux' },
-    { r: /\bparfum|fragrance|perfume/i, c: 'product', t: 'Parfums' }, { r: /\bchaussure|shoe|sneaker/i, c: 'product', t: 'Chaussures' },
-    { r: /\bfoulard|silk|scarf/i, c: 'product', t: 'Foulards' }, { r: /\blunettes|sunglasses/i, c: 'product', t: 'Lunettes' },
-    { r: /cuir noir|black leather|nero|negro/i, c: 'pref', t: 'Noir' }, { r: /\bnavy|marine\b/i, c: 'pref', t: 'Navy' },
-    { r: /\bbeige|champagne/i, c: 'pref', t: 'Beige' }, { r: /\bcognac|camel|marron/i, c: 'pref', t: 'Cognac' },
-    { r: /hardware.*or|gold.*hardware|doré/i, c: 'pref', t: 'Or' }, { r: /rose gold|or rose/i, c: 'pref', t: 'Rose Gold' },
-    { r: /\bclassique|classic|timeless/i, c: 'style', t: 'Classique' }, { r: /\bmoderne|modern/i, c: 'style', t: 'Moderne' },
-    { r: /\bélégant|elegant/i, c: 'style', t: 'Élégant' }, { r: /\bdiscret|understated/i, c: 'style', t: 'Discret' },
-    { r: /\bminimaliste|minimalist/i, c: 'style', t: 'Minimaliste' }, { r: /\bfonctionnel|functional/i, c: 'style', t: 'Fonctionnel' },
-    { r: /\byoga/i, c: 'lifestyle', t: 'Yoga' }, { r: /\bpilates/i, c: 'lifestyle', t: 'Pilates' },
-    { r: /\bgolf/i, c: 'lifestyle', t: 'Golf' }, { r: /\btennis/i, c: 'lifestyle', t: 'Tennis' },
-    { r: /\brunning|marathon/i, c: 'lifestyle', t: 'Running' }, { r: /\bnatation|swimming|triathlon/i, c: 'lifestyle', t: 'Natation' },
-    { r: /\bescalade|climbing/i, c: 'lifestyle', t: 'Escalade' }, { r: /\bsurf/i, c: 'lifestyle', t: 'Surf' },
-    { r: /\bcrossfit/i, c: 'lifestyle', t: 'CrossFit' }, { r: /\bméditation|meditation/i, c: 'lifestyle', t: 'Méditation' },
-    { r: /\bvégétarien|vegetarian/i, c: 'lifestyle', t: 'Végétarien' }, { r: /\bvegan|végane/i, c: 'lifestyle', t: 'Vegan' },
-    { r: /\bpescetarien|pescatarian/i, c: 'lifestyle', t: 'Pescetarien' }, { r: /\bcollectionn|collector/i, c: 'lifestyle', t: 'Collectionneur' },
-    { r: /\ballergie.*nickel/i, c: 'service', t: '⚠️ Nickel' }, { r: /\ballergie.*latex/i, c: 'service', t: '⚠️ Latex' },
-    { r: /\ballergie.*gluten|celiac/i, c: 'service', t: '⚠️ Gluten' }, { r: /\ballergie.*arachide|peanut/i, c: 'service', t: '⚠️ Arachides' },
-    { r: /\bintolérance lactose|lactose/i, c: 'service', t: '⚠️ Lactose' },
-    { r: /\banniversaire|birthday/i, c: 'occasion', t: 'Anniversaire' }, { r: /\bmariage|wedding/i, c: 'occasion', t: 'Mariage' },
-    { r: /\bcadeau|gift/i, c: 'occasion', t: 'Cadeau' }, { r: /\bpetit.enfant|grandchild/i, c: 'occasion', t: 'Petits-enfants' },
-    { r: /\bdivorce|séparation|changement de vie/i, c: 'occasion', t: 'Nouveau départ' },
-    { r: /\bretraite|retirement/i, c: 'occasion', t: 'Retraite' }, { r: /\bpromotion|nouveau poste/i, c: 'occasion', t: 'Promotion' },
-    { r: /\bvip\b/i, c: 'budget', t: 'VIP' }, { r: /budget.{0,15}[3-5]\s*k/i, c: 'budget', t: '3-5K' },
-    { r: /budget.{0,15}[6-9]\s*k/i, c: 'budget', t: '6-9K' }, { r: /budget.{0,15}1[0-5]\s*k/i, c: 'budget', t: '10-15K' },
-    { r: /budget.{0,15}(1[6-9]|2\d)\s*k/i, c: 'budget', t: '15K+' }, { r: /très flexible|very flexible/i, c: 'budget', t: 'Flexible' },
-    { r: /haut potentiel|high potential/i, c: 'budget', t: 'Potentiel' }, { r: /nouveau client|new client|première/i, c: 'budget', t: 'Nouveau' },
-    { r: /client.*régulier|regular/i, c: 'budget', t: 'Régulier' }, { r: /depuis 201|since 201/i, c: 'budget', t: 'Fidèle' },
-    { r: /\brappeler|follow.?up/i, c: 'service', t: 'Rappeler' }, { r: /preview.*privé|private.*preview/i, c: 'service', t: 'Preview' },
-    { r: /\bréseau|network/i, c: 'network', t: 'Réseau' }, { r: /\bréféré|referred/i, c: 'network', t: 'Référent' },
-    { r: /instagram|youtube|followers/i, c: 'network', t: 'Influenceur' }, { r: /sustainab|durable|recyclé/i, c: 'pref', t: 'Durabilité' },
-    { r: /artisan|handcraft/i, c: 'pref', t: 'Artisanat' },
-    { r: /\bjapon|japan|tokyo/i, c: 'pref', t: 'Japon' }, { r: /\bitalie|italy|milan/i, c: 'pref', t: 'Italie' },
-    { r: /\bparis|france/i, c: 'pref', t: 'France' }, { r: /\bnew york|nyc|usa/i, c: 'pref', t: 'USA' }
-];
-
 // ===== LVMH HOUSES =====
-const LVMH_HOUSES = ['Louis Vuitton', 'Dior', 'Fendi', 'Givenchy', 'Celine', 'Loewe', 'Berluti', 'Loro Piana', 'Tiffany & Co.', 'Bulgari', 'TAG Heuer', 'Hublot', 'Moët Hennessy', 'Sephora', 'Rimowa'];
+const LVMH_HOUSES = ['Louis Vuitton','Dior','Fendi','Givenchy','Celine','Loewe','Berluti','Loro Piana','Tiffany & Co.','Bulgari','TAG Heuer','Hublot','Mo\u00EBt Hennessy','Sephora','Rimowa'];
 
-// ===== STATE =====
-let DATA = [];
-let NBA_DATA = [];
-let RGPD_BAD = [];
-let PRIVACY_SCORES = [];
-let SENTIMENT_DATA = [];
-let STATS = { clients: 0, tags: 0, ai: 0, rgpd: 0, nba: 0, privacyAvg: 0, atRisk: 0 };
+// ===== HELPERS =====
+const CAT_NAMES = { profession:'Profession', product:'Produit', pref:'Pr\u00E9f\u00E9rence', style:'Style', lifestyle:'Lifestyle', occasion:'Occasion', budget:'Budget', service:'Service', network:'R\u00E9seau' };
+const legendColors = { profession:'#60a5fa', product:'#d4af37', pref:'#34d399', style:'#c084fc', lifestyle:'#f472b6', occasion:'#fb923c', budget:'#facc15', service:'#a5b4fc', network:'#2dd4bf' };
 
-const $ = id => document.getElementById(id);
-const CAT_NAMES = { profession: 'Profession', product: 'Produit', pref: 'Préférence', style: 'Style', lifestyle: 'Lifestyle', occasion: 'Occasion', budget: 'Budget', service: 'Service', network: 'Réseau' };
-
-// ===== INIT =====
-$('selectBtn').onclick = () => $('fileInput').click();
-$('uploadArea').onclick = e => { if (e.target.id !== 'selectBtn') $('fileInput').click(); };
-
-$('fileInput').onchange = async e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    $('loading').classList.add('active');
-    updateLoading('Lecture du fichier...', 0, 1);
-
-    try {
-        const t0 = performance.now();
-        const text = await file.text();
-        const rows = parseCSV(text);
-        const total = rows.length;
-
-        // Step 1: Clean with AI (parallel batches)
-        updateLoading('Nettoyage IA parallèle...', 0, total);
-        DATA = await processWithAI(rows);
-
-        // Step 2: Extract tags
-        updateLoading('Extraction des tags...', total, total);
-        extractAllTags();
-
-        // Step 3: Generate NBA actions (parallel batches)
-        updateLoading('Génération NBA...', 0, total);
-        await generateAllNBA();
-
-        // Step 4: Sentiment Analysis
-        updateLoading('Analyse sentiment...', total, total);
-        analyzeSentiment();
-
-        // Step 5: Compute Privacy Scores
-        updateLoading('Calcul Privacy Scores...', total, total);
-        computePrivacyScores();
-
-        const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
-        console.log(`Pipeline complete: ${total} clients in ${elapsed}s`);
-
-        $('loading').classList.remove('active');
-        showApp();
-
-    } catch (err) {
-        $('loading').classList.remove('active');
-        alert('Erreur: ' + err.message);
-        console.error(err);
-    }
-};
-
-// ===== LOADING UI =====
-function updateLoading(msg, current, total) {
-    $('loadingMsg').textContent = msg;
-    $('loadingProgress').textContent = `${current}/${total}`;
-    const pct = total > 0 ? (current / total * 100) : 0;
-    $('progressFill').style.width = pct + '%';
-}
-
-// ===== CSV PARSER =====
-function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const vals = [];
-        let curr = '', inQ = false;
-        for (const ch of lines[i]) {
-            if (ch === '"') inQ = !inQ;
-            else if (ch === ',' && !inQ) { vals.push(curr.trim()); curr = ''; }
-            else curr += ch;
-        }
-        vals.push(curr.trim());
-        if (vals.length >= headers.length) {
-            const row = {};
-            headers.forEach((h, j) => row[h] = vals[j] || '');
-            rows.push(row);
-        }
-    }
-    return rows;
-}
-
-// ===== MISTRAL API =====
-async function callMistral(prompt, maxTokens = 600) {
-    const resp = await fetch(MISTRAL_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MISTRAL_API_KEY}` },
-        body: JSON.stringify({ model: 'mistral-small-latest', messages: [{ role: 'user', content: prompt }], max_tokens: maxTokens, temperature: 0 })
-    });
-    if (!resp.ok) throw new Error('Mistral API ' + resp.status);
-    const data = await resp.json();
-    return data.choices[0].message.content.trim();
-}
-
-// ===== CLEAN WITH MISTRAL =====
-async function cleanOne(text) {
-    try {
-        const result = await callMistral(CLEANING_PROMPT + text, 600);
-        const rgpdMatch = result.match(/RGPD_COUNT:\s*(\d+)/i);
-        const textMatch = result.match(/TEXT:\s*([\s\S]*)/i);
-        if (rgpdMatch && textMatch) {
-            return { text: textMatch[1].trim(), rgpdCount: parseInt(rgpdMatch[1], 10) };
-        }
-        // Fallback
-        return fallbackClean(result);
-    } catch {
-        return fallbackClean(text);
-    }
-}
-
-function fallbackClean(text) {
-    let clean = text, count = 0;
-    Object.entries(RGPD_FALLBACK).forEach(([cat, patterns]) => {
-        patterns.forEach(re => {
-            const m = clean.match(re);
-            if (m) { count += m.length; clean = clean.replace(re, `[${cat.toUpperCase()}-MASQUÉ]`); }
-        });
-    });
-    return { text: clean, rgpdCount: count };
-}
-
-// ===== PROCESS ALL WITH AI =====
-async function processWithAI(rows) {
-    STATS = { clients: 0, tags: 0, ai: 0, rgpd: 0, nba: 0, privacyAvg: 0 };
-    RGPD_BAD = [];
-    const results = [];
-
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-        const batch = rows.slice(i, i + BATCH_SIZE);
-        updateLoading('Nettoyage IA parallèle...', Math.min(i + BATCH_SIZE, rows.length), rows.length);
-
-        const batchResults = await Promise.all(batch.map(async row => {
-            const orig = row.Transcription || row.transcription || '';
-            const id = row.ID || row.id || 'N/A';
-            const date = row.Date || row.date || '';
-            const lang = (row.Language || row.Langue || row.language || 'FR').toUpperCase();
-            const ca = row.CA || row.Advisor || row.advisor || 'CA-' + Math.floor(Math.random() * 5 + 1);
-            const store = row.Store || row.Boutique || row.store || '';
-
-            const result = await cleanOne(orig);
-            STATS.ai++;
-
-            // Detect RGPD sensitive words in original
-            let sensitiveCount = 0;
-            const sensitiveFound = [];
-            RGPD_SENSITIVE.forEach(p => {
-                p.words.forEach(w => {
-                    if (orig.toLowerCase().includes(w.toLowerCase())) {
-                        sensitiveCount++;
-                        sensitiveFound.push({ cat: p.cat, word: w });
-                    }
-                });
-            });
-
-            if (result.rgpdCount > 0) {
-                STATS.rgpd += result.rgpdCount;
-                const masks = result.text.match(/\[[A-Z]+-MASQU[ÉE]+\]/gi) || [];
-                masks.forEach(m => RGPD_BAD.push({ id, cat: m.replace(/[\[\]]/g, ''), w: 'Masqué par IA' }));
-            }
-
-            const clean = result.text.replace(/\s+/g, ' ').trim();
-            STATS.clients++;
-            return { id, date, lang, ca, store, orig, clean, tags: [], nba: [], sensitiveCount, sensitiveFound, rgpdMasked: result.rgpdCount };
-        }));
-
-        results.push(...batchResults);
-        if (i + BATCH_SIZE < rows.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
-    }
-    return results;
-}
-
-// ===== TAG EXTRACTION =====
-function extractAllTags() {
-    const tagMap = new Map();
-    DATA.forEach(row => {
-        row.tags = [];
-        const t = row.clean.toLowerCase();
-        TAGS.forEach(p => {
-            if (p.r.test(t)) {
-                p.r.lastIndex = 0;
-                const key = `${row.id}-${p.t}`;
-                if (!tagMap.has(key)) {
-                    row.tags.push({ c: p.c, t: p.t });
-                    tagMap.set(key, true);
-                    STATS.tags++;
-                }
-            }
-        });
-    });
-}
-
-// ===== NBA ENGINE =====
-async function generateAllNBA() {
-    NBA_DATA = [];
-    for (let i = 0; i < DATA.length; i += BATCH_SIZE) {
-        const batch = DATA.slice(i, i + BATCH_SIZE);
-        updateLoading('Génération NBA...', Math.min(i + BATCH_SIZE, DATA.length), DATA.length);
-
-        await Promise.all(batch.map(async row => {
-            if (row.tags.length === 0) {
-                row.nba = [{ action: 'Approfondir le profil lors de la prochaine visite', type: 'immediate', category: 'relationship' }];
-                STATS.nba++;
-                return;
-            }
-            try {
-                const tagsStr = row.tags.map(t => t.t).join(', ');
-                const prompt = NBA_PROMPT.replace('{tags}', tagsStr).replace('{text}', row.clean.substring(0, 300));
-                const result = await callMistral(prompt, 400);
-
-                // Extract JSON from response
-                const jsonMatch = result.match(/\[[\s\S]*\]/);
-                if (jsonMatch) {
-                    row.nba = JSON.parse(jsonMatch[0]);
-                    STATS.nba += row.nba.length;
-                } else {
-                    row.nba = [{ action: 'Personnaliser le prochain contact basé sur: ' + tagsStr, type: 'immediate', category: 'relationship' }];
-                    STATS.nba++;
-                }
-            } catch {
-                row.nba = generateFallbackNBA(row);
-                STATS.nba += row.nba.length;
-            }
-        }));
-
-        if (i + BATCH_SIZE < DATA.length) await new Promise(r => setTimeout(r, BATCH_DELAY));
-    }
-}
-
-function generateFallbackNBA(row) {
-    const actions = [];
-    const tags = row.tags.map(t => t.t);
-    const cats = row.tags.map(t => t.c);
-
-    // Immediate action based on occasion
-    if (cats.includes('occasion')) {
-        const occasion = tags.find((_, i) => row.tags[i].c === 'occasion');
-        actions.push({ action: `Préparer une sélection personnalisée pour l'occasion: ${occasion}`, type: 'immediate', category: 'product' });
-    }
-
-    // Product recommendation
-    if (cats.includes('style') || cats.includes('pref')) {
-        const style = tags.filter((_, i) => ['style', 'pref'].includes(row.tags[i].c)).join(', ');
-        actions.push({ action: `Envoyer lookbook digital avec sélection ${style}`, type: 'short_term', category: 'product' });
-    }
-
-    // Relationship
-    if (cats.includes('budget')) {
-        actions.push({ action: 'Inviter à un événement exclusif en boutique', type: 'long_term', category: 'experience' });
-    }
-
-    if (actions.length === 0) {
-        actions.push({ action: 'Planifier un appel de suivi pour approfondir les préférences', type: 'immediate', category: 'relationship' });
-    }
-
-    return actions.slice(0, 3);
-}
-
-// ===== PRIVACY SCORE =====
-function computePrivacyScores() {
-    const caMap = new Map();
-
-    DATA.forEach(row => {
-        if (!caMap.has(row.ca)) {
-            caMap.set(row.ca, { ca: row.ca, total: 0, violations: 0, categories: {}, notes: [] });
-        }
-        const entry = caMap.get(row.ca);
-        entry.total++;
-
-        if (row.sensitiveCount > 0) {
-            entry.violations += row.sensitiveCount;
-            row.sensitiveFound.forEach(s => {
-                entry.categories[s.cat] = (entry.categories[s.cat] || 0) + 1;
-            });
-            entry.notes.push(row.id);
-        }
-    });
-
-    PRIVACY_SCORES = Array.from(caMap.values()).map(entry => {
-        const score = Math.max(0, Math.round(100 - (entry.violations / entry.total) * 50 - entry.violations * 5));
-        let level = 'excellent';
-        if (score < 60) level = 'critical';
-        else if (score < 75) level = 'warning';
-        else if (score < 90) level = 'good';
-
-        const coaching = [];
-        if (entry.categories.orientation) coaching.push('Formation RGPD: données orientation sexuelle interdites');
-        if (entry.categories.politics) coaching.push('Formation RGPD: opinions politiques non-collectables');
-        if (entry.categories.religion) coaching.push('Formation RGPD: croyances religieuses à ne pas enregistrer');
-        if (entry.categories.familyConflict) coaching.push('Sensibilisation: conflits familiaux = données ultra-sensibles');
-        if (entry.categories.appearance) coaching.push('Rappel: jugements physiques = non conforme et irrespectueux');
-        if (entry.categories.finance) coaching.push('Formation: données financières personnelles interdites');
-        if (entry.categories.accessCodes) coaching.push('Alerte sécurité: ne jamais enregistrer de codes d\'accès');
-
-        return { ...entry, score, level, coaching };
-    }).sort((a, b) => a.score - b.score);
-
-    // Compute avg
-    if (PRIVACY_SCORES.length > 0) {
-        STATS.privacyAvg = Math.round(PRIVACY_SCORES.reduce((s, p) => s + p.score, 0) / PRIVACY_SCORES.length);
-    }
-}
-
-// ===== SHOW APP =====
-function showApp() {
-    $('uploadSection').classList.add('hidden');
-    $('mainNav').classList.remove('hidden');
-    $('mainFooter').classList.remove('hidden');
-
-    // Tab navigation
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.onclick = () => {
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-page').forEach(p => p.classList.add('hidden'));
-            tab.classList.add('active');
-            $('tab-' + tab.dataset.tab).classList.remove('hidden');
-        };
-    });
-
-    // Show dashboard
-    $('tab-dashboard').classList.remove('hidden');
-    renderDashboard();
-    renderClients();
-    renderNBA();
-    renderPrivacy();
-    renderCrossBrand();
-    renderFollowup();
-    renderProducts();
-    renderSentiment();
-    renderBoutique();
-    renderPulse();
-
-    // Follow-up controls
-    $('followupHouse').onchange = () => renderFollowup();
-    $('followupChannel').onchange = () => renderFollowup();
-}
-
-// ===== RENDER: DASHBOARD =====
+// ===== RENDER: DASHBOARD (Manager) =====
 function renderDashboard() {
     $('statClients').textContent = STATS.clients;
     $('statTags').textContent = STATS.tags;
@@ -588,55 +105,64 @@ function renderDashboard() {
     $('statPrivacy').textContent = STATS.privacyAvg + '%';
 
     if (DATA.length > 0) {
-        $('beforeText').textContent = DATA[0].orig.substring(0, 400);
-        $('afterText').textContent = DATA[0].clean.substring(0, 400);
+        $('beforeText').textContent = DATA[0].orig.substring(0, 400) || '(aucune donnee brute)';
+        $('afterText').textContent = DATA[0].clean.substring(0, 400) || '(aucune donnee nettoyee)';
     }
 
     const bl = $('rgpdBadList');
-    if (RGPD_BAD.length === 0) { $('rgpdSection').style.display = 'none'; }
+    const rs = $('rgpdSection');
+    if (RGPD_BAD.length === 0) { if (rs) rs.style.display = 'none'; }
     else {
-        bl.innerHTML = RGPD_BAD.map(i => `<div class="rgpd-bad-item"><span class="id">${i.id}</span><span class="cat">${i.cat}</span>${i.w}</div>`).join('');
+        if (rs) rs.style.display = '';
+        if (bl) bl.innerHTML = RGPD_BAD.map(i => `<div class="rgpd-bad-item"><span class="id">${i.id}</span><span class="cat">${i.cat}</span>${i.w}</div>`).join('');
     }
 
-    $('exportCsv').onclick = exportCSV;
-    $('exportJson').onclick = exportJSON;
-    $('exportReport').onclick = exportReport;
+    if ($('exportCsv')) $('exportCsv').onclick = exportCSV;
+    if ($('exportJson')) $('exportJson').onclick = exportJSON;
+    if ($('exportReport')) $('exportReport').onclick = exportReport;
 }
 
-// ===== RENDER: CLIENTS =====
+// ===== RENDER: CLIENTS (shared) =====
 function renderClients() {
-    // Legend
-    const legendColors = { profession: '#60a5fa', product: '#d4af37', pref: '#34d399', style: '#c084fc', lifestyle: '#f472b6', occasion: '#fb923c', budget: '#facc15', service: '#a5b4fc', network: '#2dd4bf' };
-    $('tagLegend').innerHTML = Object.entries(CAT_NAMES).map(([k, v]) =>
-        `<div class="legend-item"><span class="legend-dot" style="background:${legendColors[k] || '#888'}"></span>${v}</div>`
-    ).join('');
-
+    const legend = $('tagLegend');
+    if (legend) {
+        legend.innerHTML = Object.entries(CAT_NAMES).map(([k, v]) =>
+            `<div class="legend-item"><span class="legend-dot" style="background:${legendColors[k]||'#888'}"></span>${v}</div>`
+        ).join('');
+    }
     renderGrid();
-    $('personSearch').oninput = e => renderGrid(e.target.value);
+    const search = $('personSearch');
+    if (search) search.oninput = e => renderGrid(e.target.value);
 }
 
-function renderGrid(filter = '') {
+function renderGrid(filter) {
+    filter = filter || '';
     const g = $('personGrid');
+    if (!g) return;
     g.innerHTML = '';
     const f = filter.toLowerCase();
-    const filtered = DATA.filter(p => !f || p.id.toLowerCase().includes(f) || p.tags.some(t => t.t.toLowerCase().includes(f)) || p.clean.toLowerCase().includes(f));
+    const filtered = DATA.filter(p => !f || p.id.toLowerCase().includes(f) || (p.ca||'').toLowerCase().includes(f) || p.tags.some(t => t.t.toLowerCase().includes(f)) || p.clean.toLowerCase().includes(f));
+
+    if (filtered.length === 0) {
+        g.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client trouve.</p>';
+        return;
+    }
 
     filtered.forEach(p => {
         const cats = {};
         p.tags.forEach(t => { if (!cats[t.c]) cats[t.c] = []; cats[t.c].push(t.t); });
 
-        let html = `<div class="person-header"><span class="person-id">${p.id}</span><div class="person-meta"><span>${p.lang}</span><span>${p.date}</span><span>${p.tags.length} tags</span></div></div>`;
+        let html = `<div class="person-header"><span class="person-id">${p.ca || p.id}</span><div class="person-meta"><span>${p.lang}</span><span>${p.date}</span><span>${p.tags.length} tags</span></div></div>`;
 
-        if (Object.keys(cats).length === 0) html += '<div class="no-tags">Aucun tag détecté</div>';
+        if (Object.keys(cats).length === 0) html += '<div class="no-tags">Aucun tag detect\u00E9</div>';
         else {
             Object.entries(cats).forEach(([c, tags]) => {
-                html += `<div class="tag-section"><div class="tag-section-title">${CAT_NAMES[c] || c}</div><div class="tag-row">${tags.map(t => `<span class="tag ${c}">${t}</span>`).join('')}</div></div>`;
+                html += `<div class="tag-section"><div class="tag-section-title">${CAT_NAMES[c]||c}</div><div class="tag-row">${tags.map(t => `<span class="tag ${c}">${t}</span>`).join('')}</div></div>`;
             });
         }
 
-        // Mini NBA preview
         if (p.nba && p.nba.length > 0) {
-            html += `<div class="tag-section"><div class="tag-section-title">Next Best Action</div><div class="tag-row">${p.nba.slice(0, 2).map(a => `<span class="tag nba">🎯 ${a.action.substring(0, 50)}...</span>`).join('')}</div></div>`;
+            html += `<div class="tag-section"><div class="tag-section-title">Next Best Action</div><div class="tag-row">${p.nba.slice(0,2).map(a => `<span class="tag nba">\uD83C\uDFAF ${a.action.substring(0,50)}...</span>`).join('')}</div></div>`;
         }
 
         const card = document.createElement('div');
@@ -649,22 +175,25 @@ function renderGrid(filter = '') {
 // ===== RENDER: NBA =====
 function renderNBA() {
     const grid = $('nbaGrid');
+    if (!grid) return;
     grid.innerHTML = '';
 
-    DATA.forEach(p => {
-        if (!p.nba || p.nba.length === 0) return;
+    const withNBA = DATA.filter(p => p.nba && p.nba.length > 0);
+    if (withNBA.length === 0) {
+        grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucune action NBA disponible.</p>';
+        return;
+    }
 
-        const typeLabels = { immediate: 'Immédiat', short_term: 'Court terme', long_term: 'Long terme' };
-        const typeClasses = { immediate: 'immediate', short_term: 'shortterm', long_term: 'longterm' };
+    const typeLabels = { immediate:'Imm\u00E9diat', short_term:'Court terme', long_term:'Long terme' };
+    const typeClasses = { immediate:'immediate', short_term:'shortterm', long_term:'longterm' };
 
-        let html = `<div class="nba-card-header"><span class="nba-client-id">${p.id}</span><div class="person-meta"><span>${p.tags.length} tags</span><span>${p.lang}</span></div></div>`;
-
-        html += `<div class="nba-context">${p.tags.map(t => t.t).join(' · ')}</div>`;
-
+    withNBA.forEach(p => {
+        let html = `<div class="nba-card-header"><span class="nba-client-id">${p.ca || p.id}</span><div class="person-meta"><span>${p.tags.length} tags</span><span>${p.lang}</span></div></div>`;
+        html += `<div class="nba-context">${p.tags.map(t => t.t).join(' \u00B7 ')}</div>`;
         html += '<div class="nba-actions">';
         p.nba.forEach((a, i) => {
             const cls = typeClasses[a.type] || 'shortterm';
-            html += `<div class="nba-action"><div class="nba-action-num">${i + 1}</div><div><div class="nba-action-text">${a.action}</div><span class="nba-action-type ${cls}">${typeLabels[a.type] || a.type}</span></div></div>`;
+            html += `<div class="nba-action"><div class="nba-action-num">${i+1}</div><div><div class="nba-action-text">${a.action}</div><span class="nba-action-type ${cls}">${typeLabels[a.type]||a.type}</span></div></div>`;
         });
         html += '</div>';
 
@@ -678,26 +207,20 @@ function renderNBA() {
 // ===== RENDER: PRIVACY SCORE =====
 function renderPrivacy() {
     const overview = $('privacyOverview');
+    if (!overview) return;
+
     const totalViolations = PRIVACY_SCORES.reduce((s, p) => s + p.violations, 0);
     const criticalCount = PRIVACY_SCORES.filter(p => p.level === 'critical').length;
     const avgLevel = STATS.privacyAvg >= 90 ? 'excellent' : STATS.privacyAvg >= 75 ? 'good' : STATS.privacyAvg >= 60 ? 'warning' : 'critical';
 
     overview.innerHTML = `
-        <div class="privacy-score-card">
-            <div class="privacy-score-circle ${avgLevel}">${STATS.privacyAvg}%</div>
-            <div style="color:#888;font-size:.8rem">Score Global</div>
-        </div>
-        <div class="privacy-score-card">
-            <div style="font-size:2.5rem;font-weight:700;color:${totalViolations > 0 ? '#ef4444' : '#10b981'};margin-bottom:8px">${totalViolations}</div>
-            <div style="color:#888;font-size:.8rem">Violations détectées</div>
-        </div>
-        <div class="privacy-score-card">
-            <div style="font-size:2.5rem;font-weight:700;color:${criticalCount > 0 ? '#ef4444' : '#10b981'};margin-bottom:8px">${criticalCount}</div>
-            <div style="color:#888;font-size:.8rem">CA en alerte</div>
-        </div>
+        <div class="privacy-score-card"><div class="privacy-score-circle ${avgLevel}">${STATS.privacyAvg}%</div><div style="color:#888;font-size:.8rem">Score Global</div></div>
+        <div class="privacy-score-card"><div style="font-size:2.2rem;font-weight:700;color:${totalViolations>0?'#ef4444':'#10b981'};margin-bottom:8px">${totalViolations}</div><div style="color:#888;font-size:.8rem">Violations</div></div>
+        <div class="privacy-score-card"><div style="font-size:2.2rem;font-weight:700;color:${criticalCount>0?'#ef4444':'#10b981'};margin-bottom:8px">${criticalCount}</div><div style="color:#888;font-size:.8rem">CA en alerte</div></div>
     `;
 
     const grid = $('privacyGrid');
+    if (!grid) return;
     grid.innerHTML = '';
 
     PRIVACY_SCORES.forEach(p => {
@@ -705,16 +228,12 @@ function renderPrivacy() {
         const barColor = p.level === 'critical' ? '#ef4444' : p.level === 'warning' ? '#fb923c' : p.level === 'good' ? '#3b82f6' : '#10b981';
 
         let html = `
-            <div class="privacy-card-header">
-                <span class="privacy-ca-name">${p.ca}</span>
-                <span class="privacy-badge ${badgeClass}">${p.score}% — ${p.level.toUpperCase()}</span>
-            </div>
+            <div class="privacy-card-header"><span class="privacy-ca-name">${p.ca}</span><span class="privacy-badge ${badgeClass}">${p.score}% \u2014 ${p.level.toUpperCase()}</span></div>
             <div class="privacy-bar"><div class="privacy-bar-fill" style="width:${p.score}%;background:${barColor}"></div></div>
-            <div class="privacy-detail">${p.total} notes analysées · ${p.violations} violation${p.violations > 1 ? 's' : ''}</div>
+            <div class="privacy-detail">${p.total} notes \u00B7 ${p.violations} violation${p.violations>1?'s':''}</div>
         `;
-
         if (p.coaching.length > 0) {
-            html += '<div class="coaching-alert">⚠️ Coaching requis:<br>' + p.coaching.map(c => '→ ' + c).join('<br>') + '</div>';
+            html += '<div class="coaching-alert">\u26A0\uFE0F Coaching requis:<br>' + p.coaching.map(c => '\u2192 ' + c).join('<br>') + '</div>';
         }
 
         const card = document.createElement('div');
@@ -727,42 +246,22 @@ function renderPrivacy() {
 // ===== RENDER: CROSS-BRAND =====
 function renderCrossBrand() {
     const grid = $('crossbrandGrid');
+    if (!grid) return;
     grid.innerHTML = '';
 
-    // Generate anonymized universal style profiles
     DATA.forEach(p => {
         if (p.tags.length < 2) return;
+        const numHouses = Math.min(Math.floor(Math.random()*3)+1, 3);
+        const houses = [...LVMH_HOUSES].sort(() => Math.random()-.5).slice(0, numHouses);
+        const anonId = 'USP-' + btoa(p.id).substring(0,8).toUpperCase();
+        const styleTags = p.tags.filter(t => ['style','pref','lifestyle'].includes(t.c));
+        const productTags = p.tags.filter(t => ['product','occasion'].includes(t.c));
+        const segmentTags = p.tags.filter(t => ['budget','network'].includes(t.c));
 
-        // Assign random houses for demo
-        const numHouses = Math.min(Math.floor(Math.random() * 3) + 1, 3);
-        const houses = [];
-        const shuffled = [...LVMH_HOUSES].sort(() => Math.random() - 0.5);
-        for (let i = 0; i < numHouses; i++) houses.push(shuffled[i]);
-
-        // Anonymized profile ID
-        const anonId = 'USP-' + btoa(p.id).substring(0, 8).toUpperCase();
-
-        // Extract style dimensions
-        const styleTags = p.tags.filter(t => ['style', 'pref', 'lifestyle'].includes(t.c));
-        const productTags = p.tags.filter(t => ['product', 'occasion'].includes(t.c));
-        const segmentTags = p.tags.filter(t => ['budget', 'network'].includes(t.c));
-
-        let html = `
-            <div class="crossbrand-header">
-                <span class="crossbrand-id">${anonId}</span>
-                <div class="crossbrand-houses">${houses.map(h => `<span class="crossbrand-house">${h}</span>`).join('')}</div>
-            </div>
-        `;
-
-        if (styleTags.length > 0) {
-            html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Style DNA</div><div class="crossbrand-tags">${styleTags.map(t => `<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
-        }
-        if (productTags.length > 0) {
-            html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Univers Produit</div><div class="crossbrand-tags">${productTags.map(t => `<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
-        }
-        if (segmentTags.length > 0) {
-            html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Segment</div><div class="crossbrand-tags">${segmentTags.map(t => `<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
-        }
+        let html = `<div class="crossbrand-header"><span class="crossbrand-id">${anonId}</span><div class="crossbrand-houses">${houses.map(h=>`<span class="crossbrand-house">${h}</span>`).join('')}</div></div>`;
+        if (styleTags.length>0) html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Style DNA</div><div class="crossbrand-tags">${styleTags.map(t=>`<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
+        if (productTags.length>0) html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Univers Produit</div><div class="crossbrand-tags">${productTags.map(t=>`<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
+        if (segmentTags.length>0) html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Segment</div><div class="crossbrand-tags">${segmentTags.map(t=>`<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
 
         const card = document.createElement('div');
         card.className = 'crossbrand-card';
@@ -773,176 +272,107 @@ function renderCrossBrand() {
 
 // ===== RENDER: LUXURY PULSE =====
 function renderPulse() {
-    // Aggregate tag frequencies
     const tagFreq = new Map();
     const catFreq = new Map();
-
     DATA.forEach(row => {
         row.tags.forEach(t => {
-            tagFreq.set(t.t, (tagFreq.get(t.t) || 0) + 1);
-            catFreq.set(t.c, (catFreq.get(t.c) || 0) + 1);
+            tagFreq.set(t.t, (tagFreq.get(t.t)||0)+1);
+            catFreq.set(t.c, (catFreq.get(t.c)||0)+1);
         });
     });
+    const sorted = Array.from(tagFreq.entries()).sort((a,b) => b[1]-a[1]);
+    const totalTags = sorted.reduce((s,[,c]) => s+c, 0);
 
-    const sorted = Array.from(tagFreq.entries()).sort((a, b) => b[1] - a[1]);
-    const totalTags = sorted.reduce((s, [, c]) => s + c, 0);
-
-    // Pulse Stats
-    $('pulseStats').innerHTML = `
+    const ps = $('pulseStats');
+    if (ps) ps.innerHTML = `
         <div class="pulse-stat"><div class="pulse-stat-value">${sorted.length}</div><div class="pulse-stat-label">Tags uniques</div></div>
         <div class="pulse-stat"><div class="pulse-stat-value">${totalTags}</div><div class="pulse-stat-label">Mentions totales</div></div>
-        <div class="pulse-stat"><div class="pulse-stat-value">${DATA.length}</div><div class="pulse-stat-label">Notes analysées</div></div>
-        <div class="pulse-stat"><div class="pulse-stat-value">${Array.from(catFreq.keys()).length}</div><div class="pulse-stat-label">Catégories actives</div></div>
+        <div class="pulse-stat"><div class="pulse-stat-value">${DATA.length}</div><div class="pulse-stat-label">Notes analys\u00E9es</div></div>
+        <div class="pulse-stat"><div class="pulse-stat-value">${Array.from(catFreq.keys()).length}</div><div class="pulse-stat-label">Cat\u00E9gories actives</div></div>
     `;
 
-    // Trend Cards (top 12)
     const trends = $('pulseTrends');
-    trends.innerHTML = '';
+    if (trends) {
+        trends.innerHTML = '';
+        sorted.slice(0,12).forEach(([tag, count]) => {
+            const pct = ((count/DATA.length)*100).toFixed(0);
+            const change = Math.floor(Math.random()*30)-10;
+            const changeClass = change>5?'up':change<-5?'down':'stable';
+            const changeLabel = change>0?`+${change}%`:`${change}%`;
+            const bars = Array.from({length:8}, () => {
+                const h = Math.max(4, Math.floor(Math.random()*28)+2);
+                return `<div class="pulse-bar-segment" style="height:${h}px;flex:1"></div>`;
+            }).join('');
+            const card = document.createElement('div');
+            card.className = 'pulse-trend-card';
+            card.innerHTML = `
+                <div class="pulse-trend-header"><span class="pulse-trend-name">${tag}</span><span class="pulse-trend-change ${changeClass}">${changeLabel}</span></div>
+                <div class="pulse-trend-bar">${bars}</div>
+                <div class="pulse-trend-meta"><span>${count} mentions</span><span>${pct}% des clients</span></div>
+            `;
+            trends.appendChild(card);
+        });
+    }
 
-    sorted.slice(0, 12).forEach(([tag, count]) => {
-        const pct = ((count / DATA.length) * 100).toFixed(0);
-        // Simulate trend (random for demo, would be time-based in prod)
-        const change = Math.floor(Math.random() * 30) - 10;
-        const changeClass = change > 5 ? 'up' : change < -5 ? 'down' : 'stable';
-        const changeLabel = change > 0 ? `+${change}%` : `${change}%`;
-
-        // Generate mini bar chart (simulated weekly data)
-        const bars = [];
-        for (let i = 0; i < 8; i++) {
-            const h = Math.max(4, Math.floor(Math.random() * 28) + 2);
-            bars.push(`<div class="pulse-bar-segment" style="height:${h}px;flex:1"></div>`);
-        }
-
-        const card = document.createElement('div');
-        card.className = 'pulse-trend-card';
-        card.innerHTML = `
-            <div class="pulse-trend-header">
-                <span class="pulse-trend-name">${tag}</span>
-                <span class="pulse-trend-change ${changeClass}">${changeLabel}</span>
-            </div>
-            <div class="pulse-trend-bar">${bars.join('')}</div>
-            <div class="pulse-trend-meta"><span>${count} mentions</span><span>${pct}% des clients</span></div>
-        `;
-        trends.appendChild(card);
-    });
-
-    // Signals
     const signals = $('pulseSignals');
-    signals.innerHTML = '<h3 style="margin-bottom:14px;font-size:1.1rem">🔔 Signaux Faibles Détectés</h3>';
-
-    const signalData = generateSignals(tagFreq, catFreq);
-    signalData.forEach(s => {
-        const sig = document.createElement('div');
-        sig.className = `pulse-signal ${s.level}`;
-        sig.innerHTML = `
-            <div class="pulse-signal-icon">${s.icon}</div>
-            <div class="pulse-signal-content"><div class="pulse-signal-title">${s.title}</div><div class="pulse-signal-desc">${s.desc}</div></div>
-            <span class="pulse-signal-badge ${s.level}">${s.level === 'hot' ? 'Signal fort' : s.level === 'warm' ? 'Signal moyen' : 'Signal faible'}</span>
-        `;
-        signals.appendChild(sig);
-    });
+    if (signals) {
+        signals.innerHTML = '<h3 style="margin-bottom:14px;font-size:1.05rem">\uD83D\uDD14 Signaux Faibles</h3>';
+        generateSignals(tagFreq, catFreq).forEach(s => {
+            const sig = document.createElement('div');
+            sig.className = `pulse-signal ${s.level}`;
+            sig.innerHTML = `<div class="pulse-signal-icon">${s.icon}</div><div class="pulse-signal-content"><div class="pulse-signal-title">${s.title}</div><div class="pulse-signal-desc">${s.desc}</div></div><span class="pulse-signal-badge ${s.level}">${s.level==='hot'?'Signal fort':s.level==='warm'?'Signal moyen':'Signal faible'}</span>`;
+            signals.appendChild(sig);
+        });
+    }
 }
 
 function generateSignals(tagFreq, catFreq) {
     const signals = [];
-    const total = DATA.length;
+    const total = DATA.length || 1;
 
-    // Check for sustainability trend
-    const durability = tagFreq.get('Durabilité') || 0;
+    const durability = tagFreq.get('Durabilit\u00E9') || 0;
     if (durability > 0) {
-        const pct = ((durability / total) * 100).toFixed(0);
-        signals.push({ icon: '🌍', title: `Durabilité: ${pct}% des clients mentionnent des matériaux responsables`, desc: `${durability} mentions détectées. Tendance forte vers le luxe durable. Recommandation: amplifier la communication sur les collections éco-responsables.`, level: durability / total > 0.1 ? 'hot' : 'warm' });
+        const pct = ((durability/total)*100).toFixed(0);
+        signals.push({ icon:'\uD83C\uDF0D', title:`Durabilit\u00E9: ${pct}% mentionnent des mat\u00E9riaux responsables`, desc:`${durability} mentions d\u00E9tect\u00E9es.`, level: durability/total>0.1?'hot':'warm' });
     }
-
-    // Check for lifestyle dominance
     const lifestyleCount = catFreq.get('lifestyle') || 0;
-    if (lifestyleCount > total * 0.3) {
-        signals.push({ icon: '🏃', title: `Lifestyle actif dominant: ${lifestyleCount} mentions sport/bien-être`, desc: 'Les clients partagent activement leur mode de vie sportif. Opportunité: collections capsule sport-chic et partenariats wellness.', level: 'hot' });
-    }
-
-    // Check occasion patterns
+    if (lifestyleCount > total*0.3) signals.push({ icon:'\uD83C\uDFC3', title:`Lifestyle actif dominant: ${lifestyleCount} mentions`, desc:'Opportunit\u00E9 collections sport-chic.', level:'hot' });
     const occasionCount = catFreq.get('occasion') || 0;
-    if (occasionCount > 0) {
-        signals.push({ icon: '🎁', title: `${occasionCount} occasions de gifting identifiées`, desc: 'Mariages, anniversaires et célébrations détectés. Activer les campagnes de gifting personnalisé et les services d\'emballage premium.', level: 'warm' });
-    }
-
-    // Budget analysis
+    if (occasionCount > 0) signals.push({ icon:'\uD83C\uDF81', title:`${occasionCount} occasions de gifting`, desc:'Activer les campagnes de gifting personnalis\u00E9.', level:'warm' });
     const vipCount = tagFreq.get('VIP') || 0;
-    const highBudget = (tagFreq.get('15K+') || 0) + (tagFreq.get('10-15K') || 0);
-    if (vipCount > 0 || highBudget > 0) {
-        signals.push({ icon: '💎', title: `${vipCount + highBudget} clients high-value identifiés`, desc: `${vipCount} VIP + ${highBudget} budgets > 10K. Prioriser les invitations private viewing et les expériences sur-mesure.`, level: 'hot' });
-    }
-
-    // Minimalisme trend
+    const highBudget = (tagFreq.get('15K+')||0) + (tagFreq.get('10-15K')||0);
+    if (vipCount > 0 || highBudget > 0) signals.push({ icon:'\uD83D\uDC8E', title:`${vipCount+highBudget} clients high-value`, desc:`${vipCount} VIP + ${highBudget} budgets > 10K.`, level:'hot' });
     const mini = tagFreq.get('Minimaliste') || 0;
-    if (mini > 0) {
-        signals.push({ icon: '⚪', title: 'Tendance minimalisme en progression', desc: `${mini} clients orientés minimaliste. Le "quiet luxury" continue de dominer. Adapter le visual merchandising en boutique.`, level: 'warm' });
-    }
-
-    // Network/influence
+    if (mini > 0) signals.push({ icon:'\u26AA', title:'Tendance minimalisme', desc:`${mini} clients orient\u00E9s minimaliste.`, level:'warm' });
     const netCount = catFreq.get('network') || 0;
-    if (netCount > 0) {
-        signals.push({ icon: '📱', title: `${netCount} connexions réseau/influence détectées`, desc: 'Potentiel d\'activation UGC et de programmes ambassadeurs. Cartographier les micro-influenceurs parmi la clientèle.', level: 'cool' });
-    }
-
-    if (signals.length === 0) {
-        signals.push({ icon: '📊', title: 'Analyse en cours...', desc: 'Importez plus de données pour détecter des signaux significatifs. Minimum recommandé: 50 notes vocales.', level: 'cool' });
-    }
-
+    if (netCount > 0) signals.push({ icon:'\uD83D\uDCF1', title:`${netCount} connexions r\u00E9seau`, desc:'Potentiel UGC et ambassadeurs.', level:'cool' });
+    if (signals.length === 0) signals.push({ icon:'\uD83D\uDCCA', title:'Analyse en cours...', desc:'Importez plus de donn\u00E9es.', level:'cool' });
     return signals;
-}
-
-// ===== SENTIMENT ANALYSIS =====
-function analyzeSentiment() {
-    SENTIMENT_DATA = [];
-    DATA.forEach(row => {
-        const text = row.clean.toLowerCase();
-        let posScore = 0, negScore = 0;
-        const posFound = [], negFound = [];
-
-        SENTIMENT_KEYWORDS.positive.forEach(kw => {
-            if (text.includes(kw)) { posScore++; posFound.push(kw); }
-        });
-        SENTIMENT_KEYWORDS.negative.forEach(kw => {
-            if (text.includes(kw)) { negScore += 1.5; negFound.push(kw); }
-        });
-
-        const total = posScore + negScore || 1;
-        const sentiment = Math.round(((posScore / total) * 100));
-        const level = sentiment >= 70 ? 'positive' : sentiment >= 40 ? 'neutral' : 'negative';
-
-        row.sentiment = { score: sentiment, level, posFound, negFound };
-
-        if (level === 'negative') STATS.atRisk++;
-
-        SENTIMENT_DATA.push({ id: row.id, ca: row.ca, score: sentiment, level, posFound, negFound, excerpt: row.clean.substring(0, 150) });
-    });
 }
 
 // ===== RENDER: FOLLOW-UP =====
 function renderFollowup() {
     const grid = $('followupGrid');
-    const house = $('followupHouse').value;
-    const channel = $('followupChannel').value;
+    const house = $('followupHouse') ? $('followupHouse').value : 'Louis Vuitton';
+    const channel = $('followupChannel') ? $('followupChannel').value : 'email';
+    if (!grid) return;
     grid.innerHTML = '';
 
-    DATA.forEach(p => {
-        if (p.tags.length === 0) return;
-        const tagsStr = p.tags.map(t => t.t).join(', ');
-        const msg = generateFollowupLocal(p, house, channel);
+    const withTags = DATA.filter(p => p.tags.length > 0);
+    if (withTags.length === 0) {
+        grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client avec tags pour g\u00E9n\u00E9rer un follow-up.</p>';
+        return;
+    }
 
+    withTags.forEach(p => {
+        const msg = generateFollowupLocal(p, house, channel);
         const card = document.createElement('div');
         card.className = 'followup-card';
         card.innerHTML = `
-            <div class="followup-card-header">
-                <span class="followup-client-id">${p.id}</span>
-                <span class="followup-channel ${channel}">${channel === 'email' ? '📧 Email' : '💬 WhatsApp'}</span>
-            </div>
+            <div class="followup-card-header"><span class="followup-client-id">${p.ca || p.id}</span><span class="followup-channel ${channel}">${channel==='email'?'\uD83D\uDCE7 Email':'\uD83D\uDCAC WhatsApp'}</span></div>
             <div class="followup-subject">${msg.subject}</div>
             <div class="followup-body">${msg.body}</div>
-            <div class="followup-actions">
-                <button class="followup-btn copy" onclick="copyFollowup(this)">📋 Copier</button>
-            </div>
+            <div class="followup-actions"><button class="followup-btn copy" onclick="copyFollowup(this)">\uD83D\uDCCB Copier</button></div>
         `;
         grid.appendChild(card);
     });
@@ -950,78 +380,53 @@ function renderFollowup() {
 
 function generateFollowupLocal(client, house, channel) {
     const tags = client.tags.map(t => t.t);
-    const name = client.id;
-    const occasions = tags.filter(t => ['Anniversaire', 'Mariage', 'Cadeau', 'Nouveau départ', 'Retraite', 'Promotion'].includes(t));
-    const styles = tags.filter(t => ['Classique', 'Moderne', 'Élégant', 'Discret', 'Minimaliste'].includes(t));
-    const products = tags.filter(t => ['Montres', 'Bijoux', 'Parfums', 'Sac Pro', 'Sac Voyage', 'Chaussures', 'Foulards', 'Lunettes'].includes(t));
-    const prefs = tags.filter(t => ['Noir', 'Navy', 'Beige', 'Cognac', 'Or', 'Rose Gold', 'Durabilité', 'Artisanat'].includes(t));
+    const name = client.ca || client.id;
+    const occasions = tags.filter(t => ['Anniversaire','Mariage','Cadeau','Nouveau d\u00E9part','Retraite','Promotion'].includes(t));
+    const styles = tags.filter(t => ['Classique','Moderne','\u00C9l\u00E9gant','Discret','Minimaliste'].includes(t));
+    const products = tags.filter(t => ['Montres','Bijoux','Parfums','Sac Pro','Sac Voyage','Chaussures','Foulards','Lunettes'].includes(t));
+    const prefs = tags.filter(t => ['Noir','Navy','Beige','Cognac','Or','Rose Gold','Durabilit\u00E9','Artisanat'].includes(t));
 
     let subject, body;
-
     if (channel === 'email') {
-        subject = occasions.length > 0
-            ? `${house} — Une attention particulière pour votre ${occasions[0].toLowerCase()}`
-            : `${house} — Suite à notre échange, ${name}`;
-
-        body = `Cher(e) ${name},\n\n`;
-        body += `Ce fut un réel plaisir de vous accueillir chez ${house}.\n\n`;
-
-        if (styles.length > 0) {
-            body += `Votre sensibilité pour un style ${styles.join(' et ').toLowerCase()} m'a particulièrement inspiré(e). `;
-        }
-        if (products.length > 0) {
-            body += `Suite à votre intérêt pour nos ${products.join(', ').toLowerCase()}, `;
-            body += `je me permets de vous informer que de nouvelles pièces viennent d'arriver en boutique.\n\n`;
-        }
-        if (occasions.length > 0) {
-            body += `Pour votre ${occasions[0].toLowerCase()}, j'ai pré-sélectionné quelques pièces qui, je pense, vous enchanteront. `;
-            body += `Je serais ravi(e) de vous les présenter lors d'un rendez-vous privé.\n\n`;
-        }
-        if (prefs.length > 0) {
-            body += `Connaissant votre attrait pour les tons ${prefs.join(', ').toLowerCase()}, `;
-            body += `je pense que notre dernière collection saura vous séduire.\n\n`;
-        }
-        body += `N'hésitez pas à me contacter pour un rendez-vous à votre convenance.\n\n`;
-        body += `Avec toute mon attention,\nVotre Client Advisor\n${house}`;
+        subject = occasions.length > 0 ? `${house} \u2014 Attention pour votre ${occasions[0].toLowerCase()}` : `${house} \u2014 Suite \u00E0 notre \u00E9change, ${name}`;
+        body = `Cher(e) ${name},\n\nCe fut un r\u00E9el plaisir de vous accueillir chez ${house}.\n\n`;
+        if (styles.length) body += `Votre sensibilit\u00E9 pour un style ${styles.join(' et ').toLowerCase()} m'a inspir\u00E9(e). `;
+        if (products.length) body += `Suite \u00E0 votre int\u00E9r\u00EAt pour nos ${products.join(', ').toLowerCase()}, de nouvelles pi\u00E8ces sont arriv\u00E9es.\n\n`;
+        if (occasions.length) body += `Pour votre ${occasions[0].toLowerCase()}, j'ai pr\u00E9-s\u00E9lectionn\u00E9 des pi\u00E8ces.\n\n`;
+        if (prefs.length) body += `Les tons ${prefs.join(', ').toLowerCase()} de notre derni\u00E8re collection sauront vous s\u00E9duire.\n\n`;
+        body += `N'h\u00E9sitez pas \u00E0 me contacter.\n\nAvec toute mon attention,\nVotre Client Advisor\n${house}`;
     } else {
-        subject = `WhatsApp — ${name}`;
-        body = `Bonjour ${name} 🙂\n\n`;
-        body += `Merci pour votre visite chez ${house} ! `;
-
-        if (products.length > 0) {
-            body += `\n\nComme évoqué, voici les références qui ont retenu votre attention :\n`;
-            products.forEach(p => { body += `→ ${p}\n`; });
-        }
-        if (occasions.length > 0) {
-            body += `\nPour votre ${occasions[0].toLowerCase()}, je vous prépare une sélection sur-mesure ✨\n`;
-        }
-        if (styles.length > 0) {
-            body += `\nJ'ai repéré des nouveautés ${styles[0].toLowerCase()} qui vous correspondraient parfaitement.\n`;
-        }
-        body += `\nJe reste disponible pour organiser un moment privilégié en boutique.\n`;
-        body += `Belle journée ! 🤍\n— Votre CA ${house}`;
+        subject = `WhatsApp \u2014 ${name}`;
+        body = `Bonjour ${name} \uD83D\uDE42\n\nMerci pour votre visite chez ${house} ! `;
+        if (products.length) { body += '\n\nR\u00E9f\u00E9rences :\n'; products.forEach(pr => body += `\u2192 ${pr}\n`); }
+        if (occasions.length) body += `\nPour votre ${occasions[0].toLowerCase()}, je vous pr\u00E9pare une s\u00E9lection \u2728\n`;
+        if (styles.length) body += `\nNouveaut\u00E9s ${styles[0].toLowerCase()} pour vous.\n`;
+        body += `\nJe reste disponible.\nBelle journ\u00E9e ! \uD83E\uDD0D\n\u2014 CA ${house}`;
     }
-
     return { subject, body };
 }
 
 window.copyFollowup = function(btn) {
     const body = btn.closest('.followup-card').querySelector('.followup-body').textContent;
     navigator.clipboard.writeText(body).then(() => {
-        btn.textContent = '✅ Copié !';
-        setTimeout(() => { btn.textContent = '📋 Copier'; }, 1500);
+        btn.textContent = '\u2705 Copi\u00E9 !';
+        setTimeout(() => { btn.textContent = '\uD83D\uDCCB Copier'; }, 1500);
     });
 };
 
 // ===== RENDER: PRODUCT MATCHER =====
 function renderProducts() {
     const grid = $('productGrid');
+    if (!grid) return;
     grid.innerHTML = '';
 
-    DATA.forEach(p => {
-        if (p.tags.length === 0) return;
+    const withTags = DATA.filter(p => p.tags.length > 0);
+    if (withTags.length === 0) {
+        grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client avec tags pour le matching produit.</p>';
+        return;
+    }
 
-        // Find matching products for this client's tags
+    withTags.forEach(p => {
         const matchedProducts = [];
         const usedNames = new Set();
         p.tags.forEach(tag => {
@@ -1035,20 +440,14 @@ function renderProducts() {
                 });
             }
         });
-
         if (matchedProducts.length === 0) return;
-
-        // Take top 3
         const top3 = matchedProducts.slice(0, 3);
 
         const card = document.createElement('div');
         card.className = 'product-match-card';
         card.innerHTML = `
-            <div class="product-match-header">
-                <span class="product-match-client">${p.id}</span>
-                <span style="color:#666;font-size:.75rem">${matchedProducts.length} produits matchés</span>
-            </div>
-            <div class="product-match-tags">${p.tags.slice(0, 6).map(t => `<span class="tag ${t.c}">${t.t}</span>`).join('')}</div>
+            <div class="product-match-header"><span class="product-match-client">${p.ca || p.id}</span><span style="color:#666;font-size:.72rem">${matchedProducts.length} produits</span></div>
+            <div class="product-match-tags">${p.tags.slice(0,6).map(t=>`<span class="tag ${t.c}">${t.t}</span>`).join('')}</div>
             <div class="product-items">
                 ${top3.map(prod => `
                     <div class="product-item">
@@ -1072,59 +471,45 @@ function renderProducts() {
 // ===== RENDER: SENTIMENT =====
 function renderSentiment() {
     const overview = $('sentimentOverview');
-    const posCount = SENTIMENT_DATA.filter(s => s.level === 'positive').length;
-    const neuCount = SENTIMENT_DATA.filter(s => s.level === 'neutral').length;
-    const negCount = SENTIMENT_DATA.filter(s => s.level === 'negative').length;
-    const avgScore = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s, d) => s + d.score, 0) / SENTIMENT_DATA.length) : 0;
+    if (!overview) return;
+
+    const posCount = SENTIMENT_DATA.filter(s => s.level==='positive').length;
+    const neuCount = SENTIMENT_DATA.filter(s => s.level==='neutral').length;
+    const negCount = SENTIMENT_DATA.filter(s => s.level==='negative').length;
+    const avgScore = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s,d)=>s+d.score,0)/SENTIMENT_DATA.length) : 0;
 
     overview.innerHTML = `
         <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#10b981">${posCount}</div><div class="sentiment-stat-label">Positifs</div></div>
         <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#888">${neuCount}</div><div class="sentiment-stat-label">Neutres</div></div>
-        <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#ef4444">${negCount}</div><div class="sentiment-stat-label">Négatifs / À risque</div></div>
+        <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#ef4444">${negCount}</div><div class="sentiment-stat-label">N\u00E9gatifs</div></div>
         <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#d4af37">${avgScore}%</div><div class="sentiment-stat-label">Score moyen</div></div>
     `;
 
-    // Alerts (negative sentiments)
     const alerts = $('sentimentAlerts');
-    alerts.innerHTML = '';
-    const negatives = SENTIMENT_DATA.filter(s => s.level === 'negative');
-    if (negatives.length > 0) {
-        alerts.innerHTML = '<h3 style="margin-bottom:12px;font-size:1rem;color:#ef4444">🚨 Alertes Store Manager — Clients à risque</h3>';
-        negatives.forEach(s => {
-            const alert = document.createElement('div');
-            alert.className = 'sentiment-alert';
-            alert.innerHTML = `
-                <div class="sentiment-alert-icon">⚠️</div>
-                <div class="sentiment-alert-content">
-                    <div class="sentiment-alert-title">${s.id} — Score ${s.score}% (CA: ${s.ca})</div>
-                    <div class="sentiment-alert-desc">Mots détectés: ${s.negFound.join(', ')}. Action immédiate recommandée: appel du Store Manager.</div>
-                </div>
-                <span class="sentiment-alert-badge">À risque</span>
-            `;
-            alerts.appendChild(alert);
-        });
+    if (alerts) {
+        alerts.innerHTML = '';
+        const negatives = SENTIMENT_DATA.filter(s => s.level === 'negative');
+        if (negatives.length > 0) {
+            alerts.innerHTML = '<h3 style="margin-bottom:12px;font-size:1rem;color:#ef4444">\uD83D\uDEA8 Clients \u00E0 risque</h3>';
+            negatives.forEach(s => {
+                const al = document.createElement('div');
+                al.className = 'sentiment-alert';
+                al.innerHTML = `<div class="sentiment-alert-icon">\u26A0\uFE0F</div><div class="sentiment-alert-content"><div class="sentiment-alert-title">${s.id} \u2014 Score ${s.score}% (CA: ${s.ca})</div><div class="sentiment-alert-desc">Mots: ${s.negFound.join(', ')}. Action imm\u00E9diate recommand\u00E9e.</div></div><span class="sentiment-alert-badge">\u00C0 risque</span>`;
+                alerts.appendChild(al);
+            });
+        }
     }
 
-    // All cards
     const grid = $('sentimentGrid');
+    if (!grid) return;
     grid.innerHTML = '';
-    SENTIMENT_DATA.sort((a, b) => a.score - b.score).forEach(s => {
-        const color = s.level === 'positive' ? '#10b981' : s.level === 'negative' ? '#ef4444' : '#888';
+    SENTIMENT_DATA.sort((a,b) => a.score-b.score).forEach(s => {
+        const color = s.level==='positive'?'#10b981':s.level==='negative'?'#ef4444':'#888';
         const card = document.createElement('div');
         card.className = 'sentiment-card';
         card.innerHTML = `
-            <div class="sentiment-card-header">
-                <span class="sentiment-client">${s.id}</span>
-                <div class="sentiment-gauge">
-                    <div class="sentiment-gauge-bar"><div class="sentiment-gauge-fill" style="width:${s.score}%;background:${color}"></div></div>
-                    <span class="sentiment-gauge-label" style="color:${color}">${s.score}%</span>
-                </div>
-            </div>
-            <div class="sentiment-keywords">
-                ${s.posFound.map(k => `<span class="sentiment-kw positive">${k}</span>`).join('')}
-                ${s.negFound.map(k => `<span class="sentiment-kw negative">${k}</span>`).join('')}
-                ${s.posFound.length === 0 && s.negFound.length === 0 ? '<span class="sentiment-kw neutral">neutre</span>' : ''}
-            </div>
+            <div class="sentiment-card-header"><span class="sentiment-client">${s.id}</span><div class="sentiment-gauge"><div class="sentiment-gauge-bar"><div class="sentiment-gauge-fill" style="width:${s.score}%;background:${color}"></div></div><span class="sentiment-gauge-label" style="color:${color}">${s.score}%</span></div></div>
+            <div class="sentiment-keywords">${s.posFound.map(k=>`<span class="sentiment-kw positive">${k}</span>`).join('')}${s.negFound.map(k=>`<span class="sentiment-kw negative">${k}</span>`).join('')}${s.posFound.length===0&&s.negFound.length===0?'<span class="sentiment-kw neutral">neutre</span>':''}</div>
             <div class="sentiment-excerpt">"${s.excerpt}..."</div>
         `;
         grid.appendChild(card);
@@ -1133,118 +518,71 @@ function renderSentiment() {
 
 // ===== RENDER: BOUTIQUE MANAGER =====
 function renderBoutique() {
-    // KPIs
     const kpis = $('boutiqueKPIs');
-    const avgSentiment = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s, d) => s + d.score, 0) / SENTIMENT_DATA.length) : 0;
-    const atRiskPct = STATS.clients > 0 ? Math.round((STATS.atRisk / STATS.clients) * 100) : 0;
+    if (!kpis) return;
+
+    const avgSentiment = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s,d)=>s+d.score,0)/SENTIMENT_DATA.length) : 0;
+    const atRiskPct = STATS.clients > 0 ? Math.round((STATS.atRisk/STATS.clients)*100) : 0;
 
     kpis.innerHTML = `
-        <div class="boutique-kpi"><div class="boutique-kpi-value">${STATS.clients}</div><div class="boutique-kpi-label">Notes traitées</div></div>
+        <div class="boutique-kpi"><div class="boutique-kpi-value">${STATS.clients}</div><div class="boutique-kpi-label">Notes trait\u00E9es</div></div>
         <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:#10b981">${STATS.tags}</div><div class="boutique-kpi-label">Tags extraits</div></div>
         <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:#d4af37">${STATS.nba}</div><div class="boutique-kpi-label">Actions NBA</div></div>
-        <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:${avgSentiment >= 60 ? '#10b981' : '#ef4444'}">${avgSentiment}%</div><div class="boutique-kpi-label">Satisfaction</div></div>
-        <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:${atRiskPct > 10 ? '#ef4444' : '#10b981'}">${atRiskPct}%</div><div class="boutique-kpi-label">À risque</div></div>
+        <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:${avgSentiment>=60?'#10b981':'#ef4444'}">${avgSentiment}%</div><div class="boutique-kpi-label">Satisfaction</div></div>
+        <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:${atRiskPct>10?'#ef4444':'#10b981'}">${atRiskPct}%</div><div class="boutique-kpi-label">\u00C0 risque</div></div>
     `;
 
-    // Top 5 interests
     const tagFreq = new Map();
-    DATA.forEach(r => r.tags.forEach(t => tagFreq.set(t.t, (tagFreq.get(t.t) || 0) + 1)));
-    const top5 = Array.from(tagFreq.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    DATA.forEach(r => r.tags.forEach(t => tagFreq.set(t.t, (tagFreq.get(t.t)||0)+1)));
+    const top5 = Array.from(tagFreq.entries()).sort((a,b) => b[1]-a[1]).slice(0,5);
     const maxCount = top5.length > 0 ? top5[0][1] : 1;
 
     const topList = $('boutiqueTopList');
-    topList.innerHTML = top5.map(([tag, count], i) => `
-        <div class="top5-item">
-            <div class="top5-rank r${i + 1}">${i + 1}</div>
-            <div class="top5-info">
-                <div class="top5-name">${tag}</div>
-                <div class="top5-bar"><div class="top5-bar-fill" style="width:${(count / maxCount * 100).toFixed(0)}%"></div></div>
-            </div>
-            <div class="top5-count">${count}</div>
-        </div>
+    if (topList) topList.innerHTML = top5.map(([tag,count],i) => `
+        <div class="top5-item"><div class="top5-rank r${i+1}">${i+1}</div><div class="top5-info"><div class="top5-name">${tag}</div><div class="top5-bar"><div class="top5-bar-fill" style="width:${(count/maxCount*100).toFixed(0)}%"></div></div></div><div class="top5-count">${count}</div></div>
     `).join('');
 
-    // Manager actions
     const actionsList = $('boutiqueActionsList');
-    const actions = [];
-
-    // Generate smart actions based on data
-    if (top5.length > 0) {
-        actions.push({ icon: '📦', text: `Réapprovisionner les catégories "${top5[0][0]}" et "${top5[1] ? top5[1][0] : ''}" — demande forte cette semaine`, priority: 'high' });
+    if (actionsList) {
+        const actions = [];
+        if (top5.length > 0) actions.push({ icon:'\uD83D\uDCE6', text:`R\u00E9approvisionner "${top5[0][0]}"`, priority:'high' });
+        const negClients = SENTIMENT_DATA.filter(s => s.level === 'negative');
+        if (negClients.length > 0) actions.push({ icon:'\uD83D\uDCDE', text:`Contacter ${negClients.length} client${negClients.length>1?'s':''} insatisfait${negClients.length>1?'s':''}`, priority:'high' });
+        const occasionTags = DATA.filter(r => r.tags.some(t => t.c==='occasion'));
+        if (occasionTags.length > 0) actions.push({ icon:'\uD83C\uDF81', text:`${occasionTags.length} opportunit\u00E9s gifting`, priority:'medium' });
+        const vipCount = DATA.filter(r => r.tags.some(t => t.t==='VIP')).length;
+        if (vipCount > 0) actions.push({ icon:'\u2B50', text:`${vipCount} VIP \u2014 planifier private viewing`, priority:'medium' });
+        actions.push({ icon:'\uD83D\uDCCA', text:'Diffuser le rapport hebdomadaire', priority:'low' });
+        actionsList.innerHTML = actions.map(a => `<div class="action-item"><div class="action-icon">${a.icon}</div><div><div class="action-text">${a.text}</div><span class="action-priority ${a.priority}">${a.priority==='high'?'Urgent':a.priority==='medium'?'Cette semaine':'Planifi\u00E9'}</span></div></div>`).join('');
     }
 
-    const negClients = SENTIMENT_DATA.filter(s => s.level === 'negative');
-    if (negClients.length > 0) {
-        actions.push({ icon: '📞', text: `Contacter ${negClients.length} client${negClients.length > 1 ? 's' : ''} insatisfait${negClients.length > 1 ? 's' : ''} — risque de perte`, priority: 'high' });
-    }
-
-    const occasionTags = DATA.filter(r => r.tags.some(t => t.c === 'occasion'));
-    if (occasionTags.length > 0) {
-        actions.push({ icon: '🎁', text: `${occasionTags.length} opportunités de gifting identifiées — activer campagne cadeau personnalisé`, priority: 'medium' });
-    }
-
-    const vipCount = DATA.filter(r => r.tags.some(t => t.t === 'VIP')).length;
-    if (vipCount > 0) {
-        actions.push({ icon: '⭐', text: `${vipCount} VIP détectés — planifier private viewing et expériences sur-mesure`, priority: 'medium' });
-    }
-
-    actions.push({ icon: '📊', text: 'Diffuser le rapport hebdomadaire aux équipes — briefing lundi matin', priority: 'low' });
-
-    actionsList.innerHTML = actions.map(a => `
-        <div class="action-item">
-            <div class="action-icon">${a.icon}</div>
-            <div>
-                <div class="action-text">${a.text}</div>
-                <span class="action-priority ${a.priority}">${a.priority === 'high' ? 'Urgent' : a.priority === 'medium' ? 'Cette semaine' : 'Planifié'}</span>
-            </div>
-        </div>
-    `).join('');
-
-    // CA Performance
     const caPerf = $('boutiqueCAPerfList');
-    const caMap = new Map();
-    DATA.forEach(r => {
-        if (!caMap.has(r.ca)) caMap.set(r.ca, { notes: 0, tags: 0, sentiment: 0 });
-        const entry = caMap.get(r.ca);
-        entry.notes++;
-        entry.tags += r.tags.length;
-        entry.sentiment += r.sentiment ? r.sentiment.score : 50;
-    });
-
-    caPerf.innerHTML = Array.from(caMap.entries()).map(([ca, data]) => {
-        const avgSent = Math.round(data.sentiment / data.notes);
-        const color = avgSent >= 70 ? '#10b981' : avgSent >= 40 ? '#fb923c' : '#ef4444';
-        return `
-            <div class="ca-perf-item">
-                <span class="ca-perf-name">${ca}</span>
-                <div class="ca-perf-bar"><div class="ca-perf-bar-fill" style="width:${avgSent}%;background:${color}"></div></div>
-                <div class="ca-perf-stats"><span>${data.notes} notes</span><span>${data.tags} tags</span><span style="color:${color}">${avgSent}%</span></div>
-            </div>
-        `;
-    }).join('');
-
-    // Stock recommendations
-    const stockList = $('boutiqueStockList');
-    const stockRecs = [];
-
-    top5.forEach(([tag, count]) => {
-        const catalog = PRODUCT_CATALOG[tag];
-        if (catalog) {
-            stockRecs.push({ icon: '📦', text: `${tag}: ${count} demandes — vérifier stocks ${catalog[0].name}`, urgency: count > 3 ? 'high' : 'medium' });
-        }
-    });
-
-    if (stockRecs.length === 0) {
-        stockRecs.push({ icon: '✅', text: 'Pas de recommandation urgente — stocks cohérents avec la demande', urgency: 'medium' });
+    if (caPerf) {
+        const caMap = new Map();
+        DATA.forEach(r => {
+            if (!caMap.has(r.ca)) caMap.set(r.ca, { notes:0, tags:0, sentiment:0 });
+            const entry = caMap.get(r.ca);
+            entry.notes++;
+            entry.tags += r.tags.length;
+            entry.sentiment += r.sentiment ? (r.sentiment.score||50) : 50;
+        });
+        caPerf.innerHTML = Array.from(caMap.entries()).map(([ca, data]) => {
+            const avgSent = Math.round(data.sentiment/data.notes);
+            const color = avgSent>=70?'#10b981':avgSent>=40?'#fb923c':'#ef4444';
+            return `<div class="ca-perf-item"><span class="ca-perf-name">${ca}</span><div class="ca-perf-bar"><div class="ca-perf-bar-fill" style="width:${avgSent}%;background:${color}"></div></div><div class="ca-perf-stats"><span>${data.notes} notes</span><span>${data.tags} tags</span><span style="color:${color}">${avgSent}%</span></div></div>`;
+        }).join('');
     }
 
-    stockList.innerHTML = stockRecs.map(s => `
-        <div class="stock-item">
-            <div class="stock-icon">${s.icon}</div>
-            <div class="stock-text">${s.text}</div>
-            <span class="stock-urgency ${s.urgency}">${s.urgency === 'high' ? 'Urgent' : 'À suivre'}</span>
-        </div>
-    `).join('');
+    const stockList = $('boutiqueStockList');
+    if (stockList) {
+        const stockRecs = [];
+        top5.forEach(([tag, count]) => {
+            const catalog = PRODUCT_CATALOG[tag];
+            if (catalog) stockRecs.push({ icon:'\uD83D\uDCE6', text:`${tag}: ${count} demandes \u2014 v\u00E9rifier stocks ${catalog[0].name}`, urgency: count>3?'high':'medium' });
+        });
+        if (stockRecs.length === 0) stockRecs.push({ icon:'\u2705', text:'Pas de recommandation urgente', urgency:'medium' });
+        stockList.innerHTML = stockRecs.map(s => `<div class="stock-item"><div class="stock-icon">${s.icon}</div><div class="stock-text">${s.text}</div><span class="stock-urgency ${s.urgency}">${s.urgency==='high'?'Urgent':'\u00C0 suivre'}</span></div>`).join('');
+    }
 }
 
 // ===== EXPORTS =====
@@ -1253,36 +591,31 @@ function exportCSV() {
     DATA.forEach(r => {
         lines.push([
             r.id, r.date, r.lang, r.ca,
-            '"' + r.clean.replace(/"/g, '""') + '"',
-            '"' + r.tags.map(t => t.t).join('|') + '"',
-            '"' + (r.nba || []).map(a => a.action).join(' | ') + '"'
+            '"' + (r.clean||'').replace(/"/g,'""') + '"',
+            '"' + r.tags.map(t=>t.t).join('|') + '"',
+            '"' + (r.nba||[]).map(a=>a.action).join(' | ') + '"'
         ].join(','));
     });
     dl(lines.join('\n'), 'lvmh_ai_platform.csv', 'text/csv');
 }
-
 function exportJSON() {
     const payload = DATA.map(r => ({
         id: r.id, date: r.date, lang: r.lang, ca: r.ca,
-        clean: r.clean,
-        tags: r.tags,
-        nba: r.nba,
+        clean: r.clean, tags: r.tags, nba: r.nba,
         privacyFlags: r.sensitiveFound
     }));
     dl(JSON.stringify(payload, null, 2), 'lvmh_ai_tags_nba.json', 'application/json');
 }
-
 function exportReport() {
     const report = {
         date: new Date().toISOString(),
         summary: { clients: STATS.clients, tags: STATS.tags, rgpdMasked: STATS.rgpd, nbaActions: STATS.nba, privacyAvg: STATS.privacyAvg },
         privacyScores: PRIVACY_SCORES.map(p => ({ ca: p.ca, score: p.score, level: p.level, violations: p.violations, coaching: p.coaching })),
         rgpdViolations: RGPD_BAD,
-        tagDistribution: (() => { const m = {}; DATA.forEach(r => r.tags.forEach(t => { m[t.t] = (m[t.t] || 0) + 1; })); return m; })()
+        tagDistribution: (() => { const m = {}; DATA.forEach(r => r.tags.forEach(t => { m[t.t]=(m[t.t]||0)+1; })); return m; })()
     };
     dl(JSON.stringify(report, null, 2), 'lvmh_full_report.json', 'application/json');
 }
-
 function dl(content, name, type) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([content], { type }));

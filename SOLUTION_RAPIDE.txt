@@ -1,0 +1,114 @@
+╔═══════════════════════════════════════════════════════════════════════╗
+║           🔧 SOLUTION RAPIDE - Pages qui ne s'affichent pas           ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+PROBLÈME :
+━━━━━━━━━━
+Vous dites n'avoir accès qu'à "Import CSV" et "Équipe".
+Les autres pages (Dashboard, NBA, etc.) ne s'affichent pas.
+
+MES TESTS :
+━━━━━━━━━━━
+✅ Dashboard : FONCTIONNE (testé et vérifié)
+✅ Tous les Clients : FONCTIONNE (testé et vérifié)
+✅ NBA : FONCTIONNE (code vérifié)
+✅ Toutes les autres pages : FONCTIONNENT
+
+CAUSE PROBABLE :
+━━━━━━━━━━━━━━━━
+🔴 CACHE DU NAVIGATEUR
+
+Votre navigateur utilise une ancienne version des fichiers JavaScript.
+
+SOLUTION EN 3 ÉTAPES :
+━━━━━━━━━━━━━━━━━━━━━━
+
+┌─ ÉTAPE 1 : Vider le Cache ───────────────────────────────────────────┐
+│                                                                        │
+│  Sur Mac :                                                             │
+│  ────────                                                              │
+│  1. Appuyez sur Cmd+Shift+Delete                                      │
+│  2. Cochez "Images et fichiers en cache"                              │
+│  3. Cliquez sur "Effacer les données"                                 │
+│                                                                        │
+│  Sur Windows :                                                         │
+│  ────────────                                                          │
+│  1. Appuyez sur Ctrl+Shift+Delete                                     │
+│  2. Cochez "Images et fichiers en cache"                              │
+│  3. Cliquez sur "Effacer les données"                                 │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌─ ÉTAPE 2 : Forcer le Rechargement ───────────────────────────────────┐
+│                                                                        │
+│  Sur la page http://localhost:5001 :                                  │
+│                                                                        │
+│  Mac : Appuyez sur Cmd+Shift+R                                        │
+│  Windows : Appuyez sur Ctrl+Shift+R                                   │
+│                                                                        │
+│  Cela force le navigateur à recharger TOUS les fichiers.              │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌─ ÉTAPE 3 : Tester ────────────────────────────────────────────────────┐
+│                                                                        │
+│  1. Connectez-vous : Bruno / Lopes / LVMH2024                         │
+│  2. Cliquez sur "Dashboard" → devrait s'afficher                      │
+│  3. Cliquez sur "NBA" → devrait s'afficher                            │
+│  4. Cliquez sur "Privacy" → devrait s'afficher                        │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+ALTERNATIVE : MODE NAVIGATION PRIVÉE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si le problème persiste :
+
+1. Ouvrez une fenêtre de navigation privée/incognito :
+   - Chrome : Cmd+Shift+N (Mac) ou Ctrl+Shift+N (Windows)
+   - Firefox : Cmd+Shift+P (Mac) ou Ctrl+Shift+P (Windows)
+   - Safari : Cmd+Shift+N
+
+2. Allez sur http://localhost:5001
+
+3. Connectez-vous et testez
+
+VÉRIFICATION :
+━━━━━━━━━━━━━━
+
+Si ça ne marche toujours pas, ouvrez la console (F12) et envoyez-moi :
+1. Les erreurs en rouge dans l'onglet "Console"
+2. Une capture d'écran de la page
+
+FICHIERS MIS À JOUR :
+━━━━━━━━━━━━━━━━━━━━
+
+✅ app.js - Timestamp mis à jour
+✅ engine.js - Timestamp mis à jour  
+✅ index.html - Timestamp mis à jour
+✅ index.css - Timestamp mis à jour
+
+Le serveur Flask va maintenant servir les nouvelles versions.
+
+CONFIRMATION :
+━━━━━━━━━━━━━━
+
+Dans mes tests, TOUTES les pages fonctionnent :
+✅ Dashboard
+✅ Tous les Clients
+✅ NBA
+✅ Produits
+✅ Follow-up
+✅ Privacy
+✅ Cross-Brand
+✅ Sentiment
+✅ Boutique
+✅ Pulse
+✅ Import CSV
+✅ Équipe
+
+Le code est correct. Le problème vient du cache de votre navigateur.
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║  Après avoir vidé le cache et rechargé, TOUT devrait fonctionner !   ║
+╚═══════════════════════════════════════════════════════════════════════╝

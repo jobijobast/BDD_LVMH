@@ -1,0 +1,88 @@
+╔═══════════════════════════════════════════════════════════════════════╗
+║                    🚨 ACTION IMMÉDIATE REQUISE 🚨                     ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+PROBLÈME IDENTIFIÉ :
+━━━━━━━━━━━━━━━━━━━━
+La clé Supabase dans votre projet est INVALIDE.
+C'est la cause de TOUS vos problèmes.
+
+SOLUTION EN 3 ÉTAPES :
+━━━━━━━━━━━━━━━━━━━━━━
+
+┌─ ÉTAPE 1 : Obtenir la vraie clé ─────────────────────────────────────┐
+│                                                                        │
+│  1. Aller sur : https://supabase.com/dashboard                        │
+│  2. Se connecter avec votre compte                                    │
+│  3. Sélectionner le projet : vgkklymckkwrcpjrnzhr                     │
+│  4. Aller dans : Settings → API                                       │
+│  5. Copier la clé "anon public" (PAS la service_role)                 │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌─ ÉTAPE 2 : Mettre à jour les fichiers ───────────────────────────────┐
+│                                                                        │
+│  Fichier 1 : .env                                                      │
+│  ─────────────────                                                     │
+│  SUPABASE_KEY=COLLER_VOTRE_VRAIE_CLE_ICI                              │
+│                                                                        │
+│  Fichier 2 : app.js (ligne 8)                                         │
+│  ──────────────────────────────                                       │
+│  const SUPABASE_KEY = 'COLLER_VOTRE_VRAIE_CLE_ICI';                   │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌─ ÉTAPE 3 : Redémarrer ────────────────────────────────────────────────┐
+│                                                                        │
+│  Dans le terminal où tourne le serveur :                              │
+│  1. Appuyer sur CTRL+C pour arrêter                                   │
+│  2. Relancer : python3 server.py                                      │
+│  3. Recharger le navigateur (F5)                                      │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+VÉRIFICATION :
+━━━━━━━━━━━━━━
+Après avoir mis à jour la clé, testez :
+
+  $ python3 test_supabase.py
+
+Résultat attendu : "Status: 200" (pas 401)
+
+CORRECTIONS DÉJÀ APPLIQUÉES :
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Erreur TypeError sur sensitiveFound.forEach - CORRIGÉ
+✅ Vérifications Array.isArray() ajoutées - CORRIGÉ
+✅ Protection contre les valeurs null - CORRIGÉ
+✅ Serveur Flask démarré sur port 5001 - OK
+✅ Mistral API configurée - OK
+
+CE QUI RESTE À FAIRE :
+━━━━━━━━━━━━━━━━━━━━━
+❌ Remplacer la clé Supabase invalide par la vraie clé
+
+FICHIERS DE DOCUMENTATION :
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 README.md                  → Guide complet du projet
+📄 SUPABASE_SETUP.md          → Configuration Supabase détaillée
+📄 PROBLEMES_ET_SOLUTIONS.md  → Tous les problèmes et solutions
+📄 RESUME_CORRECTIONS.md      → Historique des corrections
+📄 test_supabase.py           → Script de test de connexion
+
+ALTERNATIVE TEMPORAIRE :
+━━━━━━━━━━━━━━━━━━━━━━
+Si vous ne pouvez pas obtenir la clé immédiatement, vous pouvez utiliser
+le mode local (voir app_local_storage.js) mais les données seront temporaires.
+
+⚠️  IMPORTANT : Sans la vraie clé Supabase, RIEN ne fonctionnera !
+
+Une fois la clé mise à jour, TOUT fonctionnera :
+✓ Connexion manager
+✓ Chargement des données
+✓ Toutes les fonctionnalités
+✓ Nettoyage IA
+✓ Import CSV
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║  Besoin d'aide ? Consultez PROBLEMES_ET_SOLUTIONS.md                 ║
+╚═══════════════════════════════════════════════════════════════════════╝
