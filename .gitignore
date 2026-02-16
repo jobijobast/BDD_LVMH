@@ -2,12 +2,20 @@
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 
-# API Keys and credentials
+# API Keys and credentials (ne jamais committer)
 *.key
 *.pem
 credentials.json
 secrets.json
+api-keys.json
+config.js
+config.local.js
+config.secret.js
+**/secrets/
+**/api-keys/
 
 # Node modules (if you add npm packages later)
 node_modules/
@@ -39,3 +47,15 @@ logs/
 tmp/
 temp/
 *.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+*.egg
