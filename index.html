@@ -1,337 +1,289 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LVMH Voice-to-Tag</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>LVMH Voice-to-Tag | AI Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
 </head>
+
 <body>
-    <!-- ===== LOGIN PAGE ===== -->
-    <div id="loginPage" class="login-page">
-        <div class="login-card">
-            <div class="login-brand">LVMH</div>
-            <h1 class="login-title">Voice-to-Tag</h1>
-            <p class="login-tagline">AI-Powered CRM Intelligence</p>
-            <form id="loginForm" class="login-form" autocomplete="off">
-                <input type="text" id="loginFirstName" class="login-input" placeholder="Prenom" required>
-                <input type="text" id="loginLastName" class="login-input" placeholder="Nom" required>
-                <input type="text" id="loginCode" class="login-input" placeholder="Code boutique" required>
-                <button type="submit" id="loginBtn" class="btn btn-gold login-btn">Se connecter</button>
-            </form>
-            <div id="loginError" class="login-error hidden"></div>
-            <p class="login-footer">Plateforme reservee aux collaborateurs LVMH</p>
+    <!-- NAV -->
+    <nav id="mainNav" class="nav hidden">
+        <div class="nav-brand">◆ LVMH <span>Voice-to-Tag</span></div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+            <button class="nav-tab" data-tab="clients">Fiches Clients</button>
+            <button class="nav-tab" data-tab="nba">Next Best Action</button>
+            <button class="nav-tab" data-tab="privacy">Privacy Score</button>
+            <button class="nav-tab" data-tab="crossbrand">Cross-Brand</button>
+            <button class="nav-tab" data-tab="followup">Follow-up</button>
+            <button class="nav-tab" data-tab="products">Product Matcher</button>
+            <button class="nav-tab" data-tab="sentiment">Sentiment</button>
+            <button class="nav-tab" data-tab="boutique">Boutique</button>
+            <button class="nav-tab" data-tab="pulse">Luxury Pulse</button>
         </div>
-    </div>
+    </nav>
 
-    <!-- ===== APP SHELL ===== -->
-    <div id="appShell" class="app-shell hidden">
-        <!-- SIDEBAR -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-brand">
-                <span class="sidebar-brand-text">LVMH</span>
-                <span class="sidebar-brand-sub">Voice-to-Tag</span>
-            </div>
-            <nav id="sidebarNav" class="sidebar-nav"></nav>
-            <div class="sidebar-footer">
-                <div class="sidebar-user">
-                    <div id="userNameDisplay" class="sidebar-user-name"></div>
-                    <div id="userRoleDisplay" class="sidebar-user-role"></div>
-                </div>
-                <button id="logoutBtn" class="sidebar-logout">Deconnexion</button>
-            </div>
-        </aside>
+    <!-- UPLOAD -->
+    <section id="uploadSection">
+        <header>
+            <h1>◆ LVMH <span>Voice-to-Tag</span></h1>
+            <p class="tagline">AI-Powered CRM Intelligence Platform</p>
+        </header>
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <h2>Importer CSV</h2>
+            <p>Nettoyage IA + NBA + Privacy Score + Tendances</p>
+            <input type="file" id="fileInput" accept=".csv" hidden>
+            <button class="btn" id="selectBtn">Sélectionner</button>
+        </div>
+    </section>
 
-        <!-- MAIN CONTENT -->
-        <main id="mainContent" class="main-content">
-            <header id="appHeader" class="app-header">
-                <button id="menuToggle" class="menu-toggle">&#9776;</button>
-                <div id="pageTitle" class="page-title"></div>
-                <div id="boutiqueNameDisplay" class="boutique-name"></div>
-            </header>
-
-            <!-- PAGE: VENDEUR HOME -->
-            <div id="page-v-home" class="page hidden">
-                <div class="page-content">
-                    <div class="v-quick-stats" id="vQuickStats">
-                        <div class="qs-card"><div class="qs-value" id="vStatClients">0</div><div class="qs-label">Mes clients</div></div>
-                        <div class="qs-card"><div class="qs-value" id="vStatLast">--</div><div class="qs-label">Dernier ajout</div></div>
-                        <div class="qs-card"><div class="qs-value" id="vStatTags">0</div><div class="qs-label">Tags</div></div>
-                    </div>
-                    <div class="record-card">
-                        <h3>Nouveau compte-rendu client</h3>
-                        <p class="record-hint">Dictez ou saisissez les notes de votre rendez-vous client</p>
-                        <input type="text" id="clientNameInput" class="form-input" placeholder="Nom du client (ex: Mme Dubois)">
-                        <div class="mic-area">
-                            <button id="micBtn" class="mic-btn" title="Dicter">&#x1F3A4;</button>
-                            <div id="micStatus" class="mic-status">Cliquez pour dicter</div>
-                        </div>
-                        <textarea id="transcriptArea" class="transcript-area" placeholder="La transcription apparaitra ici... Vous pouvez aussi taper directement."></textarea>
-                        <button id="submitVocal" class="btn btn-gold" disabled>Analyser et sauvegarder</button>
-                    </div>
-                    <div class="recent-section">
-                        <h3>Mes derniers clients</h3>
-                        <div id="vRecentClients" class="recent-grid"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PAGE: CLIENTS (shared vendeur/manager) -->
-            <div id="page-clients" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Fiches Clients</h2>
-                        <input type="text" class="search-input" id="personSearch" placeholder="Rechercher client, tag...">
-                    </div>
-                    <div class="legend" id="tagLegend"></div>
-                    <div class="person-grid" id="personGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: NBA (vendeur-focused) -->
-            <div id="page-nba" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Next Best Action</h2>
-                        <p class="subtitle">Actions prescriptives generees par IA</p>
-                    </div>
-                    <div class="nba-grid" id="nbaGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: PRODUCTS -->
-            <div id="page-products" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Product Matcher</h2>
-                        <p class="subtitle">Recommandations produits basees sur les tags clients</p>
-                    </div>
-                    <div class="product-grid" id="productGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: FOLLOW-UP -->
-            <div id="page-followup" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Follow-up</h2>
-                        <p class="subtitle">Messages de suivi personnalises</p>
-                    </div>
-                    <div class="followup-controls">
-                        <select id="followupHouse" class="select-input">
-                            <option value="Louis Vuitton">Louis Vuitton</option>
-                            <option value="Dior">Dior</option>
-                            <option value="Fendi">Fendi</option>
-                            <option value="Tiffany & Co.">Tiffany &amp; Co.</option>
-                            <option value="Bulgari">Bulgari</option>
-                            <option value="Givenchy">Givenchy</option>
-                            <option value="Celine">Celine</option>
-                            <option value="Loewe">Loewe</option>
-                            <option value="Berluti">Berluti</option>
-                            <option value="Loro Piana">Loro Piana</option>
-                        </select>
-                        <select id="followupChannel" class="select-input">
-                            <option value="email">Email</option>
-                            <option value="whatsapp">WhatsApp</option>
-                        </select>
-                    </div>
-                    <div class="followup-grid" id="followupGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER DASHBOARD -->
-            <div id="page-m-dashboard" class="page hidden">
-                <div class="page-content">
-                    <div class="stats-row">
-                        <div class="stat-card"><div class="stat-icon">&#x1F464;</div><div><div class="stat-value" id="statClients">0</div><div class="stat-label">Clients</div></div></div>
-                        <div class="stat-card accent"><div class="stat-icon">&#x1F3F7;&#xFE0F;</div><div><div class="stat-value" id="statTags">0</div><div class="stat-label">Tags extraits</div></div></div>
-                        <div class="stat-card purple"><div class="stat-icon">&#x1F916;</div><div><div class="stat-value" id="statAI">0</div><div class="stat-label">Nettoyes IA</div></div></div>
-                        <div class="stat-card red"><div class="stat-icon">&#x1F6E1;&#xFE0F;</div><div><div class="stat-value" id="statRGPD">0</div><div class="stat-label">RGPD masques</div></div></div>
-                        <div class="stat-card green"><div class="stat-icon">&#x1F3AF;</div><div><div class="stat-value" id="statNBA">0</div><div class="stat-label">Actions NBA</div></div></div>
-                        <div class="stat-card blue"><div class="stat-icon">&#x1F4CA;</div><div><div class="stat-value" id="statPrivacy">--</div><div class="stat-label">Privacy Score</div></div></div>
-                    </div>
-                    <div class="grid-2">
-                        <div class="section-box">
-                            <h3>Avant / Apres IA</h3>
-                            <div class="compare-box">
-                                <div class="compare-panel before"><h4>Brut</h4><pre id="beforeText">...</pre></div>
-                                <div class="compare-panel after"><h4>Nettoye</h4><pre id="afterText">...</pre></div>
-                            </div>
-                        </div>
-                        <div class="section-box danger" id="rgpdSection">
-                            <h3>Donnees RGPD Masquees</h3>
-                            <div class="rgpd-bad-list" id="rgpdBadList"></div>
-                        </div>
-                    </div>
-                    <div class="export-section">
-                        <div class="export-btns">
-                            <button class="export-btn" id="exportCsv"><span class="icon">&#x1F4CA;</span><span><strong>CSV</strong><br><small>Nettoye IA</small></span></button>
-                            <button class="export-btn" id="exportJson"><span class="icon">&#x1F3F7;&#xFE0F;</span><span><strong>JSON</strong><br><small>Tags + NBA</small></span></button>
-                            <button class="export-btn" id="exportReport"><span class="icon">&#x1F4CB;</span><span><strong>Rapport</strong><br><small>Privacy + RGPD</small></span></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER PRIVACY -->
-            <div id="page-m-privacy" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Privacy Score &amp; Coaching</h2>
-                        <p class="subtitle">Score de conformite par Client Advisor</p>
-                    </div>
-                    <div class="privacy-overview" id="privacyOverview"></div>
-                    <div class="privacy-grid" id="privacyGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER CROSS-BRAND -->
-            <div id="page-m-crossbrand" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Cross-Brand Intelligence</h2>
-                        <p class="subtitle">Profils de Style Universels anonymises</p>
-                    </div>
-                    <div class="crossbrand-profiles" id="crossbrandGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER SENTIMENT -->
-            <div id="page-m-sentiment" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Sentiment &amp; Retention</h2>
-                        <p class="subtitle">Detection des frustrations et alertes automatiques</p>
-                    </div>
-                    <div class="sentiment-overview" id="sentimentOverview"></div>
-                    <div class="sentiment-alerts" id="sentimentAlerts"></div>
-                    <div class="sentiment-grid" id="sentimentGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER BOUTIQUE -->
-            <div id="page-m-boutique" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Dashboard Boutique</h2>
-                        <p class="subtitle">Vue synthetique pour piloter la boutique</p>
-                    </div>
-                    <div class="boutique-kpis" id="boutiqueKPIs"></div>
-                    <div class="grid-2">
-                        <div class="section-box"><h3>Top 5 Interets</h3><div id="boutiqueTopList"></div></div>
-                        <div class="section-box"><h3>Actions Prioritaires</h3><div id="boutiqueActionsList"></div></div>
-                    </div>
-                    <div class="grid-2">
-                        <div class="section-box"><h3>Performance CA</h3><div id="boutiqueCAPerfList"></div></div>
-                        <div class="section-box"><h3>Recommandations Stock</h3><div id="boutiqueStockList"></div></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER PULSE -->
-            <div id="page-m-pulse" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>The Luxury Pulse</h2>
-                        <p class="subtitle">Tendances et signaux faibles</p>
-                    </div>
-                    <div class="pulse-stats" id="pulseStats"></div>
-                    <div class="pulse-trends" id="pulseTrends"></div>
-                    <div class="pulse-signals" id="pulseSignals"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER IMPORT CSV -->
-            <div id="page-m-import" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Import CSV</h2>
-                        <p class="subtitle">Importer des transcriptions en masse</p>
-                    </div>
-                    <div class="import-card">
-                        <div class="upload-zone" id="csvUploadArea">
-                            <div class="upload-icon">&#x1F4C4;</div>
-                            <p>Glissez votre fichier CSV ici ou</p>
-                            <input type="file" id="csvFileInput" accept=".csv" hidden>
-                            <button class="btn" id="csvSelectBtn">Parcourir</button>
-                        </div>
-                    </div>
-                    <div id="importResult" class="import-result hidden">
-                        <h3>Resultat de l'import</h3>
-                        <div id="importSummary"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER TEAM -->
-            <div id="page-m-team" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Equipe</h2>
-                        <p class="subtitle">Gestion des vendeurs de la boutique</p>
-                    </div>
-                    <div id="teamList" class="team-list"></div>
-                    <div class="team-add">
-                        <h3>Ajouter un vendeur</h3>
-                        <form id="addSellerForm" class="team-form">
-                            <input type="text" id="newSellerFirst" class="form-input" placeholder="Prenom" required>
-                            <input type="text" id="newSellerLast" class="form-input" placeholder="Nom" required>
-                            <select id="newSellerRole" class="select-input">
-                                <option value="vendeur">Vendeur</option>
-                                <option value="manager">Manager</option>
-                            </select>
-                            <button type="submit" class="btn btn-gold btn-sm">Ajouter</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PAGE: ADMIN (Bruno Lopes - suppression des donnees) -->
-            <div id="page-admin" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Supprimer les donnees</h2>
-                        <p class="subtitle">Acces reserve. Entrez le code admin pour continuer.</p>
-                    </div>
-                    <div id="adminCodeSection" class="admin-code-section">
-                        <input type="password" id="adminCodeInput" class="form-input admin-code-input" placeholder="Code admin" autocomplete="off">
-                        <button type="button" id="adminCodeBtn" class="btn btn-gold">Acceder</button>
-                        <div id="adminCodeError" class="login-error hidden"></div>
-                    </div>
-                    <div id="adminActionsSection" class="admin-actions-section hidden">
-                        <div class="section-box danger">
-                            <h3>Actions irreversibles</h3>
-                            <p class="admin-warning">Ces actions suppriment definitivement les donnees dans la base.</p>
-                            <div class="admin-btns">
-                                <button type="button" id="adminClearClients" class="btn btn-danger">Vider la table clients</button>
-                                <button type="button" id="adminClearAll" class="btn btn-danger-outline">Vider tout (clients + vendeurs)</button>
-                            </div>
-                            <div id="adminResult" class="admin-result hidden"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- MOBILE BOTTOM NAV -->
-    <nav id="mobileNav" class="mobile-nav hidden"></nav>
-
-    <!-- LOADING OVERLAY -->
+    <!-- LOADING -->
     <div class="loading" id="loading">
         <div class="spinner"></div>
-        <p id="loadingMsg">Chargement...</p>
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="progress-text" id="loadingProgress"></div>
+        <p id="loadingMsg">Initialisation...</p>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="loadingProgress">0/0</div>
+        <div class="loading-steps" id="loadingSteps"></div>
     </div>
 
-    <!-- TOAST CONTAINER -->
-    <div id="toastContainer" class="toast-container"></div>
+    <!-- ===== TAB: DASHBOARD ===== -->
+    <section id="tab-dashboard" class="tab-page hidden">
+        <div class="container">
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon">👤</div>
+                    <div>
+                        <div class="stat-value" id="statClients">0</div>
+                        <div class="stat-label">Clients</div>
+                    </div>
+                </div>
+                <div class="stat-card accent">
+                    <div class="stat-icon">🏷️</div>
+                    <div>
+                        <div class="stat-value" id="statTags">0</div>
+                        <div class="stat-label">Tags extraits</div>
+                    </div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-icon">🤖</div>
+                    <div>
+                        <div class="stat-value" id="statAI">0</div>
+                        <div class="stat-label">Nettoyés IA</div>
+                    </div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-icon">🛡️</div>
+                    <div>
+                        <div class="stat-value" id="statRGPD">0</div>
+                        <div class="stat-label">RGPD masqués</div>
+                    </div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon">🎯</div>
+                    <div>
+                        <div class="stat-value" id="statNBA">0</div>
+                        <div class="stat-label">Actions NBA</div>
+                    </div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-icon">📊</div>
+                    <div>
+                        <div class="stat-value" id="statPrivacy">--</div>
+                        <div class="stat-label">Privacy Score</div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- SCRIPTS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js"></script>
+            <div class="grid-2">
+                <div class="section-box">
+                    <h3>🔍 Avant / Après IA</h3>
+                    <div class="compare-box">
+                        <div class="compare-panel before">
+                            <h4>❌ Brut</h4>
+                            <pre id="beforeText">...</pre>
+                        </div>
+                        <div class="compare-panel after">
+                            <h4>✅ Nettoyé</h4>
+                            <pre id="afterText">...</pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="section-box danger" id="rgpdSection">
+                    <h3>🛡️ Données RGPD Masquées</h3>
+                    <div class="rgpd-bad-list" id="rgpdBadList"></div>
+                </div>
+            </div>
+
+            <div class="export-section">
+                <div class="export-btns">
+                    <button class="export-btn" id="exportCsv"><span
+                            class="icon">📊</span><span><strong>CSV</strong><br><small>Nettoyé
+                                IA</small></span></button>
+                    <button class="export-btn" id="exportJson"><span
+                            class="icon">🏷️</span><span><strong>JSON</strong><br><small>Tags +
+                                NBA</small></span></button>
+                    <button class="export-btn" id="exportReport"><span
+                            class="icon">📋</span><span><strong>Rapport</strong><br><small>Privacy +
+                                RGPD</small></span></button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: CLIENTS ===== -->
+    <section id="tab-clients" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>🏷️ Fiches Clients</h2>
+                <input type="text" class="search-input" id="personSearch" placeholder="🔍 Rechercher client, tag...">
+            </div>
+            <div class="legend" id="tagLegend"></div>
+            <div class="person-grid" id="personGrid"></div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: NBA ===== -->
+    <section id="tab-nba" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>🎯 Next Best Action Engine</h2>
+                <p class="subtitle">Actions prescriptives générées par IA pour chaque Client Advisor</p>
+            </div>
+            <div class="nba-grid" id="nbaGrid"></div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: PRIVACY SCORE ===== -->
+    <section id="tab-privacy" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>🛡️ Privacy Score & Coaching</h2>
+                <p class="subtitle">Score de conformité par Client Advisor + alertes formation</p>
+            </div>
+            <div class="privacy-overview" id="privacyOverview"></div>
+            <div class="privacy-grid" id="privacyGrid"></div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: CROSS-BRAND ===== -->
+    <section id="tab-crossbrand" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>🏛️ Cross-Brand Intelligence</h2>
+                <p class="subtitle">Profils de Style Universels anonymisés inter-Maisons</p>
+            </div>
+            <div class="crossbrand-profiles" id="crossbrandGrid"></div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: FOLLOW-UP ===== -->
+    <section id="tab-followup" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>✉️ One-Click Follow-up</h2>
+                <p class="subtitle">Brouillons email & WhatsApp personnalisés, ton Maison, prêts en 10 secondes</p>
+            </div>
+            <div class="followup-controls">
+                <select id="followupHouse" class="select-input">
+                    <option value="Louis Vuitton">Louis Vuitton</option>
+                    <option value="Dior">Dior</option>
+                    <option value="Fendi">Fendi</option>
+                    <option value="Tiffany & Co.">Tiffany & Co.</option>
+                    <option value="Bulgari">Bulgari</option>
+                    <option value="Givenchy">Givenchy</option>
+                    <option value="Celine">Celine</option>
+                    <option value="Loewe">Loewe</option>
+                    <option value="Berluti">Berluti</option>
+                    <option value="Loro Piana">Loro Piana</option>
+                </select>
+                <select id="followupChannel" class="select-input">
+                    <option value="email">Email</option>
+                    <option value="whatsapp">WhatsApp</option>
+                </select>
+            </div>
+            <div class="followup-grid" id="followupGrid"></div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: PRODUCT MATCHER ===== -->
+    <section id="tab-products" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>🛍️ Product Matcher</h2>
+                <p class="subtitle">3 articles du catalogue recommandés par tag détecté — aide à la vente immédiate</p>
+            </div>
+            <div class="product-grid" id="productGrid"></div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: SENTIMENT ===== -->
+    <section id="tab-sentiment" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>😊 Analyse Sentiment & Alertes Rétention</h2>
+                <p class="subtitle">Détection des frustrations cachées — alertes Store Manager automatiques</p>
+            </div>
+            <div class="sentiment-overview" id="sentimentOverview"></div>
+            <div class="sentiment-alerts" id="sentimentAlerts"></div>
+            <div class="sentiment-grid" id="sentimentGrid"></div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: BOUTIQUE MANAGER ===== -->
+    <section id="tab-boutique" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>🏪 Dashboard Boutique Manager</h2>
+                <p class="subtitle">Vue synthétique pour piloter la boutique en temps réel</p>
+            </div>
+            <div class="boutique-kpis" id="boutiqueKPIs"></div>
+            <div class="grid-2">
+                <div class="section-box" id="boutiqueTop5">
+                    <h3>🔥 Top 5 Intérêts de la Semaine</h3>
+                    <div id="boutiqueTopList"></div>
+                </div>
+                <div class="section-box" id="boutiqueActions">
+                    <h3>⚡ Actions Prioritaires Manager</h3>
+                    <div id="boutiqueActionsList"></div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="section-box">
+                    <h3>👥 Performance CA</h3>
+                    <div id="boutiqueCAPerfList"></div>
+                </div>
+                <div class="section-box">
+                    <h3>📦 Recommandations Stock</h3>
+                    <div id="boutiqueStockList"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== TAB: LUXURY PULSE ===== -->
+    <section id="tab-pulse" class="tab-page hidden">
+        <div class="container">
+            <div class="section-header">
+                <h2>📈 The Luxury Pulse</h2>
+                <p class="subtitle">Tendances & signaux faibles détectés en temps réel</p>
+            </div>
+            <div class="pulse-stats" id="pulseStats"></div>
+            <div class="pulse-trends" id="pulseTrends"></div>
+            <div class="pulse-signals" id="pulseSignals"></div>
+        </div>
+    </section>
+
+    <footer id="mainFooter" class="hidden">◆ LVMH Voice-to-Tag AI Platform — Mistral AI</footer>
+
+    <script src="tagger.js"></script>
     <script src="engine.js"></script>
 </body>
+
 </html>
