@@ -22,30 +22,48 @@ let PRIVACY_SCORES = [];
 let SENTIMENT_DATA = [];
 let STATS = { clients: 0, tags: 0, ai: 0, rgpd: 0, nba: 0, privacyAvg: 0, atRisk: 0 };
 
+// ===== ICONS (SVG) =====
+const ICONS = {
+    mic: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`,
+    user: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`,
+    target: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
+    bag: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>`,
+    mail: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>`,
+    chart: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
+    users: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+    shield: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+    column: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>`,
+    chat: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
+    store: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"></path></svg>`,
+    pulse: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>`,
+    upload: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`,
+    admin: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`
+};
+
 // ===== NAV DEFINITIONS =====
 const VENDEUR_NAV = [
-    { id: 'v-home', icon: '🎤', label: 'Accueil', page: 'page-v-home', title: 'Accueil' },
-    { id: 'clients', icon: '👤', label: 'Mes Clients', page: 'page-clients', title: 'Mes Clients' },
-    { id: 'nba', icon: '🎯', label: 'NBA', page: 'page-nba', title: 'Next Best Action' },
-    { id: 'products', icon: '🛍', label: 'Produits', page: 'page-products', title: 'Product Matcher' },
-    { id: 'followup', icon: '✉️', label: 'Follow-up', page: 'page-followup', title: 'Follow-up' },
+    { id: 'v-home', icon: ICONS.mic, label: 'Accueil', page: 'page-v-home', title: 'Accueil' },
+    { id: 'clients', icon: ICONS.user, label: 'Mes Clients', page: 'page-clients', title: 'Mes Clients' },
+    { id: 'nba', icon: ICONS.target, label: 'NBA', page: 'page-nba', title: 'Next Best Action' },
+    { id: 'products', icon: ICONS.bag, label: 'Produits', page: 'page-products', title: 'Product Matcher' },
+    { id: 'followup', icon: ICONS.mail, label: 'Follow-up', page: 'page-followup', title: 'Follow-up' },
 ];
 
 const MANAGER_NAV = [
-    { id: 'm-dashboard', icon: '📊', label: 'Dashboard', page: 'page-m-dashboard', title: 'Dashboard' },
-    { id: 'clients', icon: '👥', label: 'Tous les Clients', page: 'page-clients', title: 'Tous les Clients' },
-    { id: 'nba', icon: '🎯', label: 'NBA', page: 'page-nba', title: 'Next Best Action' },
-    { id: 'products', icon: '🛍', label: 'Produits', page: 'page-products', title: 'Product Matcher' },
-    { id: 'followup', icon: '✉️', label: 'Follow-up', page: 'page-followup', title: 'Follow-up' },
+    { id: 'm-dashboard', icon: ICONS.chart, label: 'Dashboard', page: 'page-m-dashboard', title: 'Dashboard' },
+    { id: 'clients', icon: ICONS.users, label: 'Tous les Clients', page: 'page-clients', title: 'Tous les Clients' },
+    { id: 'nba', icon: ICONS.target, label: 'NBA', page: 'page-nba', title: 'Next Best Action' },
+    { id: 'products', icon: ICONS.bag, label: 'Produits', page: 'page-products', title: 'Product Matcher' },
+    { id: 'followup', icon: ICONS.mail, label: 'Follow-up', page: 'page-followup', title: 'Follow-up' },
     { id: 'sep1', sep: true },
-    { id: 'm-privacy', icon: '🛡', label: 'Privacy', page: 'page-m-privacy', title: 'Privacy Score' },
-    { id: 'm-crossbrand', icon: '🏛', label: 'Cross-Brand', page: 'page-m-crossbrand', title: 'Cross-Brand Intelligence' },
-    { id: 'm-sentiment', icon: '💬', label: 'Sentiment', page: 'page-m-sentiment', title: 'Sentiment & Retention' },
-    { id: 'm-boutique', icon: '🏪', label: 'Boutique', page: 'page-m-boutique', title: 'Dashboard Boutique' },
-    { id: 'm-pulse', icon: '📈', label: 'Pulse', page: 'page-m-pulse', title: 'The Luxury Pulse' },
+    { id: 'm-privacy', icon: ICONS.shield, label: 'Privacy', page: 'page-m-privacy', title: 'Privacy Score' },
+    { id: 'm-crossbrand', icon: ICONS.column, label: 'Cross-Brand', page: 'page-m-crossbrand', title: 'Cross-Brand Intelligence' },
+    { id: 'm-sentiment', icon: ICONS.chat, label: 'Sentiment', page: 'page-m-sentiment', title: 'Sentiment & Retention' },
+    { id: 'm-boutique', icon: ICONS.store, label: 'Boutique', page: 'page-m-boutique', title: 'Dashboard Boutique' },
+    { id: 'm-pulse', icon: ICONS.pulse, label: 'Pulse', page: 'page-m-pulse', title: 'The Luxury Pulse' },
     { id: 'sep2', sep: true },
-    { id: 'm-import', icon: '📁', label: 'Import CSV', page: 'page-m-import', title: 'Import CSV' },
-    { id: 'm-team', icon: '👥', label: 'Equipe', page: 'page-m-team', title: 'Gestion Equipe' },
+    { id: 'm-import', icon: ICONS.upload, label: 'Import CSV', page: 'page-m-import', title: 'Import CSV' },
+    { id: 'm-team', icon: ICONS.users, label: 'Equipe', page: 'page-m-team', title: 'Gestion Equipe' },
 ];
 
 function isBrunoLopes() {
@@ -58,7 +76,7 @@ function isBrunoLopes() {
 function getNavItems() {
     const base = (currentUser.role || '').toLowerCase() === 'manager' ? MANAGER_NAV : VENDEUR_NAV;
     if (!isBrunoLopes()) return base;
-    return [...base, { id: 'sep-admin', sep: true }, { id: 'admin', icon: '⚙️', label: 'Admin', page: 'page-admin', title: 'Supprimer les donnees' }];
+    return [...base, { id: 'sep-admin', sep: true }, { id: 'admin', icon: ICONS.admin, label: 'Admin', page: 'page-admin', title: 'Supprimer les donnees' }];
 }
 
 // ===== TOAST NOTIFICATIONS =====
@@ -132,7 +150,7 @@ function restoreSession() {
             currentUser = JSON.parse(saved);
             return true;
         }
-    } catch(e) { localStorage.removeItem('lvmh_session'); }
+    } catch (e) { localStorage.removeItem('lvmh_session'); }
     return false;
 }
 
@@ -159,14 +177,14 @@ function buildSidebar() {
     mobileNav.innerHTML = mobileHTML;
 
     // Event delegation on sidebar nav container - ONE listener handles ALL items
-    nav.onclick = function(e) {
+    nav.onclick = function (e) {
         const item = e.target.closest('.sidebar-nav-item');
         if (!item) return;
         navigateTo(item.dataset.navId);
     };
 
     // Event delegation on mobile nav container - ONE listener handles ALL items
-    mobileNav.onclick = function(e) {
+    mobileNav.onclick = function (e) {
         const item = e.target.closest('.mobile-nav-item');
         if (!item) return;
         navigateTo(item.dataset.navId);
@@ -181,12 +199,12 @@ function buildSidebar() {
 function navigateTo(navId) {
     const items = getNavItems();
     const item = items.find(i => i.id === navId);
-    
+
     if (!item || item.sep) return;
 
     // Hide all pages
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-    
+
     // Show target page
     const page = $(item.page);
     if (page) {
@@ -225,18 +243,18 @@ function navigateTo(navId) {
 
 function renderPage(navId) {
     try {
-        switch(navId) {
-            case 'v-home': 
-                renderVendeurHome(); 
+        switch (navId) {
+            case 'v-home':
+                renderVendeurHome();
                 break;
-            case 'clients': 
-                renderClients(); 
+            case 'clients':
+                renderClients();
                 break;
-            case 'nba': 
-                renderNBA(); 
+            case 'nba':
+                renderNBA();
                 break;
-            case 'products': 
-                renderProducts(); 
+            case 'products':
+                renderProducts();
                 break;
             case 'followup':
                 renderFollowup();
@@ -245,32 +263,32 @@ function renderPage(navId) {
                 if (houseSelect) houseSelect.onchange = () => renderFollowup();
                 if (channelSelect) channelSelect.onchange = () => renderFollowup();
                 break;
-            case 'm-dashboard': 
-                renderDashboard(); 
+            case 'm-dashboard':
+                renderDashboard();
                 break;
-            case 'm-privacy': 
-                renderPrivacy(); 
+            case 'm-privacy':
+                renderPrivacy();
                 break;
-            case 'm-crossbrand': 
-                renderCrossBrand(); 
+            case 'm-crossbrand':
+                renderCrossBrand();
                 break;
-            case 'm-sentiment': 
-                renderSentiment(); 
+            case 'm-sentiment':
+                renderSentiment();
                 break;
-            case 'm-boutique': 
-                renderBoutique(); 
+            case 'm-boutique':
+                renderBoutique();
                 break;
-            case 'm-pulse': 
-                renderPulse(); 
+            case 'm-pulse':
+                renderPulse();
                 break;
-            case 'm-import': 
-                setupCSVImport(); 
+            case 'm-import':
+                setupCSVImport();
                 break;
-            case 'm-team': 
-                renderTeam(); 
+            case 'm-team':
+                renderTeam();
                 break;
-            case 'admin': 
-                renderAdmin(); 
+            case 'admin':
+                renderAdmin();
                 break;
             default:
                 console.warn('Unknown page:', navId);
@@ -301,28 +319,28 @@ async function loadClientsFromDB() {
             // Parse JSON fields if they are strings
             let tags = c.tags;
             if (typeof tags === 'string') {
-                try { tags = JSON.parse(tags); } catch(e) { tags = []; }
+                try { tags = JSON.parse(tags); } catch (e) { tags = []; }
             }
             if (!Array.isArray(tags)) tags = [];
-            
+
             let nba = c.nba;
             if (typeof nba === 'string') {
-                try { nba = JSON.parse(nba); } catch(e) { nba = []; }
+                try { nba = JSON.parse(nba); } catch (e) { nba = []; }
             }
             if (!Array.isArray(nba)) nba = [];
-            
+
             let sentiment = c.sentiment;
             if (typeof sentiment === 'string') {
-                try { sentiment = JSON.parse(sentiment); } catch(e) { sentiment = {}; }
+                try { sentiment = JSON.parse(sentiment); } catch (e) { sentiment = {}; }
             }
             if (typeof sentiment !== 'object' || sentiment === null) sentiment = {};
-            
+
             let sensitiveFound = c.sensitive_found;
             if (typeof sensitiveFound === 'string') {
-                try { sensitiveFound = JSON.parse(sensitiveFound); } catch(e) { sensitiveFound = []; }
+                try { sensitiveFound = JSON.parse(sensitiveFound); } catch (e) { sensitiveFound = []; }
             }
             if (!Array.isArray(sensitiveFound)) sensitiveFound = [];
-            
+
             return {
                 id: c.external_id || c.id,
                 date: c.date || '',
@@ -488,7 +506,7 @@ function initSpeechRecognition() {
     recognition.onend = () => {
         if (isRecording) {
             // Restart automatically unless explicitly stopped
-            try { recognition.start(); } catch(e) { stopRecording(); }
+            try { recognition.start(); } catch (e) { stopRecording(); }
         }
     };
 }
@@ -503,7 +521,7 @@ async function startRecording() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(t => t.stop()); // Release immediately
-    } catch(e) {
+    } catch (e) {
         showToast('Impossible d\'acceder au microphone. Autorisez l\'acces dans les parametres.', 'error');
         const status = $('micStatus');
         if (status) status.textContent = 'Micro non autorise';
@@ -521,7 +539,7 @@ async function startRecording() {
 
     try {
         recognition.start();
-    } catch(e) {
+    } catch (e) {
         // Already started
     }
 
@@ -546,7 +564,7 @@ function stopRecording() {
     if (status) { status.textContent = 'Enregistrement termine'; status.classList.remove('active'); }
 
     if (recognition) {
-        try { recognition.stop(); } catch(e) {}
+        try { recognition.stop(); } catch (e) { }
     }
 
     const area = $('transcriptArea');
@@ -924,6 +942,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const submitBtn = $('submitVocal');
     if (submitBtn) {
         submitBtn.onclick = submitVocalTranscript;
+    }
+
+    // Mobile Sidebar
+    const menuToggle = $('menuToggle');
+    const sidebar = $('sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+
+    if (menuToggle && sidebar && overlay) {
+        menuToggle.onclick = () => {
+            sidebar.classList.add('open');
+            overlay.classList.add('active');
+        };
+
+        overlay.onclick = () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        };
     }
 });
 

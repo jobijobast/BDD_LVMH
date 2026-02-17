@@ -1,0 +1,88 @@
+/* Blue Innovation Theme */
+body {
+    background: radial-gradient(circle at 10% 20%, rgb(0, 10, 50) 0%, rgb(0, 0, 20) 90%) !important;
+    color: #e0f2fe !important;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Glassmorphism Cards */
+.c-card,
+.mini-kpi,
+.login-card,
+.qs-card,
+.record-card {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(100, 200, 255, 0.1) !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
+    border-radius: 16px !important;
+    color: #fff !important;
+}
+
+/* Headings & Text */
+h1,
+h2,
+h3,
+h4,
+.mk-val,
+.qs-value {
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.qs-label,
+.mk-top,
+.card-head-dense h3 {
+    color: #a0c4ff !important;
+}
+
+/* Login Page Specifics */
+.login-page {
+    background: transparent !important;
+    /* Body bg handles it */
+}
+
+.login-input {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+/* Calendar & Tables */
+.calendar-day {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: #e0f2fe !important;
+}
+
+.calendar-day:hover {
+    background: rgba(0, 198, 255, 0.1) !important;
+    border-color: #00c6ff !important;
+}
+
+.calendar-header-cell {
+    color: #a0c4ff !important;
+}
+
+/* Buttons */
+.btn-gold {
+    background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #001233;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #005f99;
+    border-radius: 4px;
+}

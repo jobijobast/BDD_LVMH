@@ -8,13 +8,10 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="index.css?v=6">
+    <link rel="stylesheet" href="index.css">
 </head>
 
 <body>
-    <!-- ===== BG LINES ===== -->
-    <div class="bg-lines" id="bgLines"></div>
-
     <!-- ===== LOGIN PAGE ===== -->
     <div id="loginPage" class="login-page">
         <div class="login-card">
@@ -25,23 +22,7 @@
                 <input type="text" id="loginFirstName" class="login-input" placeholder="Prenom" required>
                 <input type="text" id="loginLastName" class="login-input" placeholder="Nom" required>
                 <input type="text" id="loginCode" class="login-input" placeholder="Code boutique" required>
-                <button type="submit" id="loginBtn" class="btn-53">
-                    <div class="original">SE CONNECTER</div>
-                    <div class="letters">
-                        <span>S</span>
-                        <span>E</span>
-                        <span>&nbsp;</span>
-                        <span>C</span>
-                        <span>O</span>
-                        <span>N</span>
-                        <span>N</span>
-                        <span>E</span>
-                        <span>C</span>
-                        <span>T</span>
-                        <span>E</span>
-                        <span>R</span>
-                    </div>
-                </button>
+                <button type="submit" id="loginBtn" class="btn btn-gold login-btn">Se connecter</button>
             </form>
             <div id="loginError" class="login-error hidden"></div>
             <p class="login-footer">Plateforme reservee aux collaborateurs LVMH</p>
@@ -201,162 +182,84 @@
                 </div>
             </div>
 
-            <!-- ===== MANAGER DASHBOARD (High Density Cockpit) ===== -->
+            <!-- PAGE: MANAGER DASHBOARD -->
             <div id="page-m-dashboard" class="page hidden">
-                <div class="cockpit-container">
-
-                    <!-- TOP BAR -->
-                    <div class="cockpit-header">
-                        <div class="header-left">
-                            <h2>VUE D'ENSEMBLE</h2>
-                            <span class="store-badge">LV Montaigne</span>
+                <div class="page-content">
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-icon">&#x1F464;</div>
+                            <div>
+                                <div class="stat-value" id="statClients">0</div>
+                                <div class="stat-label">Clients</div>
+                            </div>
                         </div>
-                        <div class="header-right">
-                            <div class="date-display"><i class="far fa-calendar-alt"></i> 17 Fév 2026</div>
-                            <button class="settings-btn"><i class="fas fa-cog"></i></button>
+                        <div class="stat-card accent">
+                            <div class="stat-icon">&#x1F3F7;&#xFE0F;</div>
+                            <div>
+                                <div class="stat-value" id="statTags">0</div>
+                                <div class="stat-label">Tags extraits</div>
+                            </div>
+                        </div>
+                        <div class="stat-card purple">
+                            <div class="stat-icon">&#x1F916;</div>
+                            <div>
+                                <div class="stat-value" id="statAI">0</div>
+                                <div class="stat-label">Nettoyes IA</div>
+                            </div>
+                        </div>
+                        <div class="stat-card red">
+                            <div class="stat-icon">&#x1F6E1;&#xFE0F;</div>
+                            <div>
+                                <div class="stat-value" id="statRGPD">0</div>
+                                <div class="stat-label">RGPD masques</div>
+                            </div>
+                        </div>
+                        <div class="stat-card green">
+                            <div class="stat-icon">&#x1F3AF;</div>
+                            <div>
+                                <div class="stat-value" id="statNBA">0</div>
+                                <div class="stat-label">Actions NBA</div>
+                            </div>
+                        </div>
+                        <div class="stat-card blue">
+                            <div class="stat-icon">&#x1F4CA;</div>
+                            <div>
+                                <div class="stat-value" id="statPrivacy">--</div>
+                                <div class="stat-label">Privacy Score</div>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- DENSE GRID -->
-                    <div class="cockpit-grid">
-
-                        <!-- === ROW 1: MINI KPIs (5 cols) === -->
-                        <div class="kpi-strip">
-                            <!-- KPI 1 -->
-                            <div class="c-card mini-kpi">
-                                <div class="mk-top">
-                                    <span class="mk-lbl">Clients</span>
-                                    <span class="mk-trend pos">+12%</span>
+                    <div class="grid-2">
+                        <div class="section-box">
+                            <h3>Avant / Apres IA</h3>
+                            <div class="compare-box">
+                                <div class="compare-panel before">
+                                    <h4>Brut</h4>
+                                    <pre id="beforeText">...</pre>
                                 </div>
-                                <div class="mk-val">842</div>
-                                <div class="mk-chart" id="spark1"><!-- SVG --></div>
-                            </div>
-                            <!-- KPI 3 -->
-                            <div class="c-card mini-kpi">
-                                <div class="mk-top">
-                                    <span class="mk-lbl">Tags</span>
-                                    <span class="mk-trend neg">-2%</span>
+                                <div class="compare-panel after">
+                                    <h4>Nettoye</h4>
+                                    <pre id="afterText">...</pre>
                                 </div>
-                                <div class="mk-val">3,240</div>
-                                <div class="mk-chart" id="spark3"><!-- SVG --></div>
-                            </div>
-                            <!-- KPI 4 -->
-                            <div class="c-card mini-kpi">
-                                <div class="mk-top">
-                                    <span class="mk-lbl">NBA</span>
-                                    <span class="mk-trend neutral">=</span>
-                                </div>
-                                <div class="mk-val">85</div>
-                                <div class="mk-chart" id="spark4"><!-- SVG --></div>
                             </div>
                         </div>
-
-                        <!-- === ROW 2: MAIN VISUALS (Graph + Calendar + Team) === -->
-                        <div class="mid-section">
-
-                            <!-- MAIN CHART (Wide) -->
-                            <div class="c-card main-graph-card">
-                                <div class="card-head-dense">
-                                    <h3>Activité & Ventes</h3>
-                                    <div class="head-opts">
-                                        <button class="opt-btn active">J</button>
-                                        <button class="opt-btn">S</button>
-                                        <button class="opt-btn">M</button>
-                                    </div>
-                                </div>
-                                <div class="graph-container" id="cockpitMainChart">
-                                    <!-- SVG Injected -->
-                                </div>
-                            </div>
-
-                            <!-- CALENDAR -->
-                            <div class="c-card calendar-card">
-                                <div class="card-head-dense">
-                                    <h3>Agenda</h3>
-                                    <span class="mini-date">Fév 2026</span>
-                                </div>
-                                <div class="calendar-grid" id="cockpitCalendar"
-                                    style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 0.8rem;">
-                                    <!-- JS Rendered -->
-                                </div>
-                                <div class="next-event">
-                                    <div class="ne-time">14:00</div>
-                                    <div class="ne-desc">Briefing Équipe</div>
-                                </div>
-                            </div>
-
-                            <!-- TEAM / TASKS -->
-                            <div class="c-card team-card">
-                                <div class="card-head-dense">
-                                    <h3>Équipe (5)</h3>
-                                </div>
-                                <div class="team-list">
-                                    <div class="t-member">
-                                        <div class="avatar">BL</div>
-                                        <div class="t-info">Bruno (Manager) <span class="status online"></span></div>
-                                    </div>
-                                    <div class="t-member">
-                                        <div class="avatar">SJ</div>
-                                        <div class="t-info">Sophie J. <span class="status busy"></span></div>
-                                    </div>
-                                    <div class="t-member">
-                                        <div class="avatar">MA</div>
-                                        <div class="t-info">Marc A. <span class="status offline"></span></div>
-                                    </div>
-                                </div>
-                                <div class="task-summary">
-                                    <div class="task-bar">
-                                        <div class="fill" style="width: 70%"></div>
-                                    </div>
-                                    <span>7/10 Tâches complétées</span>
-                                </div>
-                            </div>
-
+                        <div class="section-box danger" id="rgpdSection">
+                            <h3>Donnees RGPD Masquees</h3>
+                            <div class="rgpd-bad-list" id="rgpdBadList"></div>
                         </div>
-
-                        <!-- === ROW 3: DETAILED BREAKDOWN === -->
-                        <div class="bottom-section">
-
-                            <!-- 1. PRIVACY DONUT -->
-                            <div class="c-card detail-card">
-                                <div class="card-head-dense">
-                                    <h3>Conformité</h3>
-                                </div>
-                                <div class="visual-center" id="cockpitPrivacyDonut"></div>
-                            </div>
-
-                            <!-- 2. PRODUCT RADAR -->
-                            <div class="c-card detail-card">
-                                <div class="card-head-dense">
-                                    <h3>Mix Produits</h3>
-                                </div>
-                                <div class="visual-center" id="cockpitRadar"></div>
-                            </div>
-
-                            <!-- 3. TOP TAGS -->
-                            <div class="c-card detail-card double-width">
-                                <div class="card-head-dense">
-                                    <h3>Top Intérêts Client</h3>
-                                </div>
-                                <div class="tags-visual-dense" id="cockpitTags"></div>
-                            </div>
-
-                            <!-- 4. ALERTS -->
-                            <div class="c-card detail-card">
-                                <div class="card-head-dense">
-                                    <h3>Alertes (3)</h3>
-                                </div>
-                                <div class="alert-list">
-                                    <div class="alert-item high"><i class="fas fa-exclamation-circle"></i> Stock
-                                        critique</div>
-                                    <div class="alert-item mid"><i class="fas fa-info-circle"></i> 2 Retours</div>
-                                    <div class="alert-item low"><i class="fas fa-check-circle"></i> Planning validé
-                                    </div>
-                                </div>
-                            </div>
-
+                    </div>
+                    <div class="export-section">
+                        <div class="export-btns">
+                            <button class="export-btn" id="exportCsv"><span
+                                    class="icon">&#x1F4CA;</span><span><strong>CSV</strong><br><small>Nettoye
+                                        IA</small></span></button>
+                            <button class="export-btn" id="exportJson"><span
+                                    class="icon">&#x1F3F7;&#xFE0F;</span><span><strong>JSON</strong><br><small>Tags +
+                                        NBA</small></span></button>
+                            <button class="export-btn" id="exportReport"><span
+                                    class="icon">&#x1F4CB;</span><span><strong>Rapport</strong><br><small>Privacy +
+                                        RGPD</small></span></button>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -541,7 +444,6 @@
     <!-- ANIMATION SCRIPT -->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            // Scroll Animations (Appearance)
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
@@ -552,16 +454,6 @@
 
             document.querySelectorAll('.animer-ligne').forEach(ligne => {
                 observer.observe(ligne);
-            });
-
-            // Parallax Lines Effect
-            const bgLines = document.getElementById('bgLines');
-            window.addEventListener('scroll', () => {
-                const scrolled = window.pageYOffset;
-                if (bgLines) {
-                    // Move lines slightly slower than scroll to create depth
-                    bgLines.style.transform = `translateY(-${scrolled * 0.2}px)`;
-                }
             });
         });
     </script>
