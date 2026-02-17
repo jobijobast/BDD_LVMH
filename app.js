@@ -163,30 +163,50 @@ let currentPage = null;
 function buildSidebar() {
     const nav = $('sidebarNav');
     const mobileNav = $('mobileNav');
-    const items = getNavItems();
+    const items = getNavItems().filter(i => !i.sep); // Ignore separators for radio logic
+    const totalItems = items.length;
 
-    // Build sidebar HTML in one go (avoids innerHTML += which destroys event handlers)
-    let sidebarHTML = '';
+    // Build sidebar HTML with Radio Glider structure
+    let sidebarHTML = `<div class="radio-container" style="--total-radio: ${totalItems}">`;
+
+    // 1. Inputs
+    items.forEach((item, index) => {
+        const checked = index === 0 ? 'checked' : ''; // Default first one checked, updated later
+        sidebarHTML += `<input type="radio" name="nav" id="nav-${item.id}" value="${item.id}" ${checked}>`;
+    });
+
+    // 2. Glider container
+    sidebarHTML += `
+        <div class="glider-container">
+            <div class="glider"></div>
+        </div>
+    `;
+
+    // 3. Labels
+    items.forEach(item => {
+        sidebarHTML += `<label for="nav-${item.id}"><span class="nav-icon">${item.icon}</span>${item.label}</label>`;
+    });
+
+    sidebarHTML += `</div>`; // Close container
+
+    // Mobile nav remains button-based for simplicity or we can adapt it later if requested
     let mobileHTML = '';
     items.forEach(item => {
-        if (item.sep) {
-            sidebarHTML += '<div class="sidebar-nav-sep"></div>';
-            return;
-        }
-        sidebarHTML += `<div class="sidebar-nav-item" data-nav-id="${item.id}" data-page="${item.page}" data-title="${item.title}"><span class="nav-icon">${item.icon}</span><span>${item.label}</span></div>`;
         mobileHTML += `<button class="mobile-nav-item" data-nav-id="${item.id}"><span class="nav-icon">${item.icon}</span><span>${item.label}</span></button>`;
     });
+
     nav.innerHTML = sidebarHTML;
     mobileNav.innerHTML = mobileHTML;
 
-    // Event delegation on sidebar nav container - ONE listener handles ALL items
-    nav.onclick = function (e) {
-        const item = e.target.closest('.sidebar-nav-item');
-        if (!item) return;
-        navigateTo(item.dataset.navId);
-    };
+    // Event listener for Radio Inputs
+    const radios = nav.querySelectorAll('input[type="radio"]');
+    radios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            navigateTo(e.target.value);
+        });
+    });
 
-    // Event delegation on mobile nav container - ONE listener handles ALL items
+    // Event delegation on mobile nav container
     mobileNav.onclick = function (e) {
         const item = e.target.closest('.mobile-nav-item');
         if (!item) return;
@@ -197,6 +217,12 @@ function buildSidebar() {
     $('userNameDisplay').textContent = `${currentUser.first_name} ${currentUser.last_name}`;
     $('userRoleDisplay').textContent = currentUser.role;
     $('boutiqueNameDisplay').textContent = currentUser.boutique.name;
+
+    // Sync current page if already set
+    if (currentPage) {
+        const activeRadio = nav.querySelector(`input[value="${currentPage}"]`);
+        if (activeRadio) activeRadio.checked = true;
+    }
 }
 
 function navigateTo(navId) {
@@ -217,11 +243,13 @@ function navigateTo(navId) {
         return;
     }
 
-    // Update sidebar active state
-    document.querySelectorAll('.sidebar-nav-item').forEach(el => el.classList.remove('active'));
+    // Update sidebar active state (Radio Sync)
+    const sidebarNav = $('sidebarNav');
+    const activeRadio = sidebarNav.querySelector(`input[value="${navId}"]`);
+    if (activeRadio) activeRadio.checked = true;
+
+    // Update mobile nav styling
     document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
-    const activeEl = document.querySelector(`.sidebar-nav-item[data-nav-id="${navId}"]`);
-    if (activeEl) activeEl.classList.add('active');
     const activeMob = document.querySelector(`.mobile-nav-item[data-nav-id="${navId}"]`);
     if (activeMob) activeMob.classList.add('active');
 
@@ -446,7 +474,11 @@ function recomputeStats() {
 // ===== POPULATE STATE FROM PIPELINE RESULT =====
 function populateStateFromPipeline(result) {
     const newData = result.data || [];
-    DATA = [...newData, ...DATA]; // Prepend new data
+
+    // Deduplicate: only add items that are not already in DATA
+    const uniqueNewData = newData.filter(newItem => !DATA.some(existing => existing.id === newItem.id));
+
+    DATA = [...uniqueNewData, ...DATA]; // Prepend new unique data
 
     // Re-derive stats, RGPD, sentiment, privacy from full DATA
     recomputeStats();

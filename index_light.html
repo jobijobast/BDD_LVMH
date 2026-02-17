@@ -2,287 +2,287 @@
 <html lang="fr">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LVMH Voice-to-Tag | AI Platform</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>LVMH Prestige Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link rel="stylesheet" href="index_light.css">
 </head>
 
 <body>
-    <!-- NAV -->
-    <nav id="mainNav" class="nav hidden">
-        <div class="nav-brand">◆ LVMH <span>Voice-to-Tag</span></div>
-        <div class="nav-tabs">
-            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
-            <button class="nav-tab" data-tab="clients">Fiches Clients</button>
-            <button class="nav-tab" data-tab="nba">Next Best Action</button>
-            <button class="nav-tab" data-tab="privacy">Privacy Score</button>
-            <button class="nav-tab" data-tab="crossbrand">Cross-Brand</button>
-            <button class="nav-tab" data-tab="followup">Follow-up</button>
-            <button class="nav-tab" data-tab="products">Product Matcher</button>
-            <button class="nav-tab" data-tab="sentiment">Sentiment</button>
-            <button class="nav-tab" data-tab="boutique">Boutique</button>
-            <button class="nav-tab" data-tab="pulse">Luxury Pulse</button>
-        </div>
-    </nav>
+    <!-- SIDEBAR (Radio Glider) -->
+    <nav id="sidebarNav" class="sidebar-nav"></nav>
 
-    <!-- UPLOAD -->
-    <section id="uploadSection">
-        <header>
-            <h1>◆ LVMH <span>Voice-to-Tag</span></h1>
-            <p class="tagline">AI-Powered CRM Intelligence Platform</p>
-        </header>
-        <div class="upload-area" id="uploadArea">
-            <div class="upload-icon">📤</div>
-            <h2>Importer CSV</h2>
-            <p>Nettoyage IA + NBA + Privacy Score + Tendances</p>
-            <input type="file" id="fileInput" accept=".csv" hidden>
-            <button class="btn" id="selectBtn">Sélectionner</button>
-        </div>
-    </section>
+    <!-- MAIN CONTENT WRAPPER -->
+    <div class="main-content">
+        <!-- TOP NAV (preserved as header?) -->
+        <nav id="mainNav" class="nav hidden" style="display:none!important">
+            <!-- Legacy nav hidden -->
+        </nav>
 
-    <!-- LOADING -->
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <p id="loadingMsg">Initialisation...</p>
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <div class="progress-text" id="loadingProgress">0/0</div>
-        <div class="loading-steps" id="loadingSteps"></div>
-    </div>
-
-    <!-- ===== TAB: DASHBOARD ===== -->
-    <section id="tab-dashboard" class="tab-page hidden">
-        <div class="container">
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="stat-icon">👤</div>
-                    <div>
-                        <div class="stat-value" id="statClients">0</div>
-                        <div class="stat-label">Clients</div>
-                    </div>
-                </div>
-                <div class="stat-card accent">
-                    <div class="stat-icon">🏷️</div>
-                    <div>
-                        <div class="stat-value" id="statTags">0</div>
-                        <div class="stat-label">Tags extraits</div>
-                    </div>
-                </div>
-                <div class="stat-card purple">
-                    <div class="stat-icon">🤖</div>
-                    <div>
-                        <div class="stat-value" id="statAI">0</div>
-                        <div class="stat-label">Nettoyés IA</div>
-                    </div>
-                </div>
-                <div class="stat-card red">
-                    <div class="stat-icon">🛡️</div>
-                    <div>
-                        <div class="stat-value" id="statRGPD">0</div>
-                        <div class="stat-label">RGPD masqués</div>
-                    </div>
-                </div>
-                <div class="stat-card green">
-                    <div class="stat-icon">🎯</div>
-                    <div>
-                        <div class="stat-value" id="statNBA">0</div>
-                        <div class="stat-label">Actions NBA</div>
-                    </div>
-                </div>
-                <div class="stat-card blue">
-                    <div class="stat-icon">📊</div>
-                    <div>
-                        <div class="stat-value" id="statPrivacy">--</div>
-                        <div class="stat-label">Privacy Score</div>
-                    </div>
-                </div>
+        <!-- UPLOAD -->
+        <section id="uploadSection">
+            <header>
+                <h1>◆ LVMH <span>Voice-to-Tag</span></h1>
+                <p class="tagline">AI-Powered CRM Intelligence Platform</p>
+            </header>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📤</div>
+                <h2>Importer CSV</h2>
+                <p>Nettoyage IA + NBA + Privacy Score + Tendances</p>
+                <input type="file" id="fileInput" accept=".csv" hidden>
+                <button class="btn" id="selectBtn">Sélectionner</button>
             </div>
+        </section>
 
-            <div class="grid-2">
-                <div class="section-box">
-                    <h3>🔍 Avant / Après IA</h3>
-                    <div class="compare-box">
-                        <div class="compare-panel before">
-                            <h4>❌ Brut</h4>
-                            <pre id="beforeText">...</pre>
+        <!-- LOADING -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p id="loadingMsg">Initialisation...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="loadingProgress">0/0</div>
+            <div class="loading-steps" id="loadingSteps"></div>
+        </div>
+
+        <!-- ===== TAB: DASHBOARD ===== -->
+        <section id="tab-dashboard" class="tab-page hidden">
+            <div class="container">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">👤</div>
+                        <div>
+                            <div class="stat-value" id="statClients">0</div>
+                            <div class="stat-label">Clients</div>
                         </div>
-                        <div class="compare-panel after">
-                            <h4>✅ Nettoyé</h4>
-                            <pre id="afterText">...</pre>
+                    </div>
+                    <div class="stat-card accent">
+                        <div class="stat-icon">🏷️</div>
+                        <div>
+                            <div class="stat-value" id="statTags">0</div>
+                            <div class="stat-label">Tags extraits</div>
+                        </div>
+                    </div>
+                    <div class="stat-card purple">
+                        <div class="stat-icon">🤖</div>
+                        <div>
+                            <div class="stat-value" id="statAI">0</div>
+                            <div class="stat-label">Nettoyés IA</div>
+                        </div>
+                    </div>
+                    <div class="stat-card red">
+                        <div class="stat-icon">🛡️</div>
+                        <div>
+                            <div class="stat-value" id="statRGPD">0</div>
+                            <div class="stat-label">RGPD masqués</div>
+                        </div>
+                    </div>
+                    <div class="stat-card green">
+                        <div class="stat-icon">🎯</div>
+                        <div>
+                            <div class="stat-value" id="statNBA">0</div>
+                            <div class="stat-label">Actions NBA</div>
+                        </div>
+                    </div>
+                    <div class="stat-card blue">
+                        <div class="stat-icon">📊</div>
+                        <div>
+                            <div class="stat-value" id="statPrivacy">--</div>
+                            <div class="stat-label">Privacy Score</div>
                         </div>
                     </div>
                 </div>
-                <div class="section-box danger" id="rgpdSection">
-                    <h3>🛡️ Données RGPD Masquées</h3>
-                    <div class="rgpd-bad-list" id="rgpdBadList"></div>
+
+                <div class="grid-2">
+                    <div class="section-box">
+                        <h3>🔍 Avant / Après IA</h3>
+                        <div class="compare-box">
+                            <div class="compare-panel before">
+                                <h4>❌ Brut</h4>
+                                <pre id="beforeText">...</pre>
+                            </div>
+                            <div class="compare-panel after">
+                                <h4>✅ Nettoyé</h4>
+                                <pre id="afterText">...</pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-box danger" id="rgpdSection">
+                        <h3>🛡️ Données RGPD Masquées</h3>
+                        <div class="rgpd-bad-list" id="rgpdBadList"></div>
+                    </div>
+                </div>
+
+                <div class="export-section">
+                    <div class="export-btns">
+                        <button class="export-btn" id="exportCsv"><span
+                                class="icon">📊</span><span><strong>CSV</strong><br><small>Nettoyé
+                                    IA</small></span></button>
+                        <button class="export-btn" id="exportJson"><span
+                                class="icon">🏷️</span><span><strong>JSON</strong><br><small>Tags +
+                                    NBA</small></span></button>
+                        <button class="export-btn" id="exportReport"><span
+                                class="icon">📋</span><span><strong>Rapport</strong><br><small>Privacy +
+                                    RGPD</small></span></button>
+                    </div>
                 </div>
             </div>
+        </section>
 
-            <div class="export-section">
-                <div class="export-btns">
-                    <button class="export-btn" id="exportCsv"><span
-                            class="icon">📊</span><span><strong>CSV</strong><br><small>Nettoyé
-                                IA</small></span></button>
-                    <button class="export-btn" id="exportJson"><span
-                            class="icon">🏷️</span><span><strong>JSON</strong><br><small>Tags +
-                                NBA</small></span></button>
-                    <button class="export-btn" id="exportReport"><span
-                            class="icon">📋</span><span><strong>Rapport</strong><br><small>Privacy +
-                                RGPD</small></span></button>
+        <!-- ===== TAB: CLIENTS ===== -->
+        <section id="tab-clients" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>🏷️ Fiches Clients</h2>
+                    <input type="text" class="search-input" id="personSearch"
+                        placeholder="🔍 Rechercher client, tag...">
+                </div>
+                <div class="legend" id="tagLegend"></div>
+                <div class="person-grid" id="personGrid"></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: NBA ===== -->
+        <section id="tab-nba" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>🎯 Next Best Action Engine</h2>
+                    <p class="subtitle">Actions prescriptives générées par IA pour chaque Client Advisor</p>
+                </div>
+                <div class="nba-grid" id="nbaGrid"></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: PRIVACY SCORE ===== -->
+        <section id="tab-privacy" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>🛡️ Privacy Score & Coaching</h2>
+                    <p class="subtitle">Score de conformité par Client Advisor + alertes formation</p>
+                </div>
+                <div class="privacy-overview" id="privacyOverview"></div>
+                <div class="privacy-grid" id="privacyGrid"></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: CROSS-BRAND ===== -->
+        <section id="tab-crossbrand" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>🏛️ Cross-Brand Intelligence</h2>
+                    <p class="subtitle">Profils de Style Universels anonymisés inter-Maisons</p>
+                </div>
+                <div class="crossbrand-profiles" id="crossbrandGrid"></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: FOLLOW-UP ===== -->
+        <section id="tab-followup" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>✉️ One-Click Follow-up</h2>
+                    <p class="subtitle">Brouillons email & WhatsApp personnalisés, ton Maison, prêts en 10 secondes</p>
+                </div>
+                <div class="followup-controls">
+                    <select id="followupHouse" class="select-input">
+                        <option value="Louis Vuitton">Louis Vuitton</option>
+                        <option value="Dior">Dior</option>
+                        <option value="Fendi">Fendi</option>
+                        <option value="Tiffany & Co.">Tiffany & Co.</option>
+                        <option value="Bulgari">Bulgari</option>
+                        <option value="Givenchy">Givenchy</option>
+                        <option value="Celine">Celine</option>
+                        <option value="Loewe">Loewe</option>
+                        <option value="Berluti">Berluti</option>
+                        <option value="Loro Piana">Loro Piana</option>
+                    </select>
+                    <select id="followupChannel" class="select-input">
+                        <option value="email">Email</option>
+                        <option value="whatsapp">WhatsApp</option>
+                    </select>
+                </div>
+                <div class="followup-grid" id="followupGrid"></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: PRODUCT MATCHER ===== -->
+        <section id="tab-products" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>🛍️ Product Matcher</h2>
+                    <p class="subtitle">3 articles du catalogue recommandés par tag détecté — aide à la vente immédiate
+                    </p>
+                </div>
+                <div class="product-grid" id="productGrid"></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: SENTIMENT ===== -->
+        <section id="tab-sentiment" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>😊 Analyse Sentiment & Alertes Rétention</h2>
+                    <p class="subtitle">Détection des frustrations cachées — alertes Store Manager automatiques</p>
+                </div>
+                <div class="sentiment-overview" id="sentimentOverview"></div>
+                <div class="sentiment-alerts" id="sentimentAlerts"></div>
+                <div class="sentiment-grid" id="sentimentGrid"></div>
+            </div>
+        </section>
+
+        <!-- ===== TAB: BOUTIQUE MANAGER ===== -->
+        <section id="tab-boutique" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>🏪 Dashboard Boutique Manager</h2>
+                    <p class="subtitle">Vue synthétique pour piloter la boutique en temps réel</p>
+                </div>
+                <div class="boutique-kpis" id="boutiqueKPIs"></div>
+                <div class="grid-2">
+                    <div class="section-box" id="boutiqueTop5">
+                        <h3>🔥 Top 5 Intérêts de la Semaine</h3>
+                        <div id="boutiqueTopList"></div>
+                    </div>
+                    <div class="section-box" id="boutiqueActions">
+                        <h3>⚡ Actions Prioritaires Manager</h3>
+                        <div id="boutiqueActionsList"></div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="section-box">
+                        <h3>👥 Performance CA</h3>
+                        <div id="boutiqueCAPerfList"></div>
+                    </div>
+                    <div class="section-box">
+                        <h3>📦 Recommandations Stock</h3>
+                        <div id="boutiqueStockList"></div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- ===== TAB: CLIENTS ===== -->
-    <section id="tab-clients" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>🏷️ Fiches Clients</h2>
-                <input type="text" class="search-input" id="personSearch" placeholder="🔍 Rechercher client, tag...">
-            </div>
-            <div class="legend" id="tagLegend"></div>
-            <div class="person-grid" id="personGrid"></div>
-        </div>
-    </section>
-
-    <!-- ===== TAB: NBA ===== -->
-    <section id="tab-nba" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>🎯 Next Best Action Engine</h2>
-                <p class="subtitle">Actions prescriptives générées par IA pour chaque Client Advisor</p>
-            </div>
-            <div class="nba-grid" id="nbaGrid"></div>
-        </div>
-    </section>
-
-    <!-- ===== TAB: PRIVACY SCORE ===== -->
-    <section id="tab-privacy" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>🛡️ Privacy Score & Coaching</h2>
-                <p class="subtitle">Score de conformité par Client Advisor + alertes formation</p>
-            </div>
-            <div class="privacy-overview" id="privacyOverview"></div>
-            <div class="privacy-grid" id="privacyGrid"></div>
-        </div>
-    </section>
-
-    <!-- ===== TAB: CROSS-BRAND ===== -->
-    <section id="tab-crossbrand" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>🏛️ Cross-Brand Intelligence</h2>
-                <p class="subtitle">Profils de Style Universels anonymisés inter-Maisons</p>
-            </div>
-            <div class="crossbrand-profiles" id="crossbrandGrid"></div>
-        </div>
-    </section>
-
-    <!-- ===== TAB: FOLLOW-UP ===== -->
-    <section id="tab-followup" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>✉️ One-Click Follow-up</h2>
-                <p class="subtitle">Brouillons email & WhatsApp personnalisés, ton Maison, prêts en 10 secondes</p>
-            </div>
-            <div class="followup-controls">
-                <select id="followupHouse" class="select-input">
-                    <option value="Louis Vuitton">Louis Vuitton</option>
-                    <option value="Dior">Dior</option>
-                    <option value="Fendi">Fendi</option>
-                    <option value="Tiffany & Co.">Tiffany & Co.</option>
-                    <option value="Bulgari">Bulgari</option>
-                    <option value="Givenchy">Givenchy</option>
-                    <option value="Celine">Celine</option>
-                    <option value="Loewe">Loewe</option>
-                    <option value="Berluti">Berluti</option>
-                    <option value="Loro Piana">Loro Piana</option>
-                </select>
-                <select id="followupChannel" class="select-input">
-                    <option value="email">Email</option>
-                    <option value="whatsapp">WhatsApp</option>
-                </select>
-            </div>
-            <div class="followup-grid" id="followupGrid"></div>
-        </div>
-    </section>
-
-    <!-- ===== TAB: PRODUCT MATCHER ===== -->
-    <section id="tab-products" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>🛍️ Product Matcher</h2>
-                <p class="subtitle">3 articles du catalogue recommandés par tag détecté — aide à la vente immédiate</p>
-            </div>
-            <div class="product-grid" id="productGrid"></div>
-        </div>
-    </section>
-
-    <!-- ===== TAB: SENTIMENT ===== -->
-    <section id="tab-sentiment" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>😊 Analyse Sentiment & Alertes Rétention</h2>
-                <p class="subtitle">Détection des frustrations cachées — alertes Store Manager automatiques</p>
-            </div>
-            <div class="sentiment-overview" id="sentimentOverview"></div>
-            <div class="sentiment-alerts" id="sentimentAlerts"></div>
-            <div class="sentiment-grid" id="sentimentGrid"></div>
-        </div>
-    </section>
-
-    <!-- ===== TAB: BOUTIQUE MANAGER ===== -->
-    <section id="tab-boutique" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>🏪 Dashboard Boutique Manager</h2>
-                <p class="subtitle">Vue synthétique pour piloter la boutique en temps réel</p>
-            </div>
-            <div class="boutique-kpis" id="boutiqueKPIs"></div>
-            <div class="grid-2">
-                <div class="section-box" id="boutiqueTop5">
-                    <h3>🔥 Top 5 Intérêts de la Semaine</h3>
-                    <div id="boutiqueTopList"></div>
+        <!-- ===== TAB: LUXURY PULSE ===== -->
+        <section id="tab-pulse" class="tab-page hidden">
+            <div class="container">
+                <div class="section-header">
+                    <h2>📈 The Luxury Pulse</h2>
+                    <p class="subtitle">Tendances & signaux faibles détectés en temps réel</p>
                 </div>
-                <div class="section-box" id="boutiqueActions">
-                    <h3>⚡ Actions Prioritaires Manager</h3>
-                    <div id="boutiqueActionsList"></div>
-                </div>
+                <div class="pulse-stats" id="pulseStats"></div>
+                <div class="pulse-trends" id="pulseTrends"></div>
+                <div class="pulse-signals" id="pulseSignals"></div>
             </div>
-            <div class="grid-2">
-                <div class="section-box">
-                    <h3>👥 Performance CA</h3>
-                    <div id="boutiqueCAPerfList"></div>
-                </div>
-                <div class="section-box">
-                    <h3>📦 Recommandations Stock</h3>
-                    <div id="boutiqueStockList"></div>
-                </div>
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- ===== TAB: LUXURY PULSE ===== -->
-    <section id="tab-pulse" class="tab-page hidden">
-        <div class="container">
-            <div class="section-header">
-                <h2>📈 The Luxury Pulse</h2>
-                <p class="subtitle">Tendances & signaux faibles détectés en temps réel</p>
-            </div>
-            <div class="pulse-stats" id="pulseStats"></div>
-            <div class="pulse-trends" id="pulseTrends"></div>
-            <div class="pulse-signals" id="pulseSignals"></div>
-        </div>
-    </section>
+        <footer id="mainFooter" class="hidden">◆ LVMH Voice-to-Tag AI Platform — Mistral AI</footer>
 
-    <footer id="mainFooter" class="hidden">◆ LVMH Voice-to-Tag AI Platform — Mistral AI</footer>
-
-    <script src="engine.js"></script>
+        <script src="engine.js"></script>
 </body>
 
 </html>

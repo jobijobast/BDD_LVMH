@@ -13,7 +13,7 @@
 
 <body>
     <!-- ===== BG LINES ===== -->
-    <div class="bg-lines" id="bgLines"></div>
+
 
     <!-- ===== LOGIN PAGE ===== -->
     <div id="loginPage" class="login-page">
@@ -153,10 +153,7 @@
             <!-- PAGE: NBA (vendeur-focused) -->
             <div id="page-nba" class="page hidden">
                 <div class="page-content">
-                    <div class="section-header">
-                        <h2>Next Best Action</h2>
-                        <p class="subtitle">Actions prescriptives generees par IA</p>
-                    </div>
+
                     <div class="nba-grid" id="nbaGrid"></div>
                 </div>
             </div>
@@ -164,10 +161,7 @@
             <!-- PAGE: PRODUCTS -->
             <div id="page-products" class="page hidden">
                 <div class="page-content">
-                    <div class="section-header">
-                        <h2>Product Matcher</h2>
-                        <p class="subtitle">Recommandations produits basees sur les tags clients</p>
-                    </div>
+
                     <div class="product-grid" id="productGrid"></div>
                 </div>
             </div>
@@ -175,10 +169,7 @@
             <!-- PAGE: FOLLOW-UP -->
             <div id="page-followup" class="page hidden">
                 <div class="page-content">
-                    <div class="section-header">
-                        <h2>Follow-up</h2>
-                        <p class="subtitle">Messages de suivi personnalises</p>
-                    </div>
+
                     <div class="followup-controls">
                         <select id="followupHouse" class="select-input">
                             <option value="Louis Vuitton">Louis Vuitton</option>
@@ -554,15 +545,7 @@
                 observer.observe(ligne);
             });
 
-            // Parallax Lines Effect
-            const bgLines = document.getElementById('bgLines');
-            window.addEventListener('scroll', () => {
-                const scrolled = window.pageYOffset;
-                if (bgLines) {
-                    // Move lines slightly slower than scroll to create depth
-                    bgLines.style.transform = `translateY(-${scrolled * 0.2}px)`;
-                }
-            });
+
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

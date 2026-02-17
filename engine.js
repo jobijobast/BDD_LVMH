@@ -90,28 +90,186 @@ const legendColors = { profil: '#60a5fa', interet: '#d4af37', voyage: '#34d399',
 
 // ===== RENDER: DASHBOARD (Manager) =====
 // ===== RENDER: DASHBOARD (Manager - COCKPIT) =====
+// ===== RENDER: DASHBOARD (Prestige Layout) =====
+// ===== RENDER: DASHBOARD (Prestige 3D Edition) =====
+// ===== RENDER: DASHBOARD (Prestige 3D Edition) =====
 function renderDashboard() {
-    console.log("Rendering Cockpit Dashboard...");
+    console.log("Rendering Prestige 3D Dashboard...");
+    const dashboardTab = document.getElementById('tab-dashboard');
+    if (!dashboardTab) return;
 
-    // 1. Mini KPIs (Sparklines)
-    renderSparkline('spark1', [10, 15, 12, 18, 20, 15, 22, 25, 20, 28], '#10b981'); // Clients
-    renderSparkline('spark3', [40, 35, 30, 32, 28, 25, 20, 18, 15, 12], '#ef4444'); // Tags (down)
-    renderSparkline('spark4', [10, 10, 12, 12, 15, 15, 18, 18, 20, 20], '#aaa');    // NBA
+    // Prestige 3D HTML Structure with Data Containers
+    dashboardTab.innerHTML = `
+        <div class="header">
+            <div class="header-title">
+                <h1>Tableau de Bord</h1>
+                <p>Bienvenue, Bruno. Aperçu global de la performance.</p>
+            </div>
+            <div class="header-meta">
+                <span class="store-selector">LV Champs-Élysées</span>
+                <p class="date">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</p>
+            </div>
+        </div>
 
-    // 2. Main Graph
-    renderCockpitMain();
+        <div class="dashboard-grid">
+            <div class="card kpi">
+                <div class="kpi-header"><span class="kpi-title">Revenu Journalier</span><span class="kpi-trend up"><i class="fas fa-arrow-up"></i> +8.5%</span></div>
+                <div class="kpi-value">€145,200</div>
+                <div id="spark1" style="height: 40px; margin-top: 10px;"></div>
+            </div>
+            <div class="card kpi">
+                <div class="kpi-header"><span class="kpi-title">Clients VIP Actifs</span><span class="kpi-trend up"><i class="fas fa-arrow-up"></i> +12</span></div>
+                <div class="kpi-value">842</div>
+                <div id="spark2" style="height: 40px; margin-top: 10px;"></div>
+            </div>
+            <div class="card kpi">
+                <div class="kpi-header"><span class="kpi-title">Taux de Conversion</span><span class="kpi-trend down"><i class="fas fa-arrow-down"></i> -1.2%</span></div>
+                <div class="kpi-value">24.5%</div>
+                <div id="spark3" style="height: 40px; margin-top: 10px;"></div>
+            </div>
+        </div>
 
-    // 3. Calendar
-    renderCalendar();
+        <!-- Main Visual & Data Row -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <div class="card" style="padding: 0; overflow: hidden; min-height: 400px;">
+                <div class="card-header" style="margin: 30px 30px 0 30px; border-bottom: none;">
+                    <h3>Modélisation & Performance</h3>
+                    <span style="font-size: 12px; color: var(--primary-gold);"><i class="fas fa-mouse-pointer"></i> Interactif</span>
+                </div>
+                <div id="canvas-container" class="chart-container" style="height: 350px;">
+                    <div class="three-overlay">
+                        <h4>Objet de Collection</h4>
+                        <p>Chargement de la 3D...</p>
+                    </div>
+                </div>
+            </div>
 
-    // 4. Donuts & Radar
-    renderPrivacyDonut();
-    renderRadar();
-    renderTagsCockpit();
+            <div style="display: flex; flex-direction: column; gap: 30px;">
+                <div class="card">
+                    <div class="card-header"><h3>Confidentialité & RGPD</h3></div>
+                    <div id="cockpitPrivacyDonut" style="height: 160px; display: flex; justify-content: center; align-items: center;"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Radar Client</h3></div>
+                    <div id="cockpitRadar" style="height: 160px; display: flex; justify-content: center; align-items: center;"></div>
+                </div>
+            </div>
+        </div>
 
-    // 5. Wire Buttons
-    const settingsBtn = document.querySelector('.settings-btn');
-    if (settingsBtn) settingsBtn.onclick = () => alert('Paramètres du cockpit');
+        <div class="bottom-grid">
+            <div class="card">
+                <div class="card-header"><h3>Calendrier & Agenda</h3></div>
+                <div id="cockpitCalendar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; margin-top: 15px;"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h3>Tags Tendance</h3></div>
+                <div id="cockpitTags" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+    `;
+
+    // Initialize Widgets
+    setTimeout(() => {
+        // 1. 3D Scene
+        init3DScene();
+
+        // 2. Sparklines (KPIs)
+        renderSparkline('spark1', [10, 15, 12, 18, 20, 15, 22, 25, 20, 28], '#c8a165'); // Gold
+        renderSparkline('spark2', [40, 35, 30, 32, 28, 25, 20, 18, 15, 12], '#c8a165');
+        renderSparkline('spark3', [10, 10, 12, 12, 15, 15, 18, 18, 20, 20], '#ef4444'); // Red for down
+
+        // 3. Data Widgets
+        renderPrivacyDonut();
+        renderRadar();
+        renderTagsCockpit();
+        renderCalendar();
+    }, 100);
+}
+
+function init3DScene() {
+    if (typeof THREE === 'undefined') {
+        console.warn('Three.js not loaded');
+        return;
+    }
+
+    const container = document.getElementById('canvas-container');
+    if (!container) return;
+
+    // Clear previous scene if any (rudimentary cleanup)
+    container.innerHTML = `<div class="three-overlay"><h4>Objet de Collection</h4><p>Mouvement : Cliquez & Glissez pour pivoter</p></div>`;
+
+    const scene = new THREE.Scene();
+
+    // Camera
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.z = 35;
+
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    // Object: TorusKnot (Gold)
+    const geometry = new THREE.TorusKnotGeometry(8, 2.2, 250, 40);
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xc8a165, // LVMH Gold
+        metalness: 0.8,
+        roughness: 0.2,
+    });
+    const torusKnot = new THREE.Mesh(geometry, material);
+    scene.add(torusKnot);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const light1 = new THREE.DirectionalLight(0xffffff, 1.5);
+    light1.position.set(10, 20, 15);
+    scene.add(light1);
+
+    const light2 = new THREE.PointLight(0xc8a165, 2, 50);
+    light2.position.set(-10, -10, 10);
+    scene.add(light2);
+
+    // Interaction
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    container.addEventListener('mousedown', () => isDragging = true);
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    container.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            const deltaMove = {
+                x: e.offsetX - previousMousePosition.x,
+                y: e.offsetY - previousMousePosition.y
+            };
+            torusKnot.rotation.y += deltaMove.x * 0.01;
+            torusKnot.rotation.x += deltaMove.y * 0.01;
+        }
+        previousMousePosition = { x: e.offsetX, y: e.offsetY };
+    });
+
+    // Animate
+    const animate = function () {
+        requestAnimationFrame(animate);
+        if (!isDragging) {
+            torusKnot.rotation.y += 0.003;
+            torusKnot.rotation.x += 0.001;
+        }
+        renderer.render(scene, camera);
+    };
+    animate();
+
+    // Resize
+    window.addEventListener('resize', () => {
+        if (!container) return;
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
 }
 
 // --- COCKPIT WIDGETS ---
@@ -217,7 +375,11 @@ function renderCalendar() {
         if (d === 20 || d === 25) cls += ' active'; // Event days
 
         let content = d > 0 && d <= 28 ? d : '';
-        html += `<div class="${cls}">${content}</div>`;
+        // Styling handled by CSS classes or inline here for dark mode visibility
+        let style = "color: #ddd;";
+        if (cls.includes('today')) style = "color: #c8a165; font-weight:bold;";
+
+        html += `<div class="${cls}" style="${style}">${content}</div>`;
     }
     el.innerHTML = html;
 }
@@ -244,13 +406,13 @@ function renderRadar() {
     let web = '';
     [0.5, 1].forEach(scale => {
         const webPoints = Array.from({ length: axes }).map((_, i) => getPoint(scale, i).join(',')).join(' ');
-        web += `<polygon points="${webPoints}" fill="none" stroke="#333" stroke-width="1"/>`;
+        web += `<polygon points="${webPoints}" fill="none" stroke="#555" stroke-width="1"/>`;
     });
 
     el.innerHTML = `
         <svg viewBox="0 0 100 100" style="width:80%;height:80%">
             ${web}
-            <polygon points="${points}" fill="rgba(212, 175, 55, 0.4)" stroke="#D4AF37" stroke-width="2"/>
+            <polygon points="${points}" fill="rgba(200, 161, 101, 0.3)" stroke="#c8a165" stroke-width="2"/>
         </svg>
     `;
 }
@@ -265,8 +427,8 @@ function renderPrivacyDonut() {
 
     el.innerHTML = `
         <svg viewBox="0 0 100 100" style="width:80%;height:80%">
-            <circle cx="50" cy="50" r="${r}" fill="none" stroke="#222" stroke-width="10"/>
-            <circle cx="50" cy="50" r="${r}" fill="none" stroke="#10b981" stroke-width="10" 
+            <circle cx="50" cy="50" r="${r}" fill="none" stroke="#444" stroke-width="10"/>
+            <circle cx="50" cy="50" r="${r}" fill="none" stroke="#c8a165" stroke-width="10" 
                 stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 50 50)" stroke-linecap="round"/>
             <text x="50" y="55" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">${val}%</text>
         </svg>
@@ -336,7 +498,7 @@ function renderGrid(filter) {
         }
 
         if (p.nba && p.nba.length > 0) {
-            html += `<div class="tag-section"><div class="tag-section-title">Next Best Action</div><div class="tag-row">${p.nba.slice(0, 2).map(a => `<span class="tag nba">🎯 ${a.action.substring(0, 50)}...</span>`).join('')}</div></div>`;
+            html += `<div class="tag-section"><div class="tag-section-title">Next Best Action</div><div class="tag-row">${p.nba.slice(0, 2).map(a => `<span class="tag nba">${a.action}</span>`).join('')}</div></div>`;
         }
 
         const card = document.createElement('div');
@@ -362,12 +524,19 @@ function renderNBA() {
     const typeClasses = { immediate: 'immediate', short_term: 'shortterm', long_term: 'longterm' };
 
     withNBA.forEach(p => {
-        let html = `<div class="nba-card-header"><span class="nba-client-id">${p.ca || p.id}</span><div class="person-meta"><span>${p.tags.length} tags</span><span>${p.lang}</span></div></div>`;
-        html += `<div class="nba-context">${p.tags.map(t => t.t).join(' · ')}</div>`;
+        // Safety check for tags
+        const tags = Array.isArray(p.tags) ? p.tags : [];
+        const nbaList = Array.isArray(p.nba) ? p.nba : [];
+        if (nbaList.length === 0) return;
+
+        let html = `<div class="nba-card-header"><span class="nba-client-id">${p.ca || p.id}</span><div class="person-meta"><span>${tags.length} tags</span><span>${p.lang}</span></div></div>`;
+        html += `<div class="nba-context">${tags.map(t => t.t).join(' · ')}</div>`;
         html += '<div class="nba-actions">';
-        p.nba.forEach((a, i) => {
+        nbaList.forEach((a, i) => {
             const cls = typeClasses[a.type] || 'shortterm';
-            html += `<div class="nba-action"><div class="nba-action-num">${i + 1}</div><div><div class="nba-action-text">${a.action}</div><span class="nba-action-type ${cls}">${typeLabels[a.type] || a.type}</span></div></div>`;
+            const actionText = a.action || 'Action non définie';
+            const actionType = a.type || 'short_term';
+            html += `<div class="nba-action"><div class="nba-action-num">${i + 1}</div><div><div class="nba-action-text">${actionText}</div><span class="nba-action-type ${cls}">${typeLabels[actionType] || actionType}</span></div></div>`;
         });
         html += '</div>';
 
@@ -686,13 +855,14 @@ function matchProductsToClient(clientTags, clientText) {
             const keywords = matchingRules[tagLabel] || [];
 
             // Match keywords in product text
-            keywords.forEach(keyword => {
+            // Match keywords in product text
+            for (const keyword of keywords) {
                 if (productText.includes(keyword)) {
                     score += 15;
                     matched = true;
                     break;
                 }
-            });
+            }
 
             // Direct tag matching in product text
             const tagWords = tagLabel.toLowerCase().replace(/_/g, ' ').split(' ');
@@ -860,38 +1030,22 @@ async function renderProducts() {
                 ${top3.map(match => {
             const prod = match.product;
 
-            // Find the best product image (not generic banners)
-            let imageUrl = '';
-            if (prod.image_urls && prod.image_urls.length > 0) {
-                // Try to find image with SKU in URL (most specific)
-                const skuImage = prod.image_urls.find(url =>
-                    prod.sku && url.toLowerCase().includes(prod.sku.toLowerCase())
-                );
+            // Find the best product image
+            // JSON structure has 'imageurl' as a string, not 'image_urls' array
+            let imageUrl = prod.imageurl || '';
 
-                if (skuImage) {
-                    imageUrl = skuImage;
-                } else {
-                    // Filter out generic banners and take first specific image
-                    const specificImages = prod.image_urls.filter(url => {
-                        const urlLower = url.toLowerCase();
-                        // Exclude generic marketing images
-                        return !urlLower.includes('_mm_') &&
-                            !urlLower.includes('_lg_') &&
-                            !urlLower.includes('gifts') &&
-                            !urlLower.includes('perso') &&
-                            !urlLower.includes('new_for') &&
-                            !urlLower.includes('show') &&
-                            !urlLower.includes('pushat') &&
-                            !urlLower.includes('bc_') &&
-                            (urlLower.includes('/pp_vp_l/') || urlLower.includes('/lv/'));
-                    });
+            // If imageurl is a string, use it directly. 
+            // Fallback to placeholder if empty or 'undefined' string
+            if (imageUrl === 'undefined' || imageUrl === 'null') imageUrl = '';
 
-                    imageUrl = specificImages.length > 0 ? specificImages[0] : prod.image_urls[0];
-                }
-            }
-
-            const price = prod.price || 'Prix sur demande';
+            const priceVal = prod.price_eur || prod.price;
+            const price = priceVal ? (priceVal + ' €') : 'Prix sur demande';
             const matchTags = match.matchReasons.join(', ');
+
+            // Fix ReferenceErrors: use prod properties instead of undefined variables
+            const pName = prod.title || prod.name || 'Produit sans nom';
+            const pCat = prod.category2_code || prod.category || '';
+            const pUrl = prod.itemurl || prod.url || '';
 
             return `
                         <div class="product-item">
@@ -899,13 +1053,13 @@ async function renderProducts() {
                                 ${imageUrl ? '' : '🛍️'}
                             </div>
                             <div class="product-item-info">
-                                <div class="product-item-name">${productName}</div>
-                                <div class="product-item-desc">${productCategory}</div>
+                                <div class="product-item-name">${pName}</div>
+                                <div class="product-item-desc">${pCat}</div>
                                 <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
                                     <span class="product-item-price">${price}</span>
                                     <span class="product-item-match" title="Match: ${matchTags}">Match: ${matchTags}</span>
                                 </div>
-                                ${productUrl ? `<a href="${productUrl}" target="_blank" style="font-size:.7rem;color:#d4af37;margin-top:4px;display:inline-block">Voir sur LV →</a>` : ''}
+                                ${pUrl ? `<a href="${pUrl}" target="_blank" style="font-size:.7rem;color:#d4af37;margin-top:4px;display:inline-block">Voir sur LV →</a>` : ''}
                             </div>
                         </div>
                     `;

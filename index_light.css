@@ -6,10 +6,35 @@
 }
 
 body {
-    font-family: 'Inter', sans-serif;
-    background: #f8f9fa;
-    color: #1a1a1a;
-    min-height: 100vh
+    background-color: var(--dark-bg);
+    color: var(--text-light);
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    /* Animated Pattern */
+    background-image: url('pattern.png');
+    background-size: 600px;
+    background-repeat: repeat;
+    animation: backgroundScroll 120s linear infinite;
+    min-height: 100vh;
+    display: flex;
+}
+
+/* Sidebar layout */
+
+.sidebar-nav {
+    width: 260px;
+    background: #fff;
+    border-right: 1px solid #e5e7eb;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0;
 }
 
 .hidden {
@@ -23,18 +48,26 @@ body {
 }
 
 /* ===== NAV ===== */
-.nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 30px;
-    border-bottom: 1px solid #e5e7eb;
-    background: #ffffff;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(10px)
-}
+/* ===== NAV (RADIO SIDEBAR in Light Mode?) ===== */
+/* Actually, the sidebar is not present in index_light.html in the same way? 
+   Wait, index_light.html has a top nav bar: <div class="nav">...</div>
+   It does NOT seem to have a sidebar like index.html.
+   Let me double check index.html vs index_light.html.
+   
+   If index_light.html uses a TOP NAV, this sidebar change might not be relevant for it?
+   Or maybe the user wants to ADD a sidebar?
+   The user request was "redonne moi le lien du locoast sans problemes" then "remove border" then "change sidebar".
+   
+   If I look at index_light.html content viewed earlier:
+   Lines 25-76: Nav Brand, Nav Tabs (.nav-tab).
+   Line 512: Mobile Bottom Nav.
+   It does NOT seem to have a `.sidebar` or `#sidebarNav`.
+   
+   However, `app.js` is shared.
+   `app.js` `buildSidebar` targets `sidebarNav`.
+   Does `index_light.html` have `sidebarNav`?
+   Let's check `index_light.html`.
+*/
 
 .nav-brand {
     font-size: 1.1rem;
@@ -109,9 +142,48 @@ h1 span {
     transition: all .3s
 }
 
-.upload-area:hover {
+/* ===== SIDEBAR FOOTER ===== */
+.sidebar-footer {
+    margin-top: auto;
+    padding: 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    background: transparent;
+}
+
+.sidebar-user {
+    margin-bottom: 12px;
+}
+
+.sidebar-user-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1a1a1a;
+}
+
+.sidebar-user-role {
+    font-size: 0.75rem;
+    color: #d4af37;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-logout {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #666;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sidebar-logout:hover {
     border-color: #d4af37;
-    background: rgba(212, 175, 55, .04)
+    color: #d4af37;
+    background: rgba(212, 175, 55, 0.05);
+}
 }
 
 .upload-icon {
@@ -538,9 +610,11 @@ h1 span {
 }
 
 .tag.nba {
-    background: rgba(212, 175, 55, .15);
+    background: transparent;
     color: #d4af37;
-    border: 1px solid rgba(212, 175, 55, .3)
+    border: none;
+    padding: 0;
+    border-radius: 0;
 }
 
 .no-tags {
@@ -1806,4 +1880,15 @@ footer {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #4b5563
+}
+
+/* Animated Background Keyframes */
+@keyframes backgroundScroll {
+    from {
+        background-position: 0 0;
+    }
+
+    to {
+        background-position: 600px 600px;
+    }
 }
