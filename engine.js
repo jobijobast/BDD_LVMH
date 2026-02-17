@@ -7,22 +7,73 @@
 // ===== LOUIS VUITTON PRODUCT DATABASE =====
 let LV_PRODUCTS = [];
 let PRODUCTS_LOADED = false;
+let PRODUCTS_INDEX = null; // Index optimisé pour recherche rapide
+let MATCH_CACHE = new Map(); // Cache des résultats de matching
 
 // Load LV products from JSON file
 async function loadLVProducts() {
     if (PRODUCTS_LOADED) return;
 
     try {
-        const response = await fetch('louis_vuitton_femme_et_homme copie.json');
+        const response = await fetch('louis_vuitton_products.json');
         if (!response.ok) throw new Error('Failed to load product database');
 
         LV_PRODUCTS = await response.json();
+
+        // Créer un index pour accélérer les recherches
+        PRODUCTS_INDEX = buildProductIndex(LV_PRODUCTS);
+
         PRODUCTS_LOADED = true;
-        console.log(`✅ Loaded ${LV_PRODUCTS.length} Louis Vuitton products`);
+        console.log(`✅ Loaded ${LV_PRODUCTS.length} Louis Vuitton products from Hugging Face dataset`);
+        console.log(`✅ Product index built with ${Object.keys(PRODUCTS_INDEX.byCategory).length} categories`);
     } catch (error) {
         console.error('❌ Error loading LV products:', error);
         LV_PRODUCTS = [];
     }
+}
+
+// Construire un index pour recherche rapide
+function buildProductIndex(products) {
+    const index = {
+        byCategory: {},
+        byGender: { femme: [], homme: [], unisex: [] },
+        byPriceRange: { low: [], mid: [], high: [], luxury: [] },
+        searchTerms: {}
+    };
+
+    products.forEach((product, idx) => {
+        const cat1 = (product.category1_code || '').toLowerCase();
+        const cat2 = (product.category2_code || '').toLowerCase();
+        const title = (product.title || '').toLowerCase();
+        const price = product.price_eur || 0;
+
+        // Index par catégorie
+        if (!index.byCategory[cat1]) index.byCategory[cat1] = [];
+        index.byCategory[cat1].push(idx);
+
+        if (!index.byCategory[cat2]) index.byCategory[cat2] = [];
+        index.byCategory[cat2].push(idx);
+
+        // Index par genre
+        if (cat1.includes('femme')) index.byGender.femme.push(idx);
+        else if (cat1.includes('homme')) index.byGender.homme.push(idx);
+        else index.byGender.unisex.push(idx);
+
+        // Index par gamme de prix
+        if (price < 500) index.byPriceRange.low.push(idx);
+        else if (price < 2000) index.byPriceRange.mid.push(idx);
+        else if (price < 10000) index.byPriceRange.high.push(idx);
+        else index.byPriceRange.luxury.push(idx);
+
+        // Index des termes de recherche (mots clés du titre)
+        const words = title.split(/\s+/).filter(w => w.length > 3);
+        words.forEach(word => {
+            if (!index.searchTerms[word]) index.searchTerms[word] = [];
+            index.searchTerms[word].push(idx);
+        });
+    });
+
+    return index;
 }
 
 // Initialize product loading on page load
@@ -637,10 +688,9 @@ function matchProductsToClient(clientTags, clientText) {
             // Match keywords in product text
             keywords.forEach(keyword => {
                 if (productText.includes(keyword)) {
-                    score += 12;
-                    if (!matchReasons.includes(tagLabel)) {
-                        matchReasons.push(tagLabel);
-                    }
+                    score += 15;
+                    matched = true;
+                    break;
                 }
             });
 
@@ -733,12 +783,9 @@ function matchProductsToClient(clientTags, clientText) {
 
         // 4. GENDER PREFERENCE (lower weight - not the main criteria)
         if (profil.includes('Femme') && productCategory.includes('femme')) {
-            score += 10;
-            matchReasons.push('Femme');
-        }
-        if (profil.includes('Homme') && productCategory.includes('homme')) {
-            score += 10;
-            matchReasons.push('Homme');
+            score += 15;
+        } else if (profil.includes('Homme') && productCategory.includes('homme')) {
+            score += 15;
         }
 
         // 5. BONUS FOR ICONIC PRODUCTS
@@ -788,7 +835,9 @@ async function renderProducts() {
         return;
     }
 
+    grid.innerHTML = ''; // Effacer le spinner
     let totalMatches = 0;
+    let cardsRendered = 0;
 
     withTags.forEach(p => {
         const matches = matchProductsToClient(p.tags, p.clean);
@@ -850,13 +899,13 @@ async function renderProducts() {
                                 ${imageUrl ? '' : '🛍️'}
                             </div>
                             <div class="product-item-info">
-                                <div class="product-item-name">${prod.name}</div>
-                                <div class="product-item-desc">${prod.description || prod.category}</div>
+                                <div class="product-item-name">${productName}</div>
+                                <div class="product-item-desc">${productCategory}</div>
                                 <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
                                     <span class="product-item-price">${price}</span>
                                     <span class="product-item-match" title="Match: ${matchTags}">Match: ${matchTags}</span>
                                 </div>
-                                ${prod.url ? `<a href="${prod.url}" target="_blank" style="font-size:.7rem;color:#d4af37;margin-top:4px;display:inline-block">Voir sur LV →</a>` : ''}
+                                ${productUrl ? `<a href="${productUrl}" target="_blank" style="font-size:.7rem;color:#d4af37;margin-top:4px;display:inline-block">Voir sur LV →</a>` : ''}
                             </div>
                         </div>
                     `;

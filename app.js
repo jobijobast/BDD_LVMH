@@ -6,7 +6,10 @@
 // ===== CONFIG =====
 const SUPABASE_URL = 'https://vgkklymckkwrcpjrnzhr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZna2tseW1ja2t3cmNwanJuemhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MDY2ODMsImV4cCI6MjA4NjM4MjY4M30.xSXtpyfaPSVkqVFDN8lDV-rzgQVgOWbVgdi5GfXmPkI';
-const API_BASE = '';  // Same origin (Flask serves everything)
+// Backend API : si l'app est servie sur le port 8000 (serveur statique), appeler le Flask sur 5001
+const API_BASE = (typeof window !== 'undefined' && (window.location.port === '8000' || (window.location.port === '' && !window.location.hostname.includes('5001'))))
+    ? 'http://localhost:5001'
+    : '';
 
 // ===== SUPABASE CLIENT =====
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -651,49 +654,63 @@ function setupCSVImport() {
 }
 
 async function processCSVImport(file) {
+    if (!currentUser) {
+        showToast('Vous devez être connecté pour importer un CSV.', 'error');
+        return;
+    }
+
     showLoading('Import en cours...');
     updateLoading('Envoi et traitement (nettoyage IA, tags, NBA, privacy, sentiment)...', 0, 1);
 
     try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('seller_id', currentUser.id);
-        formData.append('boutique_id', currentUser.boutique.id);
+        if (currentUser.id) formData.append('seller_id', String(currentUser.id));
+        if (currentUser.boutique && currentUser.boutique.id) formData.append('boutique_id', String(currentUser.boutique.id));
 
-        const resp = await fetch(API_BASE + '/api/process', {
+        const url = (API_BASE || '') + '/api/process';
+        const resp = await fetch(url, {
             method: 'POST',
             body: formData
         });
 
+        const result = await resp.json().catch(() => ({}));
         if (!resp.ok) {
-            const err = await resp.json().catch(() => ({ error: 'Erreur serveur ' + resp.status }));
-            throw new Error(err.error || 'Erreur serveur');
+            const msg = result.error || result.message || 'Erreur serveur ' + resp.status;
+            throw new Error(msg);
         }
 
-        const result = await resp.json();
+        if (!result.data || !Array.isArray(result.data)) {
+            throw new Error('Réponse serveur invalide (données manquantes).');
+        }
+
         populateStateFromPipeline(result);
 
         hideLoading();
-        showToast(`Import reussi: ${result.data.length} clients traites`, 'success');
+        showToast(`Import réussi : ${result.data.length} client(s) traité(s)`, 'success');
 
-        // Show result
         const resultDiv = $('importResult');
         const summary = $('importSummary');
         if (resultDiv && summary) {
             resultDiv.classList.remove('hidden');
+            const stats = result.stats || {};
             summary.innerHTML = `
                 <div class="stats-row" style="grid-template-columns:repeat(4,1fr)">
-                    <div class="stat-card"><div><div class="stat-value">${result.stats.clients}</div><div class="stat-label">Clients</div></div></div>
-                    <div class="stat-card accent"><div><div class="stat-value">${result.stats.tags}</div><div class="stat-label">Tags</div></div></div>
-                    <div class="stat-card green"><div><div class="stat-value">${result.stats.nba}</div><div class="stat-label">Actions NBA</div></div></div>
-                    <div class="stat-card red"><div><div class="stat-value">${result.stats.rgpd}</div><div class="stat-label">RGPD masques</div></div></div>
+                    <div class="stat-card"><div><div class="stat-value">${stats.clients ?? result.data.length}</div><div class="stat-label">Clients</div></div></div>
+                    <div class="stat-card accent"><div><div class="stat-value">${stats.tags ?? 0}</div><div class="stat-label">Tags</div></div></div>
+                    <div class="stat-card green"><div><div class="stat-value">${stats.nba ?? 0}</div><div class="stat-label">Actions NBA</div></div></div>
+                    <div class="stat-card red"><div><div class="stat-value">${stats.rgpd ?? 0}</div><div class="stat-label">RGPD masques</div></div></div>
                 </div>
             `;
         }
     } catch (err) {
         hideLoading();
-        showToast('Erreur import: ' + err.message, 'error');
-        console.error(err);
+        const msg = err.message || 'Erreur inconnue';
+        showToast('Erreur import : ' + msg, 'error');
+        console.error('CSV import error:', err);
+        if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
+            showToast('Vérifiez que le serveur backend (port 5001) est démarré.', 'error');
+        }
     }
 }
 

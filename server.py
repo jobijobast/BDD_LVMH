@@ -485,21 +485,81 @@ def compute_privacy_scores(data: list) -> tuple:
 # ───────────────────────────────────────────
 # CSV PARSER
 # ───────────────────────────────────────────
+# Mapping des en-têtes courants (FR/EN) vers les clés attendues par le pipeline
+CSV_HEADER_ALIASES = {
+    "transcription": "Transcription",
+    "texte": "Transcription",
+    "text": "Transcription",
+    "commentaire": "Transcription",
+    "notes": "Transcription",
+    "id": "ID",
+    "id client": "ID",
+    "client id": "ID",
+    "date": "Date",
+    "langue": "Language",
+    "language": "Language",
+    "lang": "Language",
+    "ca": "CA",
+    "conseiller": "CA",
+    "advisor": "CA",
+    "conseiller client": "CA",
+    "store": "Store",
+    "boutique": "Store",
+    "magasin": "Store",
+}
+
+
+def _normalize_header(h: str) -> str:
+    h = h.strip().strip('"').strip()
+    key = h.lower()
+    return CSV_HEADER_ALIASES.get(key, h)
+
+
 def parse_csv(text: str) -> list:
-    lines = text.strip().split("\n")
-    headers = [h.strip().strip('"') for h in lines[0].split(",")]
+    # Retirer BOM UTF-8 si présent
+    if text.startswith("\ufeff"):
+        text = text[1:]
+    lines = [ln.rstrip("\r") for ln in text.strip().split("\n") if ln.strip()]
+    if not lines:
+        return []
+    raw_headers = [h.strip().strip('"') for h in lines[0].split(",")]
+    headers = [_normalize_header(h) for h in raw_headers]
+    # S'assurer qu'il y a au moins une colonne de transcription
+    if "Transcription" not in headers:
+        for i, h in enumerate(raw_headers):
+            if h and _normalize_header(h) == "Transcription":
+                break
+        else:
+            # Chercher une colonne contenant "transcription" ou "texte"
+            for i, h in enumerate(raw_headers):
+                low = h.lower()
+                if "transcription" in low or "texte" in low or "text" in low or "commentaire" in low or "notes" in low:
+                    headers[i] = "Transcription"
+                    break
     rows = []
     for line in lines[1:]:
         if not line.strip():
             continue
         vals, curr, in_q = [], "", False
         for ch in line:
-            if ch == '"': in_q = not in_q
-            elif ch == ',' and not in_q: vals.append(curr.strip()); curr = ""
-            else: curr += ch
+            if ch == '"':
+                in_q = not in_q
+            elif ch == "," and not in_q:
+                vals.append(curr.strip())
+                curr = ""
+            else:
+                curr += ch
         vals.append(curr.strip())
-        if len(vals) >= len(headers):
-            row = {headers[j]: (vals[j] if j < len(vals) else "") for j in range(len(headers))}
+        if len(vals) < len(headers):
+            vals.extend([""] * (len(headers) - len(vals)))
+        row = {headers[j]: (vals[j] if j < len(vals) else "") for j in range(len(headers))}
+        # Au moins une transcription non vide
+        trans = (row.get("Transcription") or "").strip()
+        if trans:
+            if "ID" not in row or not str(row.get("ID", "")).strip():
+                row["ID"] = f"CSV-{len(rows) + 1}"
+            if "Date" not in row or not str(row.get("Date", "")).strip():
+                row["Date"] = time.strftime("%Y-%m-%d")
             rows.append(row)
     return rows
 
@@ -670,13 +730,20 @@ def api_process():
     seller_id = None
     boutique_id = None
 
-    if request.content_type and "multipart" in request.content_type:
+    if request.content_type and "multipart" in request.content_type.lower():
         f = request.files.get("file")
         if not f:
-            return jsonify({"error": "No file provided"}), 400
-        csv_text = f.read().decode("utf-8")
-        seller_id = request.form.get("seller_id")
-        boutique_id = request.form.get("boutique_id")
+            return jsonify({"error": "Aucun fichier fourni. Utilisez le champ 'file' pour le CSV."}), 400
+        try:
+            raw = f.read()
+            csv_text = raw.decode("utf-8-sig")  # utf-8-sig enlève le BOM
+        except UnicodeDecodeError:
+            try:
+                csv_text = raw.decode("latin-1")
+            except Exception:
+                return jsonify({"error": "Encodage du fichier non reconnu. Utilisez UTF-8."}), 400
+        seller_id = request.form.get("seller_id") or None
+        boutique_id = request.form.get("boutique_id") or None
     else:
         body = request.get_json(silent=True)
         if body and "csv" in body:
@@ -684,12 +751,14 @@ def api_process():
             seller_id = body.get("seller_id")
             boutique_id = body.get("boutique_id")
 
-    if not csv_text:
-        return jsonify({"error": "No CSV data provided"}), 400
+    if not csv_text or not csv_text.strip():
+        return jsonify({"error": "Aucune donnée CSV fournie."}), 400
 
     rows = parse_csv(csv_text)
     if not rows:
-        return jsonify({"error": "CSV empty or could not be parsed"}), 400
+        return jsonify({
+            "error": "CSV vide ou format non reconnu. Le fichier doit contenir une ligne d'en-têtes avec au moins une colonne 'Transcription' (ou Texte, Commentaire, Notes), puis des lignes de données."
+        }), 400
 
     result = asyncio.run(run_pipeline(rows, seller_id=seller_id, boutique_id=boutique_id))
     return jsonify(result)
