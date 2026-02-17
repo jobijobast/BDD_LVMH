@@ -48,6 +48,19 @@ const MANAGER_NAV = [
     { id: 'm-team', icon: '👥', label: 'Equipe', page: 'page-m-team', title: 'Gestion Equipe' },
 ];
 
+function isBrunoLopes() {
+    if (!currentUser) return false;
+    const fn = (currentUser.first_name || '').trim().toLowerCase();
+    const ln = (currentUser.last_name || '').trim().toLowerCase();
+    return fn === 'bruno' && ln === 'lopes';
+}
+
+function getNavItems() {
+    const base = (currentUser.role || '').toLowerCase() === 'manager' ? MANAGER_NAV : VENDEUR_NAV;
+    if (!isBrunoLopes()) return base;
+    return [...base, { id: 'sep-admin', sep: true }, { id: 'admin', icon: '⚙️', label: 'Admin', page: 'page-admin', title: 'Supprimer les donnees' }];
+}
+
 // ===== TOAST NOTIFICATIONS =====
 function showToast(message, type = 'info') {
     const c = $('toastContainer');
@@ -129,8 +142,7 @@ let currentPage = null;
 function buildSidebar() {
     const nav = $('sidebarNav');
     const mobileNav = $('mobileNav');
-    const isManager = (currentUser.role || '').toLowerCase() === 'manager';
-    const items = isManager ? MANAGER_NAV : VENDEUR_NAV;
+    const items = getNavItems();
 
     // Build sidebar HTML in one go (avoids innerHTML += which destroys event handlers)
     let sidebarHTML = '';
@@ -167,7 +179,7 @@ function buildSidebar() {
 }
 
 function navigateTo(navId) {
-    const items = (currentUser.role || '').toLowerCase() === 'manager' ? MANAGER_NAV : VENDEUR_NAV;
+    const items = getNavItems();
     const item = items.find(i => i.id === navId);
     
     if (!item || item.sep) return;
@@ -257,6 +269,9 @@ function renderPage(navId) {
             case 'm-team': 
                 renderTeam(); 
                 break;
+            case 'admin': 
+                renderAdmin(); 
+                break;
             default:
                 console.warn('Unknown page:', navId);
         }
@@ -282,23 +297,50 @@ async function loadClientsFromDB() {
         if (error) throw error;
 
         // Transform DB rows to the format rendering functions expect
-        DATA = (clients || []).map(c => ({
-            id: c.external_id || c.id,
-            date: c.date || '',
-            lang: c.language || 'FR',
-            ca: c.client_name || '',
-            store: c.store || '',
-            orig: c.original_text || '',
-            clean: c.cleaned_text || '',
-            tags: Array.isArray(c.tags) ? c.tags : [],
-            nba: Array.isArray(c.nba) ? c.nba : [],
-            sentiment: c.sentiment || {},
-            sensitiveCount: c.sensitive_count || 0,
-            sensitiveFound: Array.isArray(c.sensitive_found) ? c.sensitive_found : [],
-            rgpdMasked: c.rgpd_masked || 0,
-            _dbId: c.id,
-            _sellerId: c.seller_id,
-        }));
+        DATA = (clients || []).map(c => {
+            // Parse JSON fields if they are strings
+            let tags = c.tags;
+            if (typeof tags === 'string') {
+                try { tags = JSON.parse(tags); } catch(e) { tags = []; }
+            }
+            if (!Array.isArray(tags)) tags = [];
+            
+            let nba = c.nba;
+            if (typeof nba === 'string') {
+                try { nba = JSON.parse(nba); } catch(e) { nba = []; }
+            }
+            if (!Array.isArray(nba)) nba = [];
+            
+            let sentiment = c.sentiment;
+            if (typeof sentiment === 'string') {
+                try { sentiment = JSON.parse(sentiment); } catch(e) { sentiment = {}; }
+            }
+            if (typeof sentiment !== 'object' || sentiment === null) sentiment = {};
+            
+            let sensitiveFound = c.sensitive_found;
+            if (typeof sensitiveFound === 'string') {
+                try { sensitiveFound = JSON.parse(sensitiveFound); } catch(e) { sensitiveFound = []; }
+            }
+            if (!Array.isArray(sensitiveFound)) sensitiveFound = [];
+            
+            return {
+                id: c.external_id || c.id,
+                date: c.date || '',
+                lang: c.language || 'FR',
+                ca: c.client_name || '',
+                store: c.store || '',
+                orig: c.original_text || '',
+                clean: c.cleaned_text || '',
+                tags: tags,
+                nba: nba,
+                sentiment: sentiment,
+                sensitiveCount: c.sensitive_count || 0,
+                sensitiveFound: sensitiveFound,
+                rgpdMasked: c.rgpd_masked || 0,
+                _dbId: c.id,
+                _sellerId: c.seller_id,
+            };
+        });
 
         // Recompute stats from data
         recomputeStats();
@@ -686,6 +728,81 @@ async function renderTeam() {
             }
         };
     }
+}
+
+// ===== ADMIN (Bruno Lopes - suppression donnees) =====
+let adminCodeUnlocked = '';
+
+function renderAdmin() {
+    const codeSection = $('adminCodeSection');
+    const actionsSection = $('adminActionsSection');
+    const codeInput = $('adminCodeInput');
+    const codeBtn = $('adminCodeBtn');
+    const codeError = $('adminCodeError');
+    const resultDiv = $('adminResult');
+
+    if (!codeSection || !actionsSection) return;
+
+    // Reset state when entering the page (code en session, toujours trimé)
+    adminCodeUnlocked = (sessionStorage.getItem('lvmh_admin_code') || '').trim();
+    if (adminCodeUnlocked) {
+        codeSection.classList.add('hidden');
+        actionsSection.classList.remove('hidden');
+    } else {
+        codeSection.classList.remove('hidden');
+        actionsSection.classList.add('hidden');
+    }
+    if (codeInput) codeInput.value = '';
+    if (codeError) { codeError.classList.add('hidden'); codeError.textContent = ''; }
+    if (resultDiv) { resultDiv.classList.add('hidden'); resultDiv.textContent = ''; }
+
+    if (codeBtn) {
+        codeBtn.onclick = () => {
+            const code = (codeInput && codeInput.value) ? codeInput.value.trim() : '';
+            if (!code) {
+                if (codeError) { codeError.textContent = 'Entrez le code admin.'; codeError.classList.remove('hidden'); }
+                return;
+            }
+            adminCodeUnlocked = code;
+            sessionStorage.setItem('lvmh_admin_code', code);
+            codeSection.classList.add('hidden');
+            actionsSection.classList.remove('hidden');
+            if (codeError) codeError.classList.add('hidden');
+        };
+    }
+
+    const clearClientsBtn = $('adminClearClients');
+    const clearAllBtn = $('adminClearAll');
+    function showResult(msg, isError) {
+        if (!resultDiv) return;
+        resultDiv.textContent = msg;
+        resultDiv.className = 'admin-result ' + (isError ? 'error' : 'success');
+        resultDiv.classList.remove('hidden');
+    }
+    async function doClear(endpoint, body = {}) {
+        const key = (adminCodeUnlocked || '').trim();
+        if (!key) { showResult('Code admin requis.', true); return; }
+        showResult('Suppression en cours...', false);
+        try {
+            const resp = await fetch(API_BASE + endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+                body: JSON.stringify({ admin_key: key, ...body })
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok && data.success) {
+                showResult(data.message || (data.deleted ? JSON.stringify(data.deleted) : 'OK'), false);
+                if (typeof loadClientsFromDB === 'function') loadClientsFromDB();
+            } else {
+                showResult(data.error || 'Erreur ' + resp.status, true);
+                if (resp.status === 403) sessionStorage.removeItem('lvmh_admin_code');
+            }
+        } catch (e) {
+            showResult('Erreur reseau: ' + e.message, true);
+        }
+    }
+    if (clearClientsBtn) clearClientsBtn.onclick = () => { if (confirm('Vider toute la table clients ? Action irreversible.')) doClear('/api/admin/clear-clients'); };
+    if (clearAllBtn) clearAllBtn.onclick = () => { if (confirm('Vider clients ET vendeurs ? Action irreversible.')) doClear('/api/admin/clear-all', { sellers: true }); };
 }
 
 // ===== VENDEUR HOME =====

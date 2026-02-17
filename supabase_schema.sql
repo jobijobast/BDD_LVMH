@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS clients (
     original_text TEXT,
     cleaned_text TEXT,
     tags JSONB DEFAULT '[]'::jsonb,
+    /* Taxonomie structurée (TAXONOMIE_UTILISEE.md): profil, interet, voyage, contexte, service, marque, crm */
+    taxonomy JSONB DEFAULT '{}'::jsonb,
     nba JSONB DEFAULT '[]'::jsonb,
     sentiment JSONB DEFAULT '{}'::jsonb,
     sensitive_count INT DEFAULT 0,
@@ -46,6 +48,8 @@ CREATE TABLE IF NOT EXISTS clients (
 /* Indexes */
 CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id);
 CREATE INDEX IF NOT EXISTS idx_clients_boutique ON clients(boutique_id);
+CREATE INDEX IF NOT EXISTS idx_clients_taxonomy ON clients USING GIN (taxonomy);
+CREATE INDEX IF NOT EXISTS idx_clients_client_name ON clients(client_name);
 CREATE INDEX IF NOT EXISTS idx_sellers_boutique ON sellers(boutique_id);
 
 /* Disable RLS (data filtering is done in application code) */

@@ -425,6 +425,20 @@ a{color:#C6A962;text-decoration:none}
     .mobile-nav{display:none!important}
 }
 
+/* ===== ADMIN PAGE (Bruno Lopes) ===== */
+.admin-code-section{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:24px;max-width:420px}
+.admin-code-section .admin-code-input{max-width:220px}
+.admin-actions-section .section-box.danger{margin-top:0}
+.admin-warning{margin-bottom:16px;font-size:.85rem;color:#666}
+.admin-btns{display:flex;flex-wrap:wrap;gap:12px}
+.btn-danger{background:#DC2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-danger-outline{background:transparent;color:#DC2626;border:1px solid #DC2626}
+.btn-danger-outline:hover{background:rgba(220,38,38,.06)}
+.admin-result{margin-top:16px;padding:12px;border-radius:8px;font-size:.85rem}
+.admin-result.success{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);color:#15803d}
+.admin-result.error{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);color:#DC2626}
+
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}

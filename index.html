@@ -286,6 +286,32 @@
                     </div>
                 </div>
             </div>
+
+            <!-- PAGE: ADMIN (Bruno Lopes - suppression des donnees) -->
+            <div id="page-admin" class="page hidden">
+                <div class="page-content">
+                    <div class="section-header">
+                        <h2>Supprimer les donnees</h2>
+                        <p class="subtitle">Acces reserve. Entrez le code admin pour continuer.</p>
+                    </div>
+                    <div id="adminCodeSection" class="admin-code-section">
+                        <input type="password" id="adminCodeInput" class="form-input admin-code-input" placeholder="Code admin" autocomplete="off">
+                        <button type="button" id="adminCodeBtn" class="btn btn-gold">Acceder</button>
+                        <div id="adminCodeError" class="login-error hidden"></div>
+                    </div>
+                    <div id="adminActionsSection" class="admin-actions-section hidden">
+                        <div class="section-box danger">
+                            <h3>Actions irreversibles</h3>
+                            <p class="admin-warning">Ces actions suppriment definitivement les donnees dans la base.</p>
+                            <div class="admin-btns">
+                                <button type="button" id="adminClearClients" class="btn btn-danger">Vider la table clients</button>
+                                <button type="button" id="adminClearAll" class="btn btn-danger-outline">Vider tout (clients + vendeurs)</button>
+                            </div>
+                            <div id="adminResult" class="admin-result hidden"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 

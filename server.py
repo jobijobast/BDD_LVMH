@@ -19,7 +19,9 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import httpx
 
-load_dotenv()
+# Charger .env depuis le dossier du script (évite 503 Admin non configuré si lancé depuis un autre répertoire)
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(_env_path)
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)
@@ -36,14 +38,22 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 SUPABASE_REST = f"{SUPABASE_URL}/rest/v1" if SUPABASE_URL else ""
 
+# Compte admin : clé secrète pour supprimer les données (à définir dans .env)
+ADMIN_SECRET = (os.getenv("ADMIN_SECRET") or "").strip().strip('"\'')
+
 # ───────────────────────────────────────────
 # PROMPTS
 # ───────────────────────────────────────────
-CLEANING_PROMPT = """Tu es un expert RGPD retail luxe. Nettoie ET sécurise la transcription.
+CLEANING_PROMPT = """Tu es un expert RGPD retail luxe. Nettoie ET sécurise la transcription. Garde UNIQUEMENT les informations utiles pour le profil client.
 
-SUPPRIMER: hésitations (euh,hum,uh,um,eh,ah,oh,hmm,bah,ben,pues,ehm,äh,ähm), fillers (genre,like,tipo,basically,en fait,du coup,tu vois,you know,quoi,right,vale,ok,genau,en quelque sorte,plus ou moins), répétitions.
+SUPPRIMER TOTALEMENT:
+- Hésitations: euh, hum, uh, um, eh, ah, oh, hmm, bah, ben, pues, ehm, äh, ähm, hein, voilà
+- Fillers: genre, like, tipo, basically, en fait, du coup, tu vois, you know, quoi, right, vale, ok, okay, genau, en quelque sorte, plus ou moins, disons, comment dire, enfin bref, bon, ben, donc, alors, et puis, tu sais
+- Répétitions de mots
+- Phrases vides (salutations, politesses sans info: "bonjour", "merci", "au revoir", "bonne journée")
+- Reformulations inutiles
 
-MASQUER:
+MASQUER (RGPD):
 - Carte bancaire → [CARTE-MASQUÉE]
 - IBAN → [IBAN-MASQUÉ]
 - Code accès/digicode → [CODE-MASQUÉ]
@@ -53,11 +63,24 @@ MASQUER:
 - Email → [EMAIL-MASQUÉ]
 - Mot de passe → [MDP-MASQUÉ]
 
-GARDER: noms, professions, âges, budgets, préférences, allergies, régimes, dates événements, historique.
+GARDER UNIQUEMENT:
+- Nom et prénom du client (IMPORTANT: toujours garder)
+- Profession, domaine d'activité
+- Âge, génération
+- Budget, pouvoir d'achat
+- Préférences produits (couleurs, styles, matières)
+- Centres d'intérêt (sport, culture, collections)
+- Allergies, régimes alimentaires
+- Occasions d'achat (anniversaire, cadeau, etc.)
+- Historique relationnel (client depuis X, fidèle, etc.)
+- Besoins exprimés, demandes spécifiques
 
-RÉPONSE (2 lignes):
+OBJECTIF: Texte court, dense, sans mots parasites. Seulement les faits utiles pour le profil.
+
+RÉPONSE (3 lignes):
+NOM: [Prénom Nom du client si mentionné, sinon "Non mentionné"]
 RGPD_COUNT: [nombre]
-TEXT: [texte nettoyé]
+TEXT: [texte nettoyé ultra-concis]
 
 Texte: """
 
@@ -118,54 +141,157 @@ RGPD_SENSITIVE = [
 ]
 
 # ───────────────────────────────────────────
-# TAG RULES
+# TAG RULES — Taxonomie LVMH (Profils, Intérêts, Contexte, Service, Marque, CRM)
 # ───────────────────────────────────────────
 TAG_RULES = [
-    (r'\bdentist','profession','Dentiste'),(r'\bmédecin|doctor\b','profession','Médecin'),
-    (r'\bchirurgien|surgeon','profession','Chirurgien'),(r'\bcardiologue|cardiologist','profession','Cardiologue'),
-    (r'\boncologue|oncologist','profession','Oncologue'),(r'\bpsycholog|psychotherap','profession','Psychologue'),
-    (r'\bavocat|lawyer|attorney','profession','Avocat'),(r'\barchitecte|architect','profession','Architecte'),
-    (r'\bceo|pdg|directeur','profession','Directeur/CEO'),(r'\bentrepreneur|startup','profession','Entrepreneur'),
-    (r'\bbanquier|banker','profession','Banquier'),(r'\bjournaliste|journalist','profession','Journaliste'),
-    (r'\binfluenceur|influencer','profession','Influenceur'),(r'\bphotographe|photographer','profession','Photographe'),
-    (r'\bchef.*michelin|étoilé','profession','Chef étoilé'),(r'\bsommelier','profession','Sommelier'),
-    (r'\bprofesseur|professor','profession','Professeur'),(r'\bgaleriste|curator|museum','profession','Art/Musée'),
-    (r'\bpilote|pilot','profession','Pilote'),(r'\bdeveloppeur|developer|software','profession','Tech/Dev'),
-    (r'\bsac professionnel|work bag','product','Sac Pro'),(r'\bsac voyage|travel','product','Sac Voyage'),
-    (r'\bmontre|watch','product','Montres'),(r'\bbijou|jewelry','product','Bijoux'),
-    (r'\bparfum|fragrance|perfume','product','Parfums'),(r'\bchaussure|shoe|sneaker','product','Chaussures'),
-    (r'\bfoulard|silk|scarf','product','Foulards'),(r'\blunettes|sunglasses','product','Lunettes'),
-    (r'cuir noir|black leather|nero|negro','pref','Noir'),(r'\bnavy|marine\b','pref','Navy'),
-    (r'\bbeige|champagne','pref','Beige'),(r'\bcognac|camel|marron','pref','Cognac'),
-    (r'hardware.*or|gold.*hardware|doré','pref','Or'),(r'rose gold|or rose','pref','Rose Gold'),
-    (r'\bclassique|classic|timeless','style','Classique'),(r'\bmoderne|modern','style','Moderne'),
-    (r'\bélégant|elegant','style','Élégant'),(r'\bdiscret|understated','style','Discret'),
-    (r'\bminimaliste|minimalist','style','Minimaliste'),(r'\bfonctionnel|functional','style','Fonctionnel'),
-    (r'\byoga','lifestyle','Yoga'),(r'\bpilates','lifestyle','Pilates'),
-    (r'\bgolf','lifestyle','Golf'),(r'\btennis','lifestyle','Tennis'),
-    (r'\brunning|marathon','lifestyle','Running'),(r'\bnatation|swimming|triathlon','lifestyle','Natation'),
-    (r'\bescalade|climbing','lifestyle','Escalade'),(r'\bsurf','lifestyle','Surf'),
-    (r'\bcrossfit','lifestyle','CrossFit'),(r'\bméditation|meditation','lifestyle','Méditation'),
-    (r'\bvégétarien|vegetarian','lifestyle','Végétarien'),(r'\bvegan|végane','lifestyle','Vegan'),
-    (r'\bpescetarien|pescatarian','lifestyle','Pescetarien'),(r'\bcollectionn|collector','lifestyle','Collectionneur'),
-    (r'\ballergie.*nickel','service','⚠️ Nickel'),(r'\ballergie.*latex','service','⚠️ Latex'),
-    (r'\ballergie.*gluten|celiac','service','⚠️ Gluten'),(r'\ballergie.*arachide|peanut','service','⚠️ Arachides'),
-    (r'\bintolérance lactose|lactose','service','⚠️ Lactose'),
-    (r'\banniversaire|birthday','occasion','Anniversaire'),(r'\bmariage|wedding','occasion','Mariage'),
-    (r'\bcadeau|gift','occasion','Cadeau'),(r'\bpetit.enfant|grandchild','occasion','Petits-enfants'),
-    (r'\bdivorce|séparation|changement de vie','occasion','Nouveau départ'),
-    (r'\bretraite|retirement','occasion','Retraite'),(r'\bpromotion|nouveau poste','occasion','Promotion'),
-    (r'\bvip\b','budget','VIP'),(r'budget.{0,15}[3-5]\s*k','budget','3-5K'),
-    (r'budget.{0,15}[6-9]\s*k','budget','6-9K'),(r'budget.{0,15}1[0-5]\s*k','budget','10-15K'),
-    (r'budget.{0,15}(1[6-9]|2\d)\s*k','budget','15K+'),(r'très flexible|very flexible','budget','Flexible'),
-    (r'haut potentiel|high potential','budget','Potentiel'),(r'nouveau client|new client|première','budget','Nouveau'),
-    (r'client.*régulier|regular','budget','Régulier'),(r'depuis 201|since 201','budget','Fidèle'),
-    (r'\brappeler|follow.?up','service','Rappeler'),(r'preview.*privé|private.*preview','service','Preview'),
-    (r'\bréseau|network','network','Réseau'),(r'\bréféré|referred','network','Référent'),
-    (r'instagram|youtube|followers','network','Influenceur'),
-    (r'sustainab|durable|recyclé','pref','Durabilité'),(r'artisan|handcraft','pref','Artisanat'),
-    (r'\bjapon|japan|tokyo','pref','Japon'),(r'\bitalie|italy|milan','pref','Italie'),
-    (r'\bparis|france','pref','France'),(r'\bnew york|nyc|usa','pref','USA'),
+    # 1. PROFILS — Genre
+    (r'\bfemme\b|\bwoman\b|\belle\s+(est|a|veut)\b','profil','Femme'),
+    (r'\bhomme\b|\bman\b|\bmonsieur\b|\bclient\s+homme\b','profil','Homme'),
+    (r'\bnon.binaire|nonbinary|non.binary','profil','Non-Binaire'),
+    (r'\bcouple\b|\bcollectif\b|\bmariés\b|\bensemble\s+(pour|en)','profil','Collectif/Couple'),
+    # PROFILS — Segmentation générationnelle
+    (r'\b(18|19|20|21|22|23|24)\s*ans\b|under\s*25|u\.?25|jeune\s+client','profil','U-25'),
+    (r'\b(25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40)\s*ans\b|trentaine|thirty|quarante','profil','25-40'),
+    (r'\b(40|41|50|60)\s*ans\b|cinquantaine|soixantaine|fifty|sixty|quadra|quinqua','profil','40-60'),
+    (r'\b(60|65|70|75|78|79)\s*ans\b|soixante|septuagénaire|retraité','profil','60-80'),
+    (r'\b80\s*ans|\boctogénaire|très\s+âgé','profil','80+'),
+    # PROFILS — Statut relationnel
+    (r'\bprospect\b','profil','Prospect'),
+    (r'\bnouveau\s+client|new\s+client|première\s+visite|premier\s+achat','profil','Nouveau_Client'),
+    (r'\bclient\s+actif|active\s+client|achète\s+régulièrement','profil','Client_Actif'),
+    (r'\bclient\s+fidèle|fidèle|regular\s+client|depuis\s+(20|plusieurs)','profil','Client_Fidèle'),
+    (r'\bambassadeur|ambassador|recommand(e|ant)','profil','Ambassadeur'),
+    (r'\bkey\s+account|compte\s+clé|vip\s+client|gros\s+client','profil','Key_Account'),
+    (r'\bà\s+réactiver|réactivation|inactif\s+depuis','profil','A_Réactiver'),
+    # PROFILS — Communication
+    (r'\bfrançais\b|parle\s+français|langue\s+française','profil','Français'),
+    (r'\banglais\b|english|parle\s+anglais','profil','Anglais'),
+    (r'\bitalien\b|italian|parle\s+italien','profil','Italien'),
+    (r'\bespagnol\b|spanish|parle\s+espagnol','profil','Espagnol'),
+    (r'\ballemand\b|german|parle\s+allemand','profil','Allemand'),
+    (r'\bmandarin\b|chinese|parle\s+chinois','profil','Mandarin'),
+    (r'\bjaponais\b|japanese|parle\s+japonais','profil','Japonais'),
+    (r'\barabe\b|arabic|parle\s+arabe','profil','Arabe'),
+    (r'\brusse\b|russian|parle\s+russe','profil','Russe'),
+    # PROFILS — Visibilité publique
+    (r'\baudience\s+niche|niche\s+audience','profil','Audience_Niche'),
+    (r'\baudience\s+large|large\s+audience','profil','Audience_Large'),
+    (r'\baudience\s+masse|mass\s+audience','profil','Audience_Masse'),
+    (r'\bpersonnalité\s+publique|public\s+figure|personne\s+publique','profil','Personnalité_Publique'),
+    (r'\bexpert\s+sectoriel|sector\s+expert|référent\s+secteur','profil','Expert_Sectoriel'),
+    # PROFILS — Écosystème digital
+    (r'\bsocial\s+native|réseaux\s+sociaux|instagram|influenceur\s+digital','profil','Social_Native'),
+    (r'\bpro\s+network|linkedin|réseau\s+pro|business\s+network','profil','Pro_Network'),
+    (r'\bweb3\b|blockchain|crypto|nft\b','profil','Web3_Interests'),
+    # PROFILS — Domaine d'expertise (Sciences & Santé, Finance, Droit, Arts, Corporate)
+    (r'\bchirurgien|surgeon|expertise\s+chirurg','profil','Expertise_Chirurgie'),
+    (r'\bmédecin|doctor\b|expertise\s+médicale|médical\b','profil','Expertise_Médicale'),
+    (r'\brecherche\s+pharma|pharma\s+research|laboratoire\s+pharma','profil','Recherche_Pharma'),
+    (r'\bmarchés\s+financiers|finance\s+de\s+marché|trading\b','profil','Marchés_Financiers'),
+    (r'\bprivate\s+equity|venture\s+capital|vc\b|pe\b','profil','Private_Equity_VC'),
+    (r'\bbanque\s+conseil|conseil\s+banque|investment\s+banking','profil','Banque_Conseil'),
+    (r'\bfintech|blockchain\s+finance','profil','Fintech_Blockchain'),
+    (r'\bconseil\s+juridique|avocat|lawyer|legal\s+advice','profil','Conseil_Juridique'),
+    (r'\bofficier\s+public|notaire|huissier','profil','Officier_Public'),
+    (r'\bexpertise\s+légale|legal\s+expert','profil','Expertise_Légale'),
+    (r'\bmarché\s+de\s+l.?art|art\s+market|galeriste','profil','Marché_de_l_Art'),
+    (r'\barchitecture|architecte|design\s+intérieur','profil','Architecture_Design'),
+    (r'\bproduction\s+artistique|artiste|réalisateur','profil','Production_Artistique'),
+    (r'\bexecutive\s+leadership|ceo|pdg|directeur\s+général','profil','Executive_Leadership'),
+    (r'\bentrepreneur|startup|fondateur|founder','profil','Entrepreneur'),
+    (r'\breal\s+estate|immobilier|promoteur\s+immobilier','profil','Real_Estate_Dev'),
+    # 2. CENTRES D'INTÉRÊT — Réseaux & clubs, Collections, Loisirs, Culture, Engagements
+    (r'\bsports?\s+club\s+prestige|club\s+privé\s+sport','interet','Sports_Clubs_Prestige'),
+    (r'\bsocial\s+arts?\s+club|club\s+art|arts?\s+club','interet','Social_Arts_Clubs'),
+    (r'\bbusiness\s+network|réseau\s+affaires|club\s+business','interet','Business_Networks'),
+    (r'\balumni|grande\s+école|hec|essec|polytechnique|ena','interet','Alumni_Grandes_Ecoles'),
+    (r'\bhorlogerie\s+vintage|vintage\s+watch|montre\s+vintage','interet','Horlogerie_Vintage'),
+    (r'\bhaute\s+horlogerie|fine\s+watchmaking|complications','interet','Haute_Horlogerie'),
+    (r'\blivres\s+rares|rare\s+books|édition\s+limitée','interet','Livres_Rares'),
+    (r'\bart\s+contemporain|contemporary\s+art','interet','Art_Contemporain'),
+    (r'\bart\s+classique|classical\s+art|peinture\s+classique','interet','Art_Classique'),
+    (r'\bvins?\s+spiritueux|prestige\s+wine|spirits?|oenolog','interet','Vins_Spiritueux_Prestige'),
+    (r'\bsports?\s+raquette|tennis|squash|padel','interet','Sports_Raquette'),
+    (r'\bgolf\b|golfeur','interet','Golf'),
+    (r'\bnautisme|yachting|voilier|bateau\s+de\s+luxe','interet','Nautisme_Yachting'),
+    (r'\bsports?\s+endurance|marathon|triathlon|running','interet','Sports_Endurance'),
+    (r'\bwellness|yoga|pilates|méditation','interet','Wellness_Yoga'),
+    (r'\bautomobile\s+collection|collection\s+voitures?|voiture\s+de\s+collection','interet','Automobile_Collection'),
+    (r'\bmotorsport|formula|circuit|course\s+auto','interet','Motorsport_Experience'),
+    (r'\bdesign\s+minimaliste|minimalist\s+design','interet','Design_Minimaliste'),
+    (r'\bopéra|musique\s+symphonique|orchestre|classique\s+music','interet','Opéra_Musique_Symphonique'),
+    (r'\bjazz|contemporary\s+music','interet','Jazz_Contemporary'),
+    (r'\bgastronomie|fine\s+dining|étoilé\s+michelin','interet','Gastronomie_Fine_Dining'),
+    (r'\boenolog|sommelier|vins?|cave\s+à\s+vin','interet','Oenologie'),
+    (r'\bsustainability|durable|écolog|recyclé|green','interet','Sustainability_Focus'),
+    (r'\bhandicraft|artisanat|savoir.faire|heritage','interet','Handicraft_Heritage'),
+    (r'\bphilanthrop|inclusion|mécénat|charity','interet','Philanthropy_Inclusion'),
+    # 3. VOYAGE
+    (r'\bloisir\s+premium|voyage\s+luxe|premium\s+travel','voyage','Loisir_Premium'),
+    (r'\bexpédition|nature|aventure|safari','voyage','Expédition_Nature'),
+    (r'\bretraite\s+bien.être|wellness\s+retreat|spa\s+resort','voyage','Retraite_Bien_être'),
+    (r'\bitinérance\s+culturelle|cultural\s+travel|voyage\s+culture','voyage','Itinérance_Culturelle'),
+    (r'\bbusiness\s+travel|voyage\s+pro|déplacement\s+pro','voyage','Business_Travel'),
+    (r'\bapac|asie\s+pacifique|japon|chine|singapore','voyage','APAC'),
+    (r'\bamericas|amérique|usa|new\s+york|miami','voyage','Americas'),
+    (r'\beurope\b|paris|milan|londres','voyage','Europe'),
+    (r'\bmea|moyen.orient|dubai|émirats','voyage','MEA'),
+    # 4. CONTEXTE D'ACHAT — Bénéficiaire, Célébration, Style
+    (r'\busage\s+personnel|pour\s+moi|pour\s+lui|pour\s+elle','contexte','Usage_Personnel'),
+    (r'\bcadeau\s+proche|proche|conjoint|conjointe|ami\b','contexte','Cadeau_Proche'),
+    (r'\bcadeau\s+famille|enfant|parent|petit.enfant|grandchild','contexte','Cadeau_Famille'),
+    (r'\bcadeau\s+professionnel|client\s+pro|partenaire\s+business','contexte','Cadeau_Professionnel'),
+    (r'\bcadeau\s+protocolaire|protocol|officiel','contexte','Cadeau_Protocolaire'),
+    (r'\banniversaire|birthday','contexte','Anniversaire'),
+    (r'\bunion|mariage|wedding|noces','contexte','Union'),
+    (r'\bnaissance|bébé|baby|naissance','contexte','Naissance'),
+    (r'\bévénement\s+de\s+vie|changement\s+de\s+vie|nouveau\s+départ','contexte','Événement_Vie'),
+    (r'\bpromotion|nouveau\s+poste|nouvelle\s+fonction','contexte','Promotion'),
+    (r'\bréussite\s+business|deal|transaction\s+réussie','contexte','Réussite_Business'),
+    (r'\bretraite\s+professionnelle|retirement','contexte','Retraite'),
+    (r'\bfêtes?\s+fin\s+année|noël|nouvel\s+an\s+occidental','contexte','Fêtes_Fin_Année'),
+    (r'\bnouvel\s+an\s+lunaire|chinese\s+new\s+year','contexte','Nouvel_An_Lunaire'),
+    (r'\bfête\s+maternelle|fête\s+paternelle|mother.?day|father.?day','contexte','Fête_Maternelle_Paternelle'),
+    (r'\bintemporel|timeless|classique\s+intemporel','contexte','Intemporel'),
+    (r'\bcontemporain|modern\b','contexte','Contemporain'),
+    (r'\btendance|trendy|tendance','contexte','Tendance'),
+    (r'\bsignature\s+logo|logo\s+visible|monogramme','contexte','Signature_Logo'),
+    (r'\bquiet\s+luxury|luxe\s+discret|understated\s+luxury','contexte','Quiet_Luxury'),
+    # 5. SERVICE & HOSPITALITY — Restrictions, Diététique, Boissons, Confort, Confidentialité
+    (r'\ballerg(e|ie)\s+majeur|allergène\s+majeur|alerte\s+allerg','service','Alerte_Allergène_Majeur'),
+    (r'\bsans\s+gluten|régime\s+sans\s+gluten|gluten.free|celiac','service','Régime_Sans_Gluten'),
+    (r'\bsans\s+lactose|lactose|intolérance\s+lactose','service','Régime_Sans_Lactose'),
+    (r'\bvégétarien|vegetarian','service','Végétarien'),
+    (r'\bvégétalien|vegan|végane','service','Végétalien'),
+    (r'\bsans\s+alcool|no\s+alcohol|abstinent','service','Sans_Alcool'),
+    (r'\bhalal|produits?\s+halal','service','Sélection_Produits_Halal'),
+    (r'\bpremium\s+tea|matcha|thé\s+premium','service','Premium_Tea_Matcha'),
+    (r'\bchampagne|spirits?|spiritueux','service','Champagne_Spirits'),
+    (r'\bsoft\s+only|sans\s+alcool|boisson\s+sans','service','Soft_Only'),
+    (r'\beau\s+tempérée|eau\s+tiède','service','Eau_Tempérée'),
+    (r'\bmobilité\s+réduite|accès\s+mobilité|fauteuil|handicap','service','Accès_Mobilité_Réduite'),
+    (r'\bassise\s+prioritaire|siège\s+prioritaire|besoin\s+assise','service','Besoin_Assise_Prioritaire'),
+    (r'\bprotocole\s+discrétion|entrée\s+dédiée|discretion','service','Protocole_Discrétion_Haute'),
+    (r'\bno\s+photo|pas\s+de\s+photo|interdit\s+photo','service','No_Photo_Policy'),
+    # 6. UNIVERS DE MARQUE — Préférences produits, Niveau d'engagement
+    (r'\blignes?\s+iconiques|iconic\s+line','marque','Lignes_Iconiques'),
+    (r'\blignes?\s+animation|animation\s+line','marque','Lignes_Animation'),
+    (r'\bcuirs?\s+exotiques|exotic\s+leather|crocodile|python','marque','Cuirs_Exotiques'),
+    (r'\bhaute\s+horlogerie|fine\s+watchmaking','marque','Haute_Horlogerie'),
+    (r'\bart\s+de\s+vivre|malles?|trunk','marque','Art_de_Vivre_Malles'),
+    (r'\bclient\s+historique|depuis\s+longtemps|ancien\s+client','marque','Client_Historique'),
+    (r'\bcommande\s+spéciale|special\s+order|sur\s+mesure','marque','Client_Commandes_Spéciales'),
+    (r'\binvité\s+événement|événement\s+maison|house\s+event','marque','Invité_Événements_Maison'),
+    # 7. OPPORTUNITÉS & SUIVI (CRM)
+    (r'\ben\s+attente\s+stock|waiting\s+stock|attente\s+dispo','crm','En_Attente_Stock'),
+    (r'\bwaitlist|liste\s+d.?attente','crm','Waitlist_Active'),
+    (r'\btaille\s+non\s+disponible|size\s+unavailable','crm','Taille_Non_Disponible'),
+    (r'\bsensibilité\s+délais|délais\s+important|urgent','crm','Sensibilité_Délais'),
+    (r'\balerte\s+nouveautés|nouveautés|new\s+arrivals|wishlist','crm','Souhaite_Alerte_Nouveautés'),
+    (r'\bcontact\s+stock|prévenir\s+stock|dispo\s+à','crm','Contact_Stock'),
+    (r'\bavant.première|preview|private\s+preview','crm','Invitation_Avant_Première'),
+    (r'\battention\s+personnalisée|personalized\s+attention','crm','Attention_Personnalisée'),
+    (r'\bfollow.up|followup|rappel|rappeler|suivi','crm','Follow_up_Digital'),
 ]
 
 
@@ -188,22 +314,49 @@ async def call_mistral(client: httpx.AsyncClient, prompt: str, max_tokens: int =
 def fallback_clean(text: str) -> dict:
     clean = text
     count = 0
+    # Masquer données sensibles
     for cat, patterns in RGPD_FALLBACK.items():
         for pat in patterns:
             matches = re.findall(pat, clean, re.IGNORECASE)
             if matches:
                 count += len(matches)
                 clean = re.sub(pat, f'[{cat.upper()}-MASQUÉ]', clean, flags=re.IGNORECASE)
-    return {"text": clean, "rgpdCount": count}
+    # Supprimer mots parasites basiques
+    fillers = r'\b(euh|hum|uh|um|eh|ah|oh|hmm|bah|ben|genre|like|en fait|du coup|tu vois|you know|quoi|okay|ok|voilà|hein|donc|alors|bon|ben)\b'
+    clean = re.sub(fillers, '', clean, flags=re.IGNORECASE)
+    # Nettoyer espaces multiples
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    # Extraire nom (simple heuristique: chercher "je m'appelle X" ou "client X")
+    nom = extract_name_fallback(text)
+    return {"text": clean, "rgpdCount": count, "nom": nom}
+
+
+def extract_name_fallback(text: str) -> str:
+    """Extraction simple du nom via regex (fallback si IA échoue)"""
+    patterns = [
+        r"(?:je m'appelle|je suis|mon nom est|client)\s+([A-Z][a-zàâäéèêëïîôùûüÿç]+(?:\s+[A-Z][a-zàâäéèêëïîôùûüÿç]+)?)",
+        r"\b([A-Z][a-zàâäéèêëïîôùûüÿç]+\s+[A-Z][a-zàâäéèêëïîôùûüÿç]+)\b"
+    ]
+    for pat in patterns:
+        match = re.search(pat, text)
+        if match:
+            return match.group(1).strip()
+    return "Non mentionné"
 
 
 async def clean_one(client: httpx.AsyncClient, text: str) -> dict:
     try:
-        result = await call_mistral(client, CLEANING_PROMPT + text, 600)
+        result = await call_mistral(client, CLEANING_PROMPT + text, 700)
+        nom_match = re.search(r'NOM:\s*(.+)', result, re.IGNORECASE)
         rgpd_match = re.search(r'RGPD_COUNT:\s*(\d+)', result, re.IGNORECASE)
         text_match = re.search(r'TEXT:\s*([\s\S]*)', result, re.IGNORECASE)
         if rgpd_match and text_match:
-            return {"text": text_match.group(1).strip(), "rgpdCount": int(rgpd_match.group(1))}
+            nom = nom_match.group(1).strip() if nom_match else "Non mentionné"
+            return {
+                "text": text_match.group(1).strip(), 
+                "rgpdCount": int(rgpd_match.group(1)),
+                "nom": nom
+            }
         return fallback_clean(result)
     except Exception:
         return fallback_clean(text)
@@ -237,14 +390,16 @@ def extract_tags(text: str) -> list:
 def generate_fallback_nba(tags: list) -> list:
     actions = []
     tag_cats = [t["c"] for t in tags]
-    if "occasion" in tag_cats:
-        occ = next((t["t"] for t in tags if t["c"] == "occasion"), "")
-        actions.append({"action": f"Préparer sélection pour: {occ}", "type": "immediate", "category": "product"})
-    if "style" in tag_cats or "pref" in tag_cats:
-        styles = [t["t"] for t in tags if t["c"] in ("style", "pref")]
-        actions.append({"action": f"Envoyer lookbook {', '.join(styles)}", "type": "short_term", "category": "product"})
-    if "budget" in tag_cats:
-        actions.append({"action": "Inviter à un événement exclusif", "type": "long_term", "category": "experience"})
+    if "contexte" in tag_cats:
+        ctx = [t["t"] for t in tags if t["c"] == "contexte"]
+        actions.append({"action": f"Préparer sélection pour: {', '.join(ctx[:2])}", "type": "immediate", "category": "product"})
+    if "interet" in tag_cats:
+        interets = [t["t"] for t in tags if t["c"] == "interet"]
+        actions.append({"action": f"Envoyer contenu aligné centres d'intérêt: {', '.join(interets[:2])}", "type": "short_term", "category": "product"})
+    if "profil" in tag_cats:
+        actions.append({"action": "Inviter à un événement exclusif selon profil", "type": "long_term", "category": "experience"})
+    if "crm" in tag_cats:
+        actions.append({"action": "Exécuter action CRM prioritaire (stock / preview / follow-up)", "type": "immediate", "category": "relationship"})
     if not actions:
         actions.append({"action": "Planifier un appel de suivi", "type": "immediate", "category": "relationship"})
     return actions[:3]
@@ -263,6 +418,22 @@ async def generate_nba(client: httpx.AsyncClient, tags: list, clean_text: str) -
         return [{"action": f"Personnaliser contact: {tags_str}", "type": "immediate", "category": "relationship"}]
     except Exception:
         return generate_fallback_nba(tags)
+
+
+# Catégories de la taxonomie (TAXONOMIE_UTILISEE.md) pour stockage structuré
+TAXONOMY_CATEGORIES = ("profil", "interet", "voyage", "contexte", "service", "marque", "crm")
+
+
+def build_taxonomy_from_tags(tags: list) -> dict:
+    """Construit un objet taxonomy par catégorie à partir des tags extraits.
+    Format: { "profil": ["Femme", "25-40"], "interet": ["Golf"], ... }
+    Permet requêtes et rapports par bloc de taxonomie."""
+    out = {cat: [] for cat in TAXONOMY_CATEGORIES}
+    for t in tags or []:
+        c, label = t.get("c"), t.get("t")
+        if c in out and label and label not in out[c]:
+            out[c].append(label)
+    return out
 
 
 def analyze_sentiment(clean_text: str, row_id: str, ca: str) -> dict:
@@ -337,27 +508,33 @@ def parse_csv(text: str) -> list:
 # SUPABASE SAVE
 # ───────────────────────────────────────────
 async def save_to_supabase(data: list, seller_id: str = None, boutique_id: str = None, client_name: str = ""):
-    """Save processed rows to Supabase clients table."""
+    """Enregistre en base tous les champs utiles : tags, taxonomy, nba, sentiment, texte nettoyé, nom client, etc."""
     if not SUPABASE_REST or not SUPABASE_KEY:
         print("⚠️  Supabase not configured, skipping save")
         return
 
     records = []
     for row in data:
+        tags = row.get("tags") if isinstance(row.get("tags"), list) else []
+        nba = row.get("nba") if isinstance(row.get("nba"), list) else []
+        sentiment = row.get("sentiment") if isinstance(row.get("sentiment"), dict) else {}
+        sensitive_found = row.get("sensitiveFound") if isinstance(row.get("sensitiveFound"), list) else []
+        taxonomy = build_taxonomy_from_tags(tags)
         record = {
-            "external_id": row["id"],
-            "date": row["date"] or time.strftime("%Y-%m-%d"),
-            "language": row["lang"],
-            "original_text": row["orig"],
-            "cleaned_text": row["clean"],
-            "tags": json.dumps(row["tags"]),
-            "nba": json.dumps(row["nba"]),
-            "sentiment": json.dumps(row.get("sentiment", {})),
-            "sensitive_count": row["sensitiveCount"],
-            "sensitive_found": json.dumps(row["sensitiveFound"]),
-            "rgpd_masked": row["rgpdMasked"],
+            "external_id": row.get("id", ""),
+            "date": row.get("date") or time.strftime("%Y-%m-%d"),
+            "language": row.get("lang", "FR"),
+            "original_text": row.get("orig", ""),
+            "cleaned_text": row.get("clean", ""),
+            "tags": json.dumps(tags),
+            "taxonomy": json.dumps(taxonomy),
+            "nba": json.dumps(nba),
+            "sentiment": json.dumps(sentiment),
+            "sensitive_count": row.get("sensitiveCount", 0),
+            "sensitive_found": json.dumps(sensitive_found),
+            "rgpd_masked": row.get("rgpdMasked", 0),
             "store": row.get("store", ""),
-            "client_name": client_name or row.get("ca", ""),
+            "client_name": row.get("clientName", "Non mentionné"),
         }
         if seller_id:
             record["seller_id"] = seller_id
@@ -421,12 +598,14 @@ async def run_pipeline(rows: list, seller_id: str = None, boutique_id: str = Non
                         rgpd_bad.append({"id": row_id, "cat": m.strip("[]"), "w": "Masqué par IA"})
 
                 clean = re.sub(r'\s+', ' ', result["text"]).strip()
+                extracted_name = result.get("nom", "Non mentionné")
                 stats["clients"] += 1
                 return {
                     "id": row_id, "date": date, "lang": lang, "ca": ca, "store": store,
                     "orig": orig, "clean": clean, "tags": [], "nba": [],
                     "sensitiveCount": sensitive_count, "sensitiveFound": sensitive_found,
                     "rgpdMasked": result["rgpdCount"],
+                    "clientName": extracted_name,
                 }
 
             batch_results = await asyncio.gather(*[process_row(r) for r in batch])
@@ -549,6 +728,106 @@ def api_process_text():
 @app.route("/api/followup", methods=["POST"])
 def api_followup():
     return jsonify({"info": "Follow-up generation is handled client-side."})
+
+
+# ───────────────────────────────────────────
+# ADMIN — Suppression des données (protégé par ADMIN_SECRET)
+# ───────────────────────────────────────────
+def _require_admin():
+    """Vérifie la clé admin (body admin_key ou header X-Admin-Key). Retourne (None, None) si OK, sinon (json_error, status_code)."""
+    if not ADMIN_SECRET:
+        return jsonify({"error": "Admin non configuré (ADMIN_SECRET manquant dans .env)"}), 503
+    # Lire d'abord le body (plus fiable avec CORS), puis les headers
+    key = ""
+    if request.is_json:
+        try:
+            body = request.get_json(silent=True) or {}
+            key = (body.get("admin_key") or "").strip()
+        except Exception:
+            pass
+    if not key:
+        key = (request.headers.get("X-Admin-Key") or request.headers.get("Authorization", "").replace("Bearer ", "").strip())
+    key = (key or "").strip()
+    if key != ADMIN_SECRET:
+        return jsonify({"error": "Clé admin invalide"}), 403
+    return None, None
+
+
+@app.route("/api/admin/clear-clients", methods=["POST", "DELETE"])
+def api_admin_clear_clients():
+    """Supprime toutes les lignes de la table clients. Nécessite X-Admin-Key: <ADMIN_SECRET> ou body { "admin_key": "..." }."""
+    err, status = _require_admin()
+    if err is not None:
+        return err, status
+    if not SUPABASE_REST or not SUPABASE_KEY:
+        return jsonify({"error": "Supabase non configuré"}), 503
+
+    async def _run():
+        async with httpx.AsyncClient() as client:
+            return await _supabase_delete_all(client, "clients")
+
+    ok, count_or_msg = asyncio.run(_run())
+    if ok:
+        msg = f"{count_or_msg} enregistrement(s) supprimé(s)" if count_or_msg else "Aucune donnée à supprimer"
+        return jsonify({"success": True, "message": msg, "deleted": count_or_msg})
+    return jsonify({"error": "Erreur Supabase", "details": count_or_msg}), 500
+
+
+async def _supabase_delete_all(client: httpx.AsyncClient, table: str) -> tuple:
+    """Supprime toutes les lignes d'une table. Retourne (success, count ou message)."""
+    resp = await client.get(
+        f"{SUPABASE_REST}/{table}",
+        headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+        params={"select": "id"},
+        timeout=30.0,
+    )
+    if resp.status_code != 200:
+        return False, resp.text
+    rows = resp.json()
+    ids = [r["id"] for r in rows] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else []
+    if not ids:
+        return True, 0
+    for i in range(0, len(ids), 100):
+        batch = ids[i : i + 100]
+        in_filter = ",".join(f'"{x}"' for x in batch)
+        r = await client.delete(
+            f"{SUPABASE_REST}/{table}",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+            params={"id": f"in.({in_filter})"},
+            timeout=30.0,
+        )
+        if r.status_code not in (200, 204):
+            return False, r.text
+    return True, len(ids)
+
+
+@app.route("/api/admin/clear-all", methods=["POST", "DELETE"])
+def api_admin_clear_all():
+    """Supprime clients puis optionnellement sellers. body: { "admin_key": "...", "sellers": true }."""
+    err, status = _require_admin()
+    if err is not None:
+        return err, status
+    if not SUPABASE_REST or not SUPABASE_KEY:
+        return jsonify({"error": "Supabase non configuré"}), 503
+    body = request.get_json(silent=True) or {}
+
+    async def _run():
+        async with httpx.AsyncClient() as client:
+            ok, n = await _supabase_delete_all(client, "clients")
+            if not ok:
+                return False, n
+            deleted_sellers = 0
+            if body.get("sellers"):
+                ok2, n2 = await _supabase_delete_all(client, "sellers")
+                if not ok2:
+                    return False, n2
+                deleted_sellers = n2
+            return True, {"clients": n, "sellers": deleted_sellers}
+
+    ok, result = asyncio.run(_run())
+    if ok:
+        return jsonify({"success": True, "deleted": result})
+    return jsonify({"error": "Erreur Supabase", "details": result}), 500
 
 
 # ───────────────────────────────────────────
