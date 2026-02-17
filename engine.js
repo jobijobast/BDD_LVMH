@@ -7,22 +7,73 @@
 // ===== LOUIS VUITTON PRODUCT DATABASE =====
 let LV_PRODUCTS = [];
 let PRODUCTS_LOADED = false;
+let PRODUCTS_INDEX = null; // Index optimisé pour recherche rapide
+let MATCH_CACHE = new Map(); // Cache des résultats de matching
 
 // Load LV products from JSON file
 async function loadLVProducts() {
     if (PRODUCTS_LOADED) return;
     
     try {
-        const response = await fetch('louis_vuitton_femme_et_homme copie.json');
+        const response = await fetch('louis_vuitton_products.json');
         if (!response.ok) throw new Error('Failed to load product database');
         
         LV_PRODUCTS = await response.json();
+        
+        // Créer un index pour accélérer les recherches
+        PRODUCTS_INDEX = buildProductIndex(LV_PRODUCTS);
+        
         PRODUCTS_LOADED = true;
-        console.log(`✅ Loaded ${LV_PRODUCTS.length} Louis Vuitton products`);
+        console.log(`✅ Loaded ${LV_PRODUCTS.length} Louis Vuitton products from Hugging Face dataset`);
+        console.log(`✅ Product index built with ${Object.keys(PRODUCTS_INDEX.byCategory).length} categories`);
     } catch (error) {
         console.error('❌ Error loading LV products:', error);
         LV_PRODUCTS = [];
     }
+}
+
+// Construire un index pour recherche rapide
+function buildProductIndex(products) {
+    const index = {
+        byCategory: {},
+        byGender: { femme: [], homme: [], unisex: [] },
+        byPriceRange: { low: [], mid: [], high: [], luxury: [] },
+        searchTerms: {}
+    };
+    
+    products.forEach((product, idx) => {
+        const cat1 = (product.category1_code || '').toLowerCase();
+        const cat2 = (product.category2_code || '').toLowerCase();
+        const title = (product.title || '').toLowerCase();
+        const price = product.price_eur || 0;
+        
+        // Index par catégorie
+        if (!index.byCategory[cat1]) index.byCategory[cat1] = [];
+        index.byCategory[cat1].push(idx);
+        
+        if (!index.byCategory[cat2]) index.byCategory[cat2] = [];
+        index.byCategory[cat2].push(idx);
+        
+        // Index par genre
+        if (cat1.includes('femme')) index.byGender.femme.push(idx);
+        else if (cat1.includes('homme')) index.byGender.homme.push(idx);
+        else index.byGender.unisex.push(idx);
+        
+        // Index par gamme de prix
+        if (price < 500) index.byPriceRange.low.push(idx);
+        else if (price < 2000) index.byPriceRange.mid.push(idx);
+        else if (price < 10000) index.byPriceRange.high.push(idx);
+        else index.byPriceRange.luxury.push(idx);
+        
+        // Index des termes de recherche (mots clés du titre)
+        const words = title.split(/\s+/).filter(w => w.length > 3);
+        words.forEach(word => {
+            if (!index.searchTerms[word]) index.searchTerms[word] = [];
+            index.searchTerms[word].push(idx);
+        });
+    });
+    
+    return index;
 }
 
 // Initialize product loading on page load
@@ -32,6 +83,73 @@ if (typeof window !== 'undefined') {
 
 // ===== LVMH HOUSES =====
 const LVMH_HOUSES = ['Louis Vuitton','Dior','Fendi','Givenchy','Celine','Loewe','Berluti','Loro Piana','Tiffany & Co.','Bulgari','TAG Heuer','Hublot','Moët Hennessy','Sephora','Rimowa'];
+
+// ===== PRODUCT MATCHING HELPERS =====
+function getRelevantCategories(clientTags) {
+    const categories = new Set();
+    
+    clientTags.forEach(tag => {
+        const tagLabel = tag.t.toLowerCase();
+        
+        // Voyage -> Bagages, Voyage
+        if (tagLabel.includes('travel') || tagLabel.includes('voyage') || tagLabel.includes('business_travel')) {
+            categories.add('voyage');
+            categories.add('bagages');
+            categories.add('tous les bagages');
+        }
+        
+        // Sport -> Accessoires sportifs, Sacs pratiques
+        if (tagLabel.includes('sport') || tagLabel.includes('golf') || tagLabel.includes('tennis')) {
+            categories.add('accessoires');
+            categories.add('sacs');
+            categories.add('sport et lifestyle');
+        }
+        
+        // Professionnel -> Maroquinerie, Portefeuilles, Sacs élégants
+        if (tagLabel.includes('executive') || tagLabel.includes('entrepreneur') || tagLabel.includes('business')) {
+            categories.add('portefeuilles et petite maroquinerie');
+            categories.add('sacs');
+            categories.add('accessoires');
+        }
+        
+        // Cadeau -> Accessoires, Petite maroquinerie, Bijoux
+        if (tagLabel.includes('cadeau') || tagLabel.includes('anniversaire') || tagLabel.includes('gift')) {
+            categories.add('accessoires');
+            categories.add('petite maroquinerie');
+            categories.add('bijoux');
+            categories.add('portefeuilles');
+        }
+        
+        // Mode/Style -> Prêt-à-porter, Accessoires
+        if (tagLabel.includes('mode') || tagLabel.includes('fashion') || tagLabel.includes('tendance')) {
+            categories.add('pret a porter');
+            categories.add('accessoires');
+            categories.add('souliers');
+        }
+        
+        // Horlogerie -> Montres, Bijoux
+        if (tagLabel.includes('horlogerie') || tagLabel.includes('watch') || tagLabel.includes('montre')) {
+            categories.add('montres');
+            categories.add('bijoux');
+            categories.add('accessoires');
+        }
+        
+        // Art de vivre -> Art de vivre, Maison
+        if (tagLabel.includes('art') || tagLabel.includes('culture') || tagLabel.includes('collection')) {
+            categories.add('art de vivre');
+            categories.add('maison');
+        }
+    });
+    
+    // Si aucune catégorie spécifique, ajouter les catégories principales
+    if (categories.size === 0) {
+        categories.add('sacs a main');
+        categories.add('accessoires');
+        categories.add('portefeuilles et petite maroquinerie');
+    }
+    
+    return Array.from(categories);
+}
 
 // ===== HELPERS =====
 const CAT_NAMES = { profil:'Profil', interet:'Intérêt', voyage:'Voyage', contexte:'Contexte', service:'Service', marque:'Marque', crm:'CRM' };
@@ -355,9 +473,15 @@ window.copyFollowup = function(btn) {
 
 // ===== INTELLIGENT PRODUCT MATCHING =====
 function matchProductsToClient(clientTags, clientText) {
-    if (!PRODUCTS_LOADED || LV_PRODUCTS.length === 0) return [];
+    if (!PRODUCTS_LOADED || LV_PRODUCTS.length === 0 || !PRODUCTS_INDEX) return [];
     
-    const matches = [];
+    // Vérifier le cache
+    const cacheKey = JSON.stringify(clientTags.map(t => t.t).sort());
+    if (MATCH_CACHE.has(cacheKey)) {
+        console.log('✅ Using cached product matches');
+        return MATCH_CACHE.get(cacheKey);
+    }
+    
     const clientTextLower = (clientText || '').toLowerCase();
     
     // Extract relevant info from tags
@@ -368,209 +492,191 @@ function matchProductsToClient(clientTags, clientText) {
     const service = clientTags.filter(t => t.c === 'service').map(t => t.t);
     const marque = clientTags.filter(t => t.c === 'marque').map(t => t.t);
     
-    // Expanded matching rules - semantic understanding
-    const matchingRules = {
-        // Interest-based matching (sports & activities)
-        'Golf': ['golf', 'golfeur', 'green', 'parcours', 'club', 'sport'],
-        'Tennis': ['tennis', 'raquette', 'court', 'sport'],
-        'Sports_Raquette': ['tennis', 'raquette', 'squash', 'padel', 'sport'],
-        'Nautisme_Yachting': ['yacht', 'bateau', 'nautique', 'mer', 'sailing', 'voyage', 'weekend'],
-        'Sports_Endurance': ['running', 'marathon', 'sport', 'course', 'jogging', 'fitness', 'training'],
-        'Wellness_Yoga': ['yoga', 'wellness', 'bien-être', 'zen', 'meditation', 'sport', 'relaxation'],
-        'Automobile_Collection': ['voiture', 'automobile', 'car', 'driving', 'voyage', 'weekend'],
-        'Motorsport_Experience': ['course', 'circuit', 'formula', 'racing', 'sport', 'weekend'],
+    // Pré-filtrage rapide : ne considérer qu'un sous-ensemble pertinent de produits
+    let candidateIndices = new Set();
+    
+    // Filtrer par genre si disponible
+    if (profil.includes('Femme')) {
+        PRODUCTS_INDEX.byGender.femme.forEach(idx => candidateIndices.add(idx));
+    } else if (profil.includes('Homme')) {
+        PRODUCTS_INDEX.byGender.homme.forEach(idx => candidateIndices.add(idx));
+    } else {
+        // Si pas de genre spécifié, prendre tous les produits unisex et un échantillon des autres
+        PRODUCTS_INDEX.byGender.unisex.forEach(idx => candidateIndices.add(idx));
+        PRODUCTS_INDEX.byGender.femme.slice(0, 500).forEach(idx => candidateIndices.add(idx));
+        PRODUCTS_INDEX.byGender.homme.slice(0, 500).forEach(idx => candidateIndices.add(idx));
+    }
+    
+    // Si trop de candidats, filtrer par catégories pertinentes
+    if (candidateIndices.size > 1000) {
+        const relevantCategories = getRelevantCategories(clientTags);
+        const filteredIndices = new Set();
         
-        // Arts & Culture
-        'Art_Contemporain': ['art', 'galerie', 'exposition', 'museum', 'culture', 'élégant', 'raffiné'],
-        'Art_Classique': ['art', 'classique', 'peinture', 'sculpture', 'culture', 'élégant'],
-        'Opéra_Musique_Symphonique': ['opéra', 'musique', 'concert', 'symphonie', 'culture', 'soirée', 'élégant'],
-        'Jazz_Contemporary': ['jazz', 'musique', 'concert', 'culture', 'soirée'],
+        relevantCategories.forEach(cat => {
+            if (PRODUCTS_INDEX.byCategory[cat]) {
+                PRODUCTS_INDEX.byCategory[cat].forEach(idx => {
+                    if (candidateIndices.has(idx)) {
+                        filteredIndices.add(idx);
+                    }
+                });
+            }
+        });
         
-        // Lifestyle & Collections
-        'Horlogerie_Vintage': ['montre', 'horlogerie', 'watch', 'time', 'vintage', 'collection', 'accessoire'],
-        'Haute_Horlogerie': ['montre', 'horlogerie', 'watch', 'complications', 'luxe', 'accessoire'],
-        'Livres_Rares': ['livre', 'lecture', 'collection', 'culture', 'bibliothèque'],
-        'Vins_Spiritueux_Prestige': ['vin', 'spiritueux', 'collection', 'cave', 'dégustation'],
-        'Gastronomie_Fine_Dining': ['gastronomie', 'restaurant', 'cuisine', 'dining', 'chef', 'dégustation'],
+        // Si on a trouvé des produits dans les catégories pertinentes, les utiliser
+        if (filteredIndices.size > 0) {
+            candidateIndices = filteredIndices;
+        }
+    }
+    
+    const matches = [];
+    
+    // Règles de matching optimisées basées sur les vraies catégories LV
+    const categoryMapping = {
+        // Voyage & Déplacements
+        'Business_Travel': ['voyage', 'valise', 'bagage', 'horizon', 'keepall', 'cabine', 'pegase'],
+        'Loisir_Premium': ['voyage', 'weekend', 'sac', 'bagage', 'keepall'],
+        'Expédition_Nature': ['voyage', 'sac', 'backpack', 'outdoor'],
+        'Itinérance_Culturelle': ['voyage', 'sac', 'messenger', 'city'],
         
-        // Occasion-based matching
-        'Anniversaire': ['anniversaire', 'birthday', 'celebration', 'cadeau', 'fête', 'personnel'],
-        'Union': ['mariage', 'wedding', 'union', 'noces', 'cérémonie', 'élégant'],
-        'Naissance': ['naissance', 'bébé', 'baby', 'birth', 'cadeau', 'famille'],
-        'Cadeau_Proche': ['cadeau', 'gift', 'offrir', 'proche', 'ami', 'personnel'],
-        'Cadeau_Famille': ['cadeau', 'famille', 'family', 'gift', 'enfant', 'parent'],
-        'Cadeau_Professionnel': ['cadeau', 'professionnel', 'business', 'corporate', 'client', 'partenaire'],
-        'Promotion': ['promotion', 'succès', 'réussite', 'professionnel', 'carrière'],
-        'Réussite_Business': ['business', 'succès', 'deal', 'transaction', 'professionnel'],
+        // Sport & Lifestyle
+        'Golf': ['sport', 'sac', 'accessoire', 'lifestyle'],
+        'Tennis': ['sport', 'sac', 'accessoire', 'lifestyle'],
+        'Sports_Raquette': ['sport', 'sac', 'accessoire'],
+        'Sports_Endurance': ['sport', 'sac', 'sneaker', 'running'],
+        'Wellness_Yoga': ['sport', 'lifestyle', 'wellness'],
         
-        // Style preferences
-        'Intemporel': ['classique', 'intemporel', 'timeless', 'classic', 'élégant', 'sobre', 'raffiné'],
-        'Contemporain': ['moderne', 'contemporain', 'modern', 'contemporary', 'actuel', 'tendance'],
-        'Tendance': ['tendance', 'trendy', 'fashion', 'mode', 'nouveau', 'actuel'],
-        'Quiet_Luxury': ['discret', 'quiet', 'subtle', 'understated', 'sobre', 'élégant', 'raffiné'],
-        'Signature_Logo': ['logo', 'monogram', 'signature', 'branded', 'iconique'],
-        'Design_Minimaliste': ['minimaliste', 'minimal', 'épuré', 'simple', 'sobre', 'discret'],
+        // Professionnel
+        'Executive_Leadership': ['portefeuille', 'organiseur', 'attaché', 'porte-documents', 'ceinture', 'maroquinerie'],
+        'Entrepreneur': ['portefeuille', 'sac', 'organiseur', 'maroquinerie', 'accessoire'],
+        'Expertise_Médicale': ['portefeuille', 'organiseur', 'maroquinerie'],
+        'Marchés_Financiers': ['portefeuille', 'organiseur', 'ceinture', 'maroquinerie'],
         
-        // Travel & Professional
-        'Business_Travel': ['voyage', 'travel', 'business', 'déplacement', 'bagage', 'valise', 'cabine', 'professionnel', 'week-end'],
-        'Loisir_Premium': ['voyage', 'vacances', 'holiday', 'leisure', 'weekend', 'détente', 'bagage'],
-        'Expédition_Nature': ['voyage', 'aventure', 'nature', 'outdoor', 'exploration', 'weekend'],
-        'Itinérance_Culturelle': ['voyage', 'culture', 'découverte', 'city', 'urbain', 'bagage'],
+        // Cadeaux
+        'Cadeau_Proche': ['portefeuille', 'pochette', 'accessoire', 'bijoux', 'ceinture', 'foulard'],
+        'Cadeau_Famille': ['portefeuille', 'pochette', 'accessoire', 'bijoux'],
+        'Cadeau_Professionnel': ['portefeuille', 'organiseur', 'ceinture', 'accessoire', 'maroquinerie'],
+        'Anniversaire': ['bijoux', 'accessoire', 'portefeuille', 'pochette', 'parfum'],
+        'Union': ['bijoux', 'accessoire', 'mariage'],
+        'Naissance': ['accessoire', 'cadeau'],
         
-        // Professional profiles
-        'Executive_Leadership': ['professionnel', 'business', 'élégant', 'sobre', 'raffiné', 'luxe'],
-        'Entrepreneur': ['professionnel', 'business', 'moderne', 'dynamique', 'pratique'],
-        'Expertise_Médicale': ['professionnel', 'élégant', 'sobre', 'pratique'],
-        'Marchés_Financiers': ['professionnel', 'business', 'élégant', 'luxe', 'sobre'],
+        // Style & Mode
+        'Intemporel': ['monogram', 'classique', 'speedy', 'neverfull', 'alma'],
+        'Contemporain': ['nouveautes', 'collection', 'tendance'],
+        'Tendance': ['nouveautes', 'pret a porter', 'souliers', 'accessoire'],
+        'Quiet_Luxury': ['empreinte', 'cuir', 'sobre', 'elegant'],
+        'Signature_Logo': ['monogram', 'damier', 'signature', 'logo'],
+        'Design_Minimaliste': ['sobre', 'minimal', 'elegant'],
         
-        // LV Product lines
-        'Lignes_Iconiques': ['speedy', 'neverfull', 'alma', 'keepall', 'noé', 'iconique', 'classique'],
-        'Art_de_Vivre_Malles': ['malle', 'trunk', 'boîte', 'coffret', 'voyage'],
-        'Cuirs_Exotiques': ['crocodile', 'python', 'alligator', 'exotique', 'luxe', 'rare'],
-        'Client_Historique': ['iconique', 'classique', 'heritage', 'tradition'],
-        'Lignes_Animation': ['nouveau', 'collection', 'édition', 'limité', 'tendance'],
+        // Accessoires & Horlogerie
+        'Horlogerie_Vintage': ['montre', 'tambour', 'accessoire'],
+        'Haute_Horlogerie': ['montre', 'tambour', 'complications'],
+        
+        // Art de Vivre
+        'Art_Contemporain': ['art de vivre', 'maison', 'collection'],
+        'Art_Classique': ['art de vivre', 'maison'],
+        'Livres_Rares': ['papeterie', 'art de vivre'],
+        'Art_de_Vivre_Malles': ['malle', 'trunk', 'art de vivre'],
+        
+        // Produits Iconiques LV
+        'Lignes_Iconiques': ['speedy', 'neverfull', 'alma', 'keepall', 'noé', 'twist', 'capucines'],
+        'Client_Historique': ['monogram', 'damier', 'speedy', 'neverfull', 'keepall'],
+        'Lignes_Animation': ['nouveautes', 'collection'],
+        'Cuirs_Exotiques': ['crocodile', 'python', 'alligator', 'exotique'],
     };
     
-    // Score each product
-    LV_PRODUCTS.forEach(product => {
+    // Score uniquement les produits candidats (beaucoup plus rapide)
+    Array.from(candidateIndices).forEach(idx => {
+        const product = LV_PRODUCTS[idx];
         let score = 0;
         let matchReasons = [];
         
         // Build comprehensive product text from ALL available fields
-        const productName = (product.name || '').toLowerCase();
-        const productDesc = (product.description || '').toLowerCase();
-        const productCategory = (product.category || '').toLowerCase();
-        const productSubcategory = (product.subcategory || '').toLowerCase();
-        const productMaterials = Array.isArray(product.materials) ? product.materials.join(' ').toLowerCase() : '';
-        const productColors = Array.isArray(product.colors) ? product.colors.join(' ').toLowerCase() : '';
-        const productSKU = (product.sku || '').toLowerCase();
+        // New Hugging Face dataset structure
+        const productName = (product.title || '').toLowerCase();
+        const productDesc = '';  // No description in new dataset
+        const productCategory = (product.category1_code || '').toLowerCase();
+        const productSubcategory = ((product.category2_code || '') + ' ' + (product.category3_code || '')).toLowerCase();
+        const productMaterials = '';  // Not available in new dataset
+        const productColors = '';  // Not available in new dataset
+        const productSKU = (product.product_code || '').toLowerCase();
         
         // Complete product text for matching
-        const productText = `${productName} ${productDesc} ${productCategory} ${productSubcategory} ${productMaterials} ${productColors}`;
+        const productText = `${productName} ${productCategory} ${productSubcategory}`;
         
-        // 1. SEMANTIC MATCHING - Use ALL product information
+        // 1. MATCHING OPTIMISÉ PAR CATÉGORIES
         clientTags.forEach(tag => {
             const tagLabel = tag.t;
-            const keywords = matchingRules[tagLabel] || [];
+            const keywords = categoryMapping[tagLabel] || [];
             
-            // Match keywords in product text
-            keywords.forEach(keyword => {
+            // Match rapide par mots-clés
+            let matched = false;
+            for (const keyword of keywords) {
                 if (productText.includes(keyword)) {
-                    score += 12;
-                    if (!matchReasons.includes(tagLabel)) {
-                        matchReasons.push(tagLabel);
-                    }
+                    score += 15;
+                    matched = true;
+                    break;
                 }
-            });
+            }
             
-            // Direct tag matching in product text
-            const tagWords = tagLabel.toLowerCase().replace(/_/g, ' ').split(' ');
-            tagWords.forEach(word => {
-                if (word.length > 3 && productText.includes(word)) {
-                    score += 8;
-                    if (!matchReasons.includes(tagLabel)) {
-                        matchReasons.push(tagLabel);
-                    }
+            if (matched && !matchReasons.includes(tagLabel)) {
+                matchReasons.push(tagLabel);
+            }
+        });
+        
+        // 2. BONUS CONTEXTUELS RAPIDES
+        
+        // Voyage
+        if (voyage.length > 0 && (productCategory.includes('voyage') || productName.includes('valise') || productName.includes('sac'))) {
+            score += 25;
+            matchReasons.push('Voyage');
+        }
+        
+        // Sport
+        if (interet.some(i => i.includes('Sport')) && (productName.includes('sac') || productCategory.includes('sport'))) {
+            score += 20;
+            matchReasons.push('Sport');
+        }
+        
+        // Professionnel
+        if (profil.some(p => p.includes('Executive') || p.includes('Entrepreneur')) && 
+            (productName.includes('portefeuille') || productName.includes('organiseur') || productCategory.includes('maroquinerie'))) {
+            score += 20;
+            matchReasons.push('Professionnel');
+        }
+        
+        // Cadeau
+        if (contexte.some(c => c.includes('Cadeau')) && 
+            (productCategory.includes('accessoires') || productCategory.includes('bijoux') || productCategory.includes('petite maroquinerie'))) {
+            score += 20;
+            matchReasons.push('Cadeau');
+        }
+        
+        // 3. MATCHING TEXTE CLIENT (simplifié)
+        if (clientTextLower.length > 10) {
+            const clientWords = clientTextLower.split(/\s+/).filter(w => w.length > 4).slice(0, 5); // Limiter à 5 mots
+            clientWords.forEach(word => {
+                if (productName.includes(word)) {
+                    score += 10;
                 }
             });
-        });
-        
-        // 2. CONTEXT-BASED SCORING
-        
-        // Travel context - prioritize bags, luggage
-        if (voyage.length > 0 || interet.some(i => i.includes('Travel'))) {
-            if (productCategory.includes('bagage') || productName.includes('valise') || 
-                productName.includes('keepall') || productName.includes('horizon') ||
-                productName.includes('cabas') || productName.includes('sac')) {
-                score += 20;
-                matchReasons.push('Voyage');
-            }
         }
         
-        // Sports/Active lifestyle - practical bags
-        if (interet.some(i => i.includes('Sport') || i.includes('Golf') || i.includes('Tennis'))) {
-            if (productName.includes('sac') || productName.includes('cabas') || 
-                productName.includes('backpack') || productName.includes('messenger')) {
-                score += 15;
-                matchReasons.push('Sport/Actif');
-            }
-        }
-        
-        // Professional context - elegant, practical items
-        if (profil.some(p => p.includes('Executive') || p.includes('Entrepreneur') || p.includes('Leadership'))) {
-            if (productName.includes('attaché') || productName.includes('porte-documents') ||
-                productName.includes('organiseur') || productName.includes('portefeuille') ||
-                (productDesc.includes('professionnel') || productDesc.includes('business'))) {
-                score += 18;
-                matchReasons.push('Professionnel');
-            }
-        }
-        
-        // Gift context - appropriate price range and style
-        if (contexte.some(c => c.includes('Cadeau') || c.includes('Anniversaire'))) {
-            if (productCategory.includes('accessoires') || productCategory.includes('petite maroquinerie') ||
-                productName.includes('portefeuille') || productName.includes('pochette') ||
-                productName.includes('foulard') || productName.includes('ceinture')) {
-                score += 15;
-                matchReasons.push('Cadeau');
-            }
-        }
-        
-        // Style matching - use materials and design
-        if (contexte.includes('Intemporel') || contexte.includes('Quiet_Luxury')) {
-            if (productDesc.includes('classique') || productDesc.includes('intemporel') ||
-                productMaterials.includes('cuir') || productName.includes('monogram')) {
-                score += 12;
-                matchReasons.push('Style Classique');
-            }
-        }
-        
-        if (contexte.includes('Contemporain') || contexte.includes('Tendance')) {
-            if (productDesc.includes('moderne') || productDesc.includes('nouveau') ||
-                productDesc.includes('collection')) {
-                score += 12;
-                matchReasons.push('Style Moderne');
-            }
-        }
-        
-        // 3. CLIENT TEXT SEMANTIC MATCHING
-        const clientWords = clientTextLower.split(/\s+/).filter(w => w.length > 4);
-        clientWords.forEach(word => {
-            // Strong match in product name
-            if (productName.includes(word)) {
-                score += 8;
-            }
-            // Match in description
-            else if (productDesc.includes(word)) {
-                score += 5;
-            }
-            // Match in materials or colors
-            else if (productMaterials.includes(word) || productColors.includes(word)) {
-                score += 4;
-            }
-        });
-        
-        // 4. GENDER PREFERENCE (lower weight - not the main criteria)
+        // 4. GENRE
         if (profil.includes('Femme') && productCategory.includes('femme')) {
-            score += 10;
-            matchReasons.push('Femme');
-        }
-        if (profil.includes('Homme') && productCategory.includes('homme')) {
-            score += 10;
-            matchReasons.push('Homme');
+            score += 15;
+        } else if (profil.includes('Homme') && productCategory.includes('homme')) {
+            score += 15;
         }
         
-        // 5. BONUS FOR ICONIC PRODUCTS
-        if (marque.includes('Lignes_Iconiques') || marque.includes('Client_Historique')) {
-            if (productName.includes('speedy') || productName.includes('neverfull') ||
-                productName.includes('alma') || productName.includes('keepall')) {
-                score += 10;
-                matchReasons.push('Iconique');
-            }
+        // 5. PRODUITS ICONIQUES
+        if (productName.includes('speedy') || productName.includes('neverfull') || 
+            productName.includes('alma') || productName.includes('keepall')) {
+            score += 10;
+            matchReasons.push('Iconique');
         }
         
-        // Only include products with meaningful matches (lower threshold for better coverage)
-        if (score >= 15 && matchReasons.length > 0) {
+        // Seuil de pertinence plus élevé pour de meilleurs résultats
+        if (score >= 20 && matchReasons.length > 0) {
             matches.push({
                 product,
                 score,
@@ -579,8 +685,20 @@ function matchProductsToClient(clientTags, clientText) {
         }
     });
     
-    // Sort by score and return top matches
-    return matches.sort((a, b) => b.score - a.score);
+    // Trier par score et limiter aux meilleurs résultats
+    const sortedMatches = matches.sort((a, b) => b.score - a.score).slice(0, 50); // Max 50 produits
+    
+    // Mettre en cache
+    MATCH_CACHE.set(cacheKey, sortedMatches);
+    
+    // Limiter la taille du cache
+    if (MATCH_CACHE.size > 100) {
+        const firstKey = MATCH_CACHE.keys().next().value;
+        MATCH_CACHE.delete(firstKey);
+    }
+    
+    console.log(`✅ Found ${sortedMatches.length} matching products (from ${candidateIndices.size} candidates)`);
+    return sortedMatches;
 }
 
 // ===== RENDER: PRODUCT MATCHER =====
@@ -594,29 +712,38 @@ async function renderProducts() {
         await loadLVProducts();
     }
     
-    grid.innerHTML = '';
+    // Afficher un message de chargement pendant le matching
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#999"><div class="spinner" style="margin:0 auto 16px"></div><p>Analyse des profils clients et matching des produits...</p></div>';
 
-    const withTags = DATA.filter(p => p.tags.length > 0);
-    if (withTags.length === 0) {
-        grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client avec tags pour le matching produit.</p>';
-        return;
-    }
-    
-    if (LV_PRODUCTS.length === 0) {
-        grid.innerHTML = '<p style="color:#ef4444;font-size:.85rem;padding:20px">⚠️ Erreur de chargement de la base de données produits. Vérifiez que le fichier JSON est accessible.</p>';
-        return;
-    }
-
-    let totalMatches = 0;
-
-    withTags.forEach(p => {
-        const matches = matchProductsToClient(p.tags, p.clean);
+    // Utiliser setTimeout pour permettre au spinner de s'afficher
+    setTimeout(() => {
+        const withTags = DATA.filter(p => p.tags.length > 0);
+        if (withTags.length === 0) {
+            grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client avec tags pour le matching produit.</p>';
+            return;
+        }
         
-        // Only show clients with actual matches
-        if (matches.length === 0) return;
-        
-        totalMatches += matches.length;
-        const top3 = matches.slice(0, 3);
+        if (LV_PRODUCTS.length === 0) {
+            grid.innerHTML = '<p style="color:#ef4444;font-size:.85rem;padding:20px">⚠️ Erreur de chargement de la base de données produits. Vérifiez que le fichier JSON est accessible.</p>';
+            return;
+        }
+
+        grid.innerHTML = ''; // Effacer le spinner
+        let totalMatches = 0;
+        let cardsRendered = 0;
+
+        // Limiter le nombre de clients affichés pour de meilleures performances
+        const clientsToShow = withTags.slice(0, 20); // Max 20 clients
+
+        clientsToShow.forEach(p => {
+            const matches = matchProductsToClient(p.tags, p.clean);
+            
+            // Only show clients with actual matches
+            if (matches.length === 0) return;
+            
+            totalMatches += matches.length;
+            const top3 = matches.slice(0, 3);
+            cardsRendered++;
 
         const card = document.createElement('div');
         card.className = 'product-match-card';
@@ -630,38 +757,13 @@ async function renderProducts() {
                 ${top3.map(match => {
                     const prod = match.product;
                     
-                    // Find the best product image (not generic banners)
-                    let imageUrl = '';
-                    if (prod.image_urls && prod.image_urls.length > 0) {
-                        // Try to find image with SKU in URL (most specific)
-                        const skuImage = prod.image_urls.find(url => 
-                            prod.sku && url.toLowerCase().includes(prod.sku.toLowerCase())
-                        );
-                        
-                        if (skuImage) {
-                            imageUrl = skuImage;
-                        } else {
-                            // Filter out generic banners and take first specific image
-                            const specificImages = prod.image_urls.filter(url => {
-                                const urlLower = url.toLowerCase();
-                                // Exclude generic marketing images
-                                return !urlLower.includes('_mm_') && 
-                                       !urlLower.includes('_lg_') &&
-                                       !urlLower.includes('gifts') &&
-                                       !urlLower.includes('perso') &&
-                                       !urlLower.includes('new_for') &&
-                                       !urlLower.includes('show') &&
-                                       !urlLower.includes('pushat') &&
-                                       !urlLower.includes('bc_') &&
-                                       (urlLower.includes('/pp_vp_l/') || urlLower.includes('/lv/'));
-                            });
-                            
-                            imageUrl = specificImages.length > 0 ? specificImages[0] : prod.image_urls[0];
-                        }
-                    }
-                    
-                    const price = prod.price || 'Prix sur demande';
+                    // New Hugging Face dataset structure
+                    const imageUrl = prod.imageurl || '';
+                    const price = prod.price_eur ? `${prod.price_eur.toLocaleString('fr-FR')} €` : 'Prix sur demande';
                     const matchTags = match.matchReasons.join(', ');
+                    const productName = prod.title || 'Produit Louis Vuitton';
+                    const productCategory = [prod.category1_code, prod.category2_code, prod.category3_code].filter(Boolean).join(' › ');
+                    const productUrl = prod.itemurl || '';
                     
                     return `
                         <div class="product-item">
@@ -669,26 +771,32 @@ async function renderProducts() {
                                 ${imageUrl ? '' : '🛍️'}
                             </div>
                             <div class="product-item-info">
-                                <div class="product-item-name">${prod.name}</div>
-                                <div class="product-item-desc">${prod.description || prod.category}</div>
+                                <div class="product-item-name">${productName}</div>
+                                <div class="product-item-desc">${productCategory}</div>
                                 <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
                                     <span class="product-item-price">${price}</span>
                                     <span class="product-item-match" title="Match: ${matchTags}">Match: ${matchTags}</span>
                                 </div>
-                                ${prod.url ? `<a href="${prod.url}" target="_blank" style="font-size:.7rem;color:#d4af37;margin-top:4px;display:inline-block">Voir sur LV →</a>` : ''}
+                                ${productUrl ? `<a href="${productUrl}" target="_blank" style="font-size:.7rem;color:#d4af37;margin-top:4px;display:inline-block">Voir sur LV →</a>` : ''}
                             </div>
                         </div>
                     `;
                 }).join('')}
             </div>
         `;
-        grid.appendChild(card);
-    });
-    
-    // Show message if no matches found for any client
-    if (totalMatches === 0) {
-        grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px;text-align:center">Aucun produit Louis Vuitton ne correspond aux profils clients actuels. Le matching est basé sur les tags et descriptions des clients.</p>';
-    }
+            grid.appendChild(card);
+        });
+        
+        // Afficher un résumé
+        if (cardsRendered > 0) {
+            const summary = document.createElement('div');
+            summary.style.cssText = 'text-align:center;padding:20px;color:#999;font-size:.85rem;border-top:1px solid #E5E5E5;margin-top:20px';
+            summary.innerHTML = `✅ ${cardsRendered} client${cardsRendered > 1 ? 's' : ''} avec ${totalMatches} produit${totalMatches > 1 ? 's' : ''} correspondant${totalMatches > 1 ? 's' : ''}`;
+            grid.appendChild(summary);
+        } else {
+            grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px;text-align:center">Aucun produit Louis Vuitton ne correspond aux profils clients actuels. Le matching est basé sur les tags et descriptions des clients.</p>';
+        }
+    }, 100); // Petit délai pour afficher le spinner
 }
 
 // ===== RENDER: SENTIMENT =====
