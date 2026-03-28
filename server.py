@@ -98,6 +98,36 @@ Génère exactement 3 actions au format JSON array. Chaque action:
 RÉPONSE JSON UNIQUEMENT:
 [{{"action":"...","type":"...","category":"..."}},{{"action":"...","type":"...","category":"..."}},{{"action":"...","type":"...","category":"..."}}]"""
 
+SENTIMENT_PROMPT = """Tu es un expert CRM pour les maisons de luxe LVMH. Ton rôle est d'analyser le ressenti d'un client à partir d'une note rédigée par un Client Advisor.
+
+CONTEXTE LUXE IMPORTANT :
+- Un client exigeant ou précis dans ses attentes n'est PAS négatif
+- L'absence de compliments n'est PAS un signal négatif dans le luxe
+- Un client silencieux ou neutre = score 45-55
+- Les achats répétés, la fidélité, les cadeaux = signaux très positifs
+- Une plainte, un retard, un défaut = signaux négatifs
+
+ANCRES DE SCORE :
+- 85-100 : Enthousiaste, exprime clairement sa satisfaction, recommande, émotionnellement engagé
+- 65-84 : Satisfait, visite positive, pas de friction notable
+- 45-64 : Neutre, transactionnel, pas d'émotion particulière dans les deux sens
+- 25-44 : Insatisfait, friction légère, attente déçue sans rupture
+- 0-24 : Très négatif, plainte explicite, rupture de confiance, retour produit
+
+NOTE DU CLIENT ADVISOR :
+{text}
+
+TAGS DÉTECTÉS : {tags}
+
+ANALYSE PAS À PAS (dans ta tête, ne l'écris pas) :
+1. Quels mots expriment le ressenti du CLIENT (pas du CA) ?
+2. Y a-t-il des signaux d'achat, fidélité, ou satisfaction implicite ?
+3. Y a-t-il une friction, plainte, ou attente déçue ?
+4. Quel score correspond aux ancres ci-dessus ?
+
+RÉPONSE JSON UNIQUEMENT (aucun texte avant ou après) :
+{{"level":"positive|neutral|negative","score":0-100,"justification":"1 phrase qui cite un élément concret du texte","posFound":["signal1","signal2"],"negFound":["signal1"]}}"""
+
 # ───────────────────────────────────────────
 # SENTIMENT KEYWORDS
 # ───────────────────────────────────────────
@@ -436,7 +466,7 @@ def build_taxonomy_from_tags(tags: list) -> dict:
     return out
 
 
-def analyze_sentiment(clean_text: str, row_id: str, ca: str) -> dict:
+def analyze_sentiment_fallback(clean_text: str, row_id: str = "", ca: str = "") -> dict:
     text = clean_text.lower()
     pos_score = sum(1 for kw in SENTIMENT_POSITIVE if kw in text)
     neg_score = sum(1.5 for kw in SENTIMENT_NEGATIVE if kw in text)
@@ -446,6 +476,41 @@ def analyze_sentiment(clean_text: str, row_id: str, ca: str) -> dict:
     score = round((pos_score / total) * 100)
     level = "positive" if score >= 70 else ("neutral" if score >= 40 else "negative")
     return {"id": row_id, "ca": ca, "score": score, "level": level, "posFound": pos_found, "negFound": neg_found, "excerpt": clean_text[:150]}
+
+
+async def analyze_sentiment_ai(client_http: httpx.AsyncClient, clean_text: str, tags_str: str, row_id: str = "", ca: str = "") -> dict:
+    """Analyse le sentiment via Mistral AI avec fallback sur l'analyse par mots-clés."""
+    try:
+        prompt = SENTIMENT_PROMPT.replace("{text}", clean_text[:700]).replace("{tags}", tags_str[:300])
+        result = await call_mistral(client_http, prompt, 400)
+        json_match = re.search(r'\{[^{}]*\}', result, re.DOTALL)
+        if json_match:
+            parsed = json.loads(json_match.group(0))
+            # Normalisation : forcer la cohérence level/score
+            score = max(0, min(100, int(parsed.get("score", 50))))
+            level = parsed.get("level", "neutral")
+            # Si le score ne correspond pas au level déclaré, corriger le level
+            if score >= 65 and level != "positive":
+                level = "positive"
+            elif score <= 35 and level != "negative":
+                level = "negative"
+            elif 36 <= score <= 64 and level not in ("neutral",):
+                level = "neutral"
+            return {
+                "id": row_id,
+                "ca": ca,
+                "score": score,
+                "level": level,
+                "justification": parsed.get("justification", ""),
+                "posFound": parsed.get("posFound", []),
+                "negFound": parsed.get("negFound", []),
+                "excerpt": clean_text[:150],
+            }
+    except Exception:
+        pass
+    fallback = analyze_sentiment_fallback(clean_text, row_id, ca)
+    fallback["justification"] = "Analyse locale (fallback)"
+    return fallback
 
 
 COACHING_RULES = {
@@ -690,14 +755,38 @@ async def run_pipeline(rows: list, seller_id: str = None, boutique_id: str = Non
             if i + BATCH_SIZE < len(data):
                 await asyncio.sleep(BATCH_DELAY)
 
-    # Step 4: Sentiment
+    # Step 4: Sentiment (via Mistral AI avec fallback local)
     sentiment_data = []
-    for row in data:
-        s = analyze_sentiment(row["clean"], row["id"], row["ca"])
-        row["sentiment"] = {"score": s["score"], "level": s["level"], "posFound": s["posFound"], "negFound": s["negFound"]}
-        if s["level"] == "negative":
-            stats["atRisk"] += 1
-        sentiment_data.append(s)
+    async with httpx.AsyncClient() as client:
+        for i in range(0, len(data), BATCH_SIZE):
+            batch = data[i:i+BATCH_SIZE]
+
+            async def sentiment_for_row(row):
+                tags_str = ", ".join(t["t"] for t in row.get("tags", []))
+                s = await analyze_sentiment_ai(client, row["clean"], tags_str, row["id"], row["ca"])
+                row["sentiment"] = {
+                    "score": s["score"],
+                    "level": s["level"],
+                    "posFound": s["posFound"],
+                    "negFound": s["negFound"],
+                    "justification": s.get("justification", ""),
+                }
+                if s["level"] == "negative":
+                    stats["atRisk"] += 1
+                sentiment_data.append({
+                    "id": s["id"],
+                    "ca": s["ca"],
+                    "score": s["score"],
+                    "level": s["level"],
+                    "posFound": s["posFound"],
+                    "negFound": s["negFound"],
+                    "excerpt": s["excerpt"],
+                    "justification": s.get("justification", ""),
+                })
+
+            await asyncio.gather(*[sentiment_for_row(r) for r in batch])
+            if i + BATCH_SIZE < len(data):
+                await asyncio.sleep(BATCH_DELAY)
 
     # Step 5: Privacy Scores
     privacy_scores, privacy_avg = compute_privacy_scores(data)
@@ -897,6 +986,217 @@ def api_admin_clear_all():
     if ok:
         return jsonify({"success": True, "deleted": result})
     return jsonify({"error": "Erreur Supabase", "details": result}), 500
+
+
+# ───────────────────────────────────────────
+# SMART FOLLOW-UP
+# ───────────────────────────────────────────
+SMART_FOLLOWUP_SYSTEM = """Tu es un Client Advisor expert Louis Vuitton qui rédige des messages de suivi client.
+
+RÈGLES ABSOLUES :
+1. Utilise la note du client (clean_text) comme base principale — c'est le contexte réel de la visite
+2. Les tags sont des signaux complémentaires, NE LES LISTE PAS et ne les reformule pas mécaniquement
+3. Intègre les produits recommandés de façon naturelle, en lien avec le contexte de la note
+4. Adapte le ton : email = élégant et personnalisé, whatsapp = chaleureux et concis (3-4 lignes max)
+5. Ne mentionne jamais les prix
+6. Écris comme un humain, pas comme un système CRM — utilise "vous" et le prénom si disponible
+7. Le message doit sembler écrit spécifiquement pour CE client, pas généré automatiquement"""
+
+
+def _build_followup_fallback(tags: list, products: list, channel: str, house: str) -> dict:
+    """Message template basique si Mistral échoue."""
+    tag_labels = ", ".join(t.get("t", "") for t in tags if t.get("t")) or "votre profil"
+    product_names = [p.get("name", "") for p in products if p.get("name")]
+    products_used = product_names[:3]
+
+    if channel == "whatsapp":
+        subject = f"Un message de {house}"
+        body_lines = [
+            f"Bonjour,",
+            f"",
+            f"Je pense à vous et souhaitais partager une sélection qui correspond à vos centres d'intérêt ({tag_labels}).",
+        ]
+        if products_used:
+            body_lines.append(f"")
+            body_lines.append("Je pense notamment à : " + ", ".join(products_used) + ".")
+        body_lines += ["", "N'hésitez pas à me contacter si vous souhaitez en savoir plus.", "", f"Bien à vous,", f"Votre Client Advisor {house}"]
+    else:
+        subject = f"Une sélection personnalisée pour vous — {house}"
+        body_lines = [
+            f"Cher(e) client(e),",
+            f"",
+            f"Je me permets de vous contacter afin de vous présenter une sélection réalisée spécialement pour vous, en accord avec vos centres d'intérêt ({tag_labels}).",
+        ]
+        if products_used:
+            body_lines.append(f"")
+            body_lines.append("Je souhaitais particulièrement attirer votre attention sur : " + ", ".join(products_used) + ".")
+        body_lines += ["", "Je reste à votre entière disposition pour organiser une présentation en boutique.", "", f"Avec mes cordiales salutations,", f"Votre Client Advisor {house}"]
+
+    return {"subject": subject, "body": "\n".join(body_lines), "products_used": products_used}
+
+
+@app.route("/api/smart-followup", methods=["POST"])
+def api_smart_followup():
+    """Génère un message de follow-up personnalisé via Mistral, avec produits LV intégrés."""
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "No JSON body provided"}), 400
+
+    tags = body.get("tags", [])
+    clean_text = (body.get("clean_text") or "").strip()
+    products = body.get("products", [])
+    channel = (body.get("channel") or "email").lower()
+    house = (body.get("house") or "Louis Vuitton").strip()
+
+    # Formatage des tags : sépare les catégories pour donner plus de sens
+    tag_by_cat: dict = {}
+    for t in tags:
+        cat = t.get("c", "autre")
+        tag_by_cat.setdefault(cat, []).append(t.get("t", ""))
+    tags_context = "; ".join(
+        f"{cat}: {', '.join(vals)}" for cat, vals in tag_by_cat.items() if vals
+    ) or "Aucun signal disponible"
+
+    # Formatage des produits pour le prompt
+    products_str = "\n".join(
+        f"- {p.get('name', 'N/A')} ({p.get('category', 'N/A')})" for p in products[:3]
+    ) or "Aucun produit disponible"
+
+    user_prompt = (
+        f"Canal : {channel}\n"
+        f"Maison : {house}\n\n"
+        f"NOTE DE VISITE (contexte principal à utiliser) :\n\"{clean_text[:300]}\"\n\n"
+        f"Signaux complémentaires (ne pas lister, utiliser pour enrichir) : {tags_context}\n\n"
+        f"Produits à intégrer naturellement :\n{products_str}\n\n"
+        f"Génère un message qui reprend le contexte de la note (ex: la recherche de cadeau, "
+        f"l'occasion mentionnée, le projet du client) et propose les produits en lien direct "
+        f"avec ce contexte.\n\n"
+        f"RÉPONSE JSON UNIQUEMENT (sans markdown) :\n"
+        f'{{\"subject\": \"...\", \"body\": \"...\", \"products_used\": [\"nom1\", \"nom2\"]}}'
+    )
+
+    full_prompt = SMART_FOLLOWUP_SYSTEM + "\n\n" + user_prompt
+
+    async def _call():
+        async with httpx.AsyncClient() as client:
+            return await call_mistral(client, full_prompt, max_tokens=700)
+
+    try:
+        raw = asyncio.run(_call())
+        json_match = re.search(r'\{[\s\S]*\}', raw)
+        if json_match:
+            parsed = json.loads(json_match.group(0))
+            return jsonify({
+                "subject": parsed.get("subject", ""),
+                "body": parsed.get("body", ""),
+                "products_used": parsed.get("products_used", []),
+            })
+        # JSON non parsable → fallback
+        fallback = _build_followup_fallback(tags, products, channel, house)
+        return jsonify(fallback)
+    except Exception:
+        try:
+            fallback = _build_followup_fallback(tags, products, channel, house)
+            return jsonify(fallback)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+
+# ───────────────────────────────────────────
+# COACH RGPD
+# ───────────────────────────────────────────
+COACH_RGPD_SYSTEM = """Tu es un formateur RGPD pour Client Advisors LVMH. Voici une note prise par un vendeur. Pour chaque donnée sensible détectée, explique en 1 phrase pourquoi c'est interdit et propose une reformulation qui garde l'info utile sans violer le RGPD. Si la note est conforme, félicite le vendeur et suggère comment enrichir la note avec plus d'informations exploitables (centres d'intérêt, style, occasion). RÉPONSE JSON UNIQUEMENT : {"feedback":"message global","suggestions":[{"original":"passage problématique","reason":"pourquoi interdit","reformulation":"version conforme"}]}"""
+
+
+@app.route("/api/coach-rgpd", methods=["POST"])
+def api_coach_rgpd():
+    """Analyse une note vendeur : score RGPD, score qualité, feedback Mistral."""
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "No JSON body provided"}), 400
+
+    text = (body.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "Le champ 'text' est requis et ne peut pas être vide"}), 400
+
+    language = (body.get("language") or "FR").strip().upper()
+
+    # --- Étape 1 : détection violations RGPD ---
+    try:
+        sensitive_count, sensitive_found = detect_sensitive(text)
+    except Exception:
+        sensitive_count, sensitive_found = 0, []
+
+    violations = sensitive_found  # liste de {"cat": ..., "word": ...}
+
+    # --- Étape 2 : extraction des tags ---
+    try:
+        tags = extract_tags(text)
+    except Exception:
+        tags = []
+
+    # --- Étape 3 : calcul des scores ---
+    rgpd_score = max(0, 100 - len(violations) * 15)
+
+    tag_count = len(tags)
+    if tag_count == 0:
+        quality_score = 20
+    elif tag_count <= 3:
+        quality_score = 40
+    elif tag_count <= 6:
+        quality_score = 60
+    elif tag_count <= 10:
+        quality_score = 80
+    else:
+        quality_score = 100
+
+    # --- Étape 4 : appel Mistral pour feedback et suggestions ---
+    violations_str = (
+        "\n".join(f"- [{v.get('cat', '')}] \"{v.get('word', '')}\"" for v in violations)
+        if violations else "Aucune violation détectée"
+    )
+    tags_str = (
+        ", ".join(f"{t.get('t', '')} ({t.get('c', '')})" for t in tags if t.get("t"))
+        or "Aucun tag extractible"
+    )
+
+    user_message = (
+        f"Note du vendeur :\n{text}\n\n"
+        f"Violations RGPD détectées :\n{violations_str}\n\n"
+        f"Tags CRM extractibles : {tags_str}\n\n"
+        f"RÉPONSE JSON UNIQUEMENT (sans markdown) :\n"
+        f'{{\"feedback\": \"...\", \"suggestions\": []}}'
+    )
+
+    full_prompt = COACH_RGPD_SYSTEM + "\n\n" + user_message
+
+    async def _call():
+        async with httpx.AsyncClient() as client:
+            return await call_mistral(client, full_prompt, max_tokens=700)
+
+    feedback = ""
+    suggestions = []
+
+    try:
+        raw = asyncio.run(_call())
+        json_match = re.search(r'\{[\s\S]*\}', raw)
+        if json_match:
+            parsed = json.loads(json_match.group(0))
+            feedback = parsed.get("feedback", "")
+            suggestions = parsed.get("suggestions", [])
+    except Exception:
+        # Fallback silencieux : scores et violations retournés, pas de feedback IA
+        pass
+
+    return jsonify({
+        "rgpd_score": rgpd_score,
+        "quality_score": quality_score,
+        "violations": violations,
+        "extractable_tags_count": tag_count,
+        "tags": tags,
+        "feedback": feedback,
+        "suggestions": suggestions,
+    })
 
 
 # ───────────────────────────────────────────

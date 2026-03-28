@@ -36,13 +36,34 @@ const LVMH_HOUSES = ['Louis Vuitton','Dior','Fendi','Givenchy','Celine','Loewe',
 const CAT_NAMES = { profil:'Profil', interet:'Intérêt', voyage:'Voyage', contexte:'Contexte', service:'Service', marque:'Marque', crm:'CRM' };
 const legendColors = { profil:'#60a5fa', interet:'#d4af37', voyage:'#34d399', contexte:'#c084fc', service:'#f472b6', marque:'#fb923c', crm:'#facc15' };
 
+// ===== DASHBOARD HELPERS =====
+function groupByDate(arr, valueFn) {
+    const map = {};
+    (arr || []).forEach(function(row) {
+        const d = (row.date || '').substring(0, 10);
+        if (!d) return;
+        map[d] = (map[d] || 0) + (valueFn ? valueFn(row) : 1);
+    });
+    return map;
+}
+
+function lastNDays(map, n) {
+    const sorted = Object.keys(map).sort();
+    const last = sorted.slice(-n);
+    const result = [];
+    for (let i = 0; i < n; i++) {
+        result.push(last[i] !== undefined ? (map[last[i]] || 0) : 0);
+    }
+    return result.length ? result : Array(n).fill(0);
+}
+
 // ===== RENDER: DASHBOARD (Manager - COCKPIT) =====
 function renderDashboard() {
 
-    // 1. Mini KPIs (Sparklines)
-    renderSparkline('spark1', [10, 15, 12, 18, 20, 15, 22, 25, 20, 28], '#10b981'); // Clients
-    renderSparkline('spark3', [40, 35, 30, 32, 28, 25, 20, 18, 15, 12], '#ef4444'); // Tags (down)
-    renderSparkline('spark4', [10, 10, 12, 12, 15, 15, 18, 18, 20, 20], '#aaa');    // NBA
+    // 1. Mini KPIs (Sparklines) — données réelles
+    renderSparkline('spark1', lastNDays(groupByDate(DATA), 10), '#10b981'); // Clients par jour
+    renderSparkline('spark3', lastNDays(groupByDate(DATA, function(row) { return (row.tags || []).length; }), 10), '#ef4444'); // Tags par jour
+    renderSparkline('spark4', lastNDays(groupByDate(DATA, function(row) { return (row.nba || []).length; }), 10), '#aaa');    // NBA par jour
 
     // 2. Main Graph
     renderCockpitMain();
@@ -110,18 +131,23 @@ function renderCockpitMain() {
     const el = document.getElementById('cockpitMainChart');
     if (!el) return;
 
-    // Mock data for weekly activity
-    const dataA = [40, 25, 50, 30, 60, 75, 45];
-    const dataB = [20, 35, 20, 50, 40, 50, 30];
-    const labels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    // Données réelles : notes et tags sur les 7 derniers jours
+    const dayMapNotes = groupByDate(DATA);
+    const dayMapTags = groupByDate(DATA, function(row) { return (row.tags || []).length; });
+    const allDays = Array.from(new Set(Object.keys(dayMapNotes).concat(Object.keys(dayMapTags)))).sort().slice(-7);
+    const dataA = allDays.length ? allDays.map(function(d) { return dayMapNotes[d] || 0; }) : [0,0,0,0,0,0,0];
+    const dataB = allDays.length ? allDays.map(function(d) { return dayMapTags[d] || 0; }) : [0,0,0,0,0,0,0];
+    const labels = allDays.length ? allDays.map(function(d) { var dt = new Date(d); return ['D','L','M','M','J','V','S'][dt.getDay()]; }) : ['L','M','M','J','V','S','D'];
     const height = 150;
     const width = 400; // viewBox width
 
-    // Generate paths
+    // Generate paths — normalise sur le max réel pour éviter des courbes plates
+    const allValues = dataA.concat(dataB);
+    const maxVal = Math.max.apply(null, allValues) || 1;
     const makePath = (data) => {
         return data.map((val, i) => {
             const x = (i / (data.length - 1)) * width;
-            const y = height - (val / 100) * height;
+            const y = height - (val / maxVal) * height * 0.9;
             return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
         }).join(' ');
     };
@@ -175,7 +201,13 @@ function renderRadar() {
     const axes = 5;
     const radius = 45;
     const center = 50;
-    const data = [0.8, 0.6, 0.9, 0.4, 0.7]; // value 0-1
+    const cats = ['profil', 'interet', 'voyage', 'contexte', 'service'];
+    const totalTags = DATA.reduce(function(s, r) { return s + (r.tags || []).length; }, 0);
+    const data = cats.map(function(cat) {
+        if (!totalTags) return 0;
+        const count = DATA.reduce(function(s, r) { return s + (r.tags || []).filter(function(tg) { return tg.c === cat; }).length; }, 0);
+        return Math.min(count / totalTags * cats.length, 1);
+    }); // value 0-1, normalisé sur les vraies proportions
 
     const getPoint = (val, i) => {
         const angle = (Math.PI * 2 * i) / axes - Math.PI / 2;
@@ -203,7 +235,8 @@ function renderRadar() {
 function renderPrivacyDonut() {
     const el = document.getElementById('cockpitPrivacyDonut');
     if (!el) return;
-    const val = 85;
+    const val = Math.round(STATS.privacyAvg || 0);
+    const donutColor = val >= 90 ? '#22c55e' : val >= 75 ? '#3b82f6' : val >= 60 ? '#f59e0b' : '#ef4444';
     const r = 40;
     const c = 2 * Math.PI * r;
     const off = c - (val / 100) * c;
@@ -211,7 +244,7 @@ function renderPrivacyDonut() {
     el.innerHTML = `
         <svg viewBox="0 0 100 100" style="width:80%;height:80%">
             <circle cx="50" cy="50" r="${r}" fill="none" stroke="#222" stroke-width="10"/>
-            <circle cx="50" cy="50" r="${r}" fill="none" stroke="#10b981" stroke-width="10" 
+            <circle cx="50" cy="50" r="${r}" fill="none" stroke="${donutColor}" stroke-width="10"
                 stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 50 50)" stroke-linecap="round"/>
             <text x="50" y="55" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">${val}%</text>
         </svg>
@@ -564,9 +597,16 @@ function renderPrivacy() {
     const criticalCount = PRIVACY_SCORES.filter(p => p.level === 'critical').length;
     const avgLevel = STATS.privacyAvg >= 90 ? 'excellent' : STATS.privacyAvg >= 75 ? 'good' : STATS.privacyAvg >= 60 ? 'warning' : 'critical';
     
-    // Calculate trend (mock: compare to previous period)
-    const previousAvg = STATS.privacyAvg - (Math.random() * 10 - 5);
-    const trend = STATS.privacyAvg - previousAvg;
+    // Calculate trend — compare première moitié vs score actuel (sans Math.random)
+    let previousAvg = STATS.privacyAvg;
+    const scores = Object.values(PRIVACY_SCORES || {});
+    if (scores.length >= 2) {
+        const half = Math.floor(scores.length / 2);
+        const firstHalf = scores.slice(0, half);
+        const firstHalfSum = firstHalf.reduce(function(s, v) { return s + (v.score || v || 0); }, 0);
+        previousAvg = firstHalf.length > 0 ? firstHalfSum / firstHalf.length : STATS.privacyAvg;
+    }
+    const trend = previousAvg ? Math.round(STATS.privacyAvg - previousAvg) : 0;
     const trendIcon = trend > 0 ? '📈' : trend < 0 ? '📉' : '➡️';
     const trendText = trend > 0 ? `+${trend.toFixed(1)}%` : `${trend.toFixed(1)}%`;
 
@@ -984,11 +1024,42 @@ function generateSignals(tagFreq, catFreq) {
 }
 
 // ===== RENDER: FOLLOW-UP =====
+// State du mode follow-up : 'classic' | 'ai'
+let sfMode = 'classic';
+
 function renderFollowup() {
     const grid = $('followupGrid');
     const house = $('followupHouse') ? $('followupHouse').value : 'Louis Vuitton';
     const channel = $('followupChannel') ? $('followupChannel').value : 'email';
     if (!grid) return;
+
+    // Injecter la barre de toggle si elle n'existe pas encore
+    const pageContent = grid.closest('.page-content');
+    if (pageContent && !pageContent.querySelector('.sf-toggle-bar')) {
+        const toggleBar = document.createElement('div');
+        toggleBar.className = 'sf-toggle-bar';
+        toggleBar.innerHTML = `
+            <button class="sf-toggle-btn ${sfMode === 'classic' ? 'active' : ''}" data-mode="classic">Mode classique</button>
+            <button class="sf-toggle-btn ${sfMode === 'ai' ? 'active' : ''}" data-mode="ai">Mode IA</button>
+        `;
+        toggleBar.addEventListener('click', e => {
+            const btn = e.target.closest('.sf-toggle-btn');
+            if (!btn) return;
+            sfMode = btn.dataset.mode;
+            toggleBar.querySelectorAll('.sf-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === sfMode));
+            renderFollowup();
+        });
+        const controls = pageContent.querySelector('.followup-controls');
+        if (controls) {
+            controls.insertAdjacentElement('afterend', toggleBar);
+        } else {
+            pageContent.insertBefore(toggleBar, grid);
+        }
+    } else if (pageContent) {
+        // Mettre à jour l'état actif du toggle existant
+        pageContent.querySelectorAll('.sf-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === sfMode));
+    }
+
     grid.innerHTML = '';
 
     const withTags = DATA.filter(p => p.tags.length > 0);
@@ -997,17 +1068,153 @@ function renderFollowup() {
         return;
     }
 
-    withTags.forEach(p => {
-        const msg = generateFollowupLocal(p, house, channel);
-        const card = document.createElement('div');
-        card.className = 'followup-card';
-        card.innerHTML = `
-            <div class="followup-card-header"><span class="followup-client-id">${p.ca || p.id}</span><span class="followup-channel ${channel}">${channel==='email'?'📧 Email':'💬 WhatsApp'}</span></div>
-            <div class="followup-subject">${msg.subject}</div>
-            <div class="followup-body">${msg.body}</div>
-            <div class="followup-actions"><button class="followup-btn copy" onclick="copyFollowup(this)">📋 Copier</button></div>
+    if (sfMode === 'classic') {
+        withTags.forEach(p => {
+            const msg = generateFollowupLocal(p, house, channel);
+            const card = document.createElement('div');
+            card.className = 'followup-card';
+            card.innerHTML = `
+                <div class="followup-card-header"><span class="followup-client-id">${p.ca || p.id}</span><span class="followup-channel ${channel}">${channel==='email'?'📧 Email':'💬 WhatsApp'}</span></div>
+                <div class="followup-subject">${msg.subject}</div>
+                <div class="followup-body">${msg.body}</div>
+                <div class="followup-actions"><button class="followup-btn copy" onclick="copyFollowup(this)">📋 Copier</button></div>
+            `;
+            grid.appendChild(card);
+        });
+    } else {
+        withTags.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'followup-card sf-ai-card';
+            card.dataset.clientId = p.id;
+            const tagsSummary = p.tags.slice(0, 4).map(t => `<span class="sf-tag-chip">${t.t.replace(/_/g,' ')}</span>`).join('');
+            card.innerHTML = `
+                <div class="followup-card-header">
+                    <span class="followup-client-id">${p.ca || p.id}</span>
+                    <span class="followup-channel ${channel}">${channel==='email'?'📧 Email':'💬 WhatsApp'}</span>
+                </div>
+                <div class="sf-tags-row">${tagsSummary}</div>
+                <div class="sf-generate-zone">
+                    <button class="sf-btn-generate" data-id="${p.id}">Générer avec IA</button>
+                </div>
+            `;
+            card.querySelector('.sf-btn-generate').addEventListener('click', () => {
+                triggerSmartFollowup(card, p, channel, house);
+            });
+            grid.appendChild(card);
+        });
+    }
+}
+
+async function triggerSmartFollowup(card, client, channel, house) {
+    const zone = card.querySelector('.sf-generate-zone');
+    zone.innerHTML = '<div class="sf-spinner"></div>';
+
+    // Récupération des top 3 produits via le Product Matcher
+    const matches = matchProductsToClient(client.tags, client.clean || '');
+    const top3 = matches.slice(0, 3);
+    const productsPayload = top3.map(m => ({
+        name: m.product.title || '',
+        price: m.product.price || '',
+        category: m.product.category1_code || m.product.category || '',
+        imageurl: m.product.imageurl || '',
+        itemurl: m.product.itemurl || ''
+    }));
+
+    try {
+        const resp = await fetch(`${API_BASE}/api/smart-followup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                client_id: client.id,
+                tags: client.tags,
+                clean_text: (client.clean || '').substring(0, 150),
+                products: productsPayload,
+                channel: document.getElementById('followupChannel')?.value || 'email',
+                house: document.getElementById('followupHouse')?.value || 'Louis Vuitton'
+            })
+        });
+
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        renderSmartFollowupResult(card, zone, client, top3, data);
+    } catch (err) {
+        zone.innerHTML = `
+            <div class="sf-error">
+                <span class="sf-error-msg">Le service IA est momentanément indisponible.</span>
+                <button class="sf-btn-generate" data-id="${client.id}">Réessayer</button>
+            </div>
         `;
-        grid.appendChild(card);
+        zone.querySelector('.sf-btn-generate').addEventListener('click', () => {
+            triggerSmartFollowup(card, client, channel, house);
+        });
+    }
+}
+
+function renderSmartFollowupResult(card, zone, client, top3, data) {
+    const subject = data.subject || '';
+    const body = data.body || data.message || '';
+
+    // Ajouter le badge IA dans le header de la card
+    const header = card.querySelector('.followup-card-header');
+    if (header && !header.querySelector('.sf-badge-ai')) {
+        const badge = document.createElement('span');
+        badge.className = 'sf-badge-ai';
+        badge.innerHTML = '&#10022; IA';
+        header.appendChild(badge);
+    }
+
+    const productsHtml = top3.length > 0
+        ? top3.map(m => {
+            const p = m.product;
+            const imgSrc = p.imageurl || '';
+            const link = p.itemurl || '#';
+            const title = (p.title || '').substring(0, 48);
+            const cat = (p.category1_code || p.category || '').replace(/_/g, ' ');
+            return `
+                <a href="${link}" target="_blank" rel="noopener" class="sf-product-mini">
+                    <div class="sf-product-img-wrap">
+                        ${imgSrc ? `<img class="sf-product-img" src="${imgSrc}" alt="${title}" loading="lazy">` : '<div class="sf-product-img sf-product-img-placeholder"></div>'}
+                    </div>
+                    <div class="sf-product-info">
+                        <div class="sf-product-name">${title}</div>
+                        <div class="sf-product-cat">${cat}</div>
+                        ${p.price ? `<div class="sf-product-price">${p.price}</div>` : ''}
+                    </div>
+                </a>
+            `;
+        }).join('')
+        : '<p class="sf-no-products">Aucun produit correspondant trouvé.</p>';
+
+    zone.innerHTML = `
+        <div class="sf-result-wrap">
+            <div class="sf-message-col">
+                ${subject ? `<div class="sf-message-subject">${subject}</div>` : ''}
+                <div class="sf-message-body">${body.replace(/\n/g, '<br>')}</div>
+                <div class="sf-result-actions">
+                    <button class="sf-btn-copy">Copier</button>
+                    <button class="sf-btn-regen">Régénérer</button>
+                </div>
+            </div>
+            <div class="sf-products-col">
+                <div class="sf-products-label">Produits recommandés</div>
+                ${productsHtml}
+            </div>
+        </div>
+    `;
+
+    zone.querySelector('.sf-btn-copy').addEventListener('click', function() {
+        const textToCopy = (subject ? subject + '\n\n' : '') + body;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            this.textContent = 'Copié';
+            setTimeout(() => { this.textContent = 'Copier'; }, 1500);
+        });
+    });
+
+    const channel = document.getElementById('followupChannel')?.value || 'email';
+    const house = document.getElementById('followupHouse')?.value || 'Louis Vuitton';
+    zone.querySelector('.sf-btn-regen').addEventListener('click', () => {
+        zone.innerHTML = '<div class="sf-spinner"></div>';
+        triggerSmartFollowup(card, client, channel, house);
     });
 }
 
@@ -1715,6 +1922,217 @@ function renderBoutique() {
     }
 }
 
+// ===== CLIENT READINESS BRIEF =====
+function renderBrief() {
+    const select = $('briefClientSelect');
+    const content = $('briefContent');
+    if (!select || !content) return;
+
+    // Populate dropdown
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">— Choisir un client —</option>';
+    DATA.forEach(client => {
+        const opt = document.createElement('option');
+        opt.value = client.id;
+        opt.textContent = client.ca || client.id;
+        if (client.id === currentVal) opt.selected = true;
+        select.appendChild(opt);
+    });
+
+    // Restore previous selection if still valid
+    if (currentVal && select.value === currentVal) {
+        generateBriefContent(currentVal, content);
+    } else {
+        content.innerHTML = '<div class="brief-placeholder"><p>Selectionnez un client pour generer son brief de preparation.</p></div>';
+    }
+
+    // Remove previous listener to avoid duplication
+    select.onchange = null;
+    select.onchange = () => {
+        if (select.value) {
+            generateBriefContent(select.value, content);
+        } else {
+            content.innerHTML = '<div class="brief-placeholder"><p>Selectionnez un client pour generer son brief de preparation.</p></div>';
+        }
+    };
+}
+
+function generateBriefContent(clientId, container) {
+    const client = DATA.find(c => c.id === clientId);
+    if (!client) {
+        container.innerHTML = '<div class="brief-placeholder"><p>Client introuvable.</p></div>';
+        return;
+    }
+
+    const tags = Array.isArray(client.tags) ? client.tags : [];
+    const profilTags   = tags.filter(t => t.c === 'profil');
+    const interetTags  = tags.filter(t => t.c === 'interet');
+    const contexteTags = tags.filter(t => t.c === 'contexte');
+    const voyageTags   = tags.filter(t => t.c === 'voyage');
+    const marqueTags   = tags.filter(t => t.c === 'marque');
+    const serviceTags  = tags.filter(t => t.c === 'service');
+
+    // NBA
+    const nbaItems = Array.isArray(client.nba) ? client.nba.slice(0, 3) : [];
+
+    // Uplift
+    const upliftScore = calculateUpliftScore(client);
+    const sentimentLevel = (client.sentiment && typeof client.sentiment === 'object') ? (client.sentiment.level || 'neutral') : 'neutral';
+    const segment = getUpliftSegment(upliftScore, sentimentLevel);
+
+    // Churn risk
+    const sentimentScore = (client.sentiment && typeof client.sentiment === 'object') ? (client.sentiment.score || 50) : 50;
+    const churnRisk = calculateChurnRisk(sentimentScore, sentimentLevel, 1);
+
+    // Products
+    const products = (typeof matchProductsToClient === 'function' && PRODUCTS_LOADED)
+        ? matchProductsToClient(client.tags, client.clean || client.orig || '').slice(0, 3)
+        : [];
+
+    // Helper: render pill list
+    function pills(tagArr) {
+        if (!tagArr.length) return '<span class="brief-empty-hint">Aucune information</span>';
+        return tagArr.map(t => `<span class="brief-pill">${t.t.replace(/_/g, ' ')}</span>`).join('');
+    }
+
+    // Helper: price tier
+    function priceTier(price) {
+        const p = parseFloat(price) || 0;
+        if (p >= 3000) return '€€€€';
+        if (p >= 1000) return '€€€';
+        if (p >= 300) return '€€';
+        return '€';
+    }
+
+    // Section 1 — Profil
+    const section1 = `
+        <div class="brief-card">
+            <div class="brief-section-title">Profil client</div>
+            <div class="brief-meta-row">
+                <span class="brief-meta-item"><span class="brief-meta-key">Langue</span><span class="brief-meta-val">${client.lang || '—'}</span></span>
+                <span class="brief-meta-item"><span class="brief-meta-key">Boutique</span><span class="brief-meta-val">${client.store || '—'}</span></span>
+                <span class="brief-meta-item"><span class="brief-meta-key">Derniere note</span><span class="brief-meta-val">${client.date || '—'}</span></span>
+            </div>
+            <div class="brief-pills">${pills(profilTags)}</div>
+        </div>`;
+
+    // Section 2 — Centres d'intérêt
+    const section2 = `
+        <div class="brief-card">
+            <div class="brief-section-title">Centres d'interet</div>
+            <div class="brief-pills">${pills(interetTags)}</div>
+        </div>`;
+
+    // Section 3 — Contexte & historique
+    const contextGroups = [];
+    if (contexteTags.length) contextGroups.push({ label: 'Contexte', tags: contexteTags });
+    if (voyageTags.length)   contextGroups.push({ label: 'Voyage',   tags: voyageTags });
+    if (marqueTags.length)   contextGroups.push({ label: 'Marques',  tags: marqueTags });
+
+    const section3 = `
+        <div class="brief-card">
+            <div class="brief-section-title">Contexte et historique</div>
+            ${contextGroups.length ? contextGroups.map(g => `
+                <div class="brief-group">
+                    <span class="brief-group-label">${g.label}</span>
+                    <div class="brief-pills brief-pills--inline">${pills(g.tags)}</div>
+                </div>`).join('') : '<span class="brief-empty-hint">Aucun contexte renseigne</span>'}
+        </div>`;
+
+    // Section 4 — Recommandations produits
+    const productsHtml = products.length ? products.map(p => `
+        <div class="brief-product-item">
+            <img class="brief-product-img" src="${p.imageurl || ''}" alt="${p.title || ''}" onerror="this.style.display='none'">
+            <div class="brief-product-info">
+                <div class="brief-product-name">${p.title || 'Produit sans titre'}</div>
+                <div class="brief-product-cat">${p.category || ''}</div>
+                <div class="brief-product-price">${priceTier(p.price)}</div>
+                ${p.reasons && p.reasons.length ? `<div class="brief-product-reasons">${p.reasons.slice(0,2).map(r => `<span class="brief-reason">${r}</span>`).join('')}</div>` : ''}
+                ${p.itemurl ? `<a class="brief-product-link" href="${p.itemurl}" target="_blank" rel="noopener">Voir le produit</a>` : ''}
+            </div>
+        </div>`).join('')
+        : '<span class="brief-empty-hint">Catalogue non charge ou aucun match disponible</span>';
+
+    const section4 = `
+        <div class="brief-card">
+            <div class="brief-section-title">Recommandations produits</div>
+            <div class="brief-products-list">${productsHtml}</div>
+        </div>`;
+
+    // Section 5 — Next Best Actions + Uplift
+    const nbaHtml = nbaItems.length ? nbaItems.map(a => `
+        <div class="brief-nba-item">
+            <span class="brief-nba-dot"></span>
+            <div class="brief-nba-body">
+                <span class="brief-nba-action">${a.action || a}</span>
+                ${a.type ? `<span class="brief-nba-type">${a.type}</span>` : ''}
+                ${a.category ? `<span class="brief-nba-cat">${a.category}</span>` : ''}
+            </div>
+        </div>`).join('')
+        : '<span class="brief-empty-hint">Aucune action NBA disponible</span>';
+
+    const upliftPct = Math.round((upliftScore + 1) / 2 * 100);
+
+    const section5 = `
+        <div class="brief-card">
+            <div class="brief-section-title">Next Best Actions</div>
+            <div class="brief-segment-row">
+                <span class="brief-segment-badge" style="border-color:${segment.color};color:${segment.color}">${segment.label}</span>
+                <span class="brief-uplift-label">Uplift score : <strong>${upliftPct}%</strong></span>
+            </div>
+            <div class="brief-nba-list">${nbaHtml}</div>
+        </div>`;
+
+    // Section 6 — Points d'attention
+    const sentimentObj = client.sentiment && typeof client.sentiment === 'object' ? client.sentiment : {};
+    const sentimentLevelLabel = sentimentLevel === 'positive' ? 'Positif' : sentimentLevel === 'negative' ? 'Negatif' : 'Neutre';
+    const sentimentColor = sentimentLevel === 'positive' ? '#10b981' : sentimentLevel === 'negative' ? '#ef4444' : '#888880';
+
+    const rgpdWarning = (client.sensitiveCount > 0)
+        ? `<div class="brief-rgpd-warning"><span class="brief-rgpd-icon">⚠</span><span>Donnees sensibles detectees : ${client.sensitiveCount} occurrence(s). Consulter avec precaution.</span></div>`
+        : '';
+
+    const section6 = `
+        <div class="brief-card brief-attention">
+            <div class="brief-section-title">Points d'attention</div>
+            <div class="brief-attention-grid">
+                <div class="brief-attention-block">
+                    <span class="brief-attention-label">Services requis</span>
+                    <div class="brief-pills brief-pills--sm">${pills(serviceTags)}</div>
+                </div>
+                <div class="brief-attention-block">
+                    <span class="brief-attention-label">Sentiment</span>
+                    <div class="brief-sentiment-badge" style="color:${sentimentColor}">
+                        <span class="brief-sentiment-level">${sentimentLevelLabel}</span>
+                        <span class="brief-sentiment-score">${sentimentObj.score || 0}%</span>
+                    </div>
+                    ${sentimentObj.justification ? `<p class="brief-sentiment-justification">${sentimentObj.justification}</p>` : ''}
+                </div>
+                <div class="brief-attention-block">
+                    <span class="brief-attention-label">Risque churn</span>
+                    <span class="brief-churn-badge" style="color:${churnRisk.color}">${churnRisk.icon} ${churnRisk.label}</span>
+                </div>
+            </div>
+            ${rgpdWarning}
+        </div>`;
+
+    // Date du brief
+    const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    container.innerHTML = `
+        <div class="brief-header-bar">
+            <div class="brief-client-name">${client.ca || client.id}</div>
+            <div class="brief-date-label">Brief genere le ${today}</div>
+        </div>
+        ${section1}
+        ${section2}
+        ${section3}
+        ${section4}
+        ${section5}
+        ${section6}
+    `;
+}
+
 // ===== EXPORTS =====
 function exportCSV() {
     const lines = ['ID,Date,Langue,CA,Transcription_AI_Clean,Tags,NBA_Actions'];
@@ -1751,4 +2169,140 @@ function dl(content, name, type) {
     a.href = URL.createObjectURL(new Blob([content], { type }));
     a.download = name;
     a.click();
+}
+
+// ===== COACH RGPD =====
+function renderCoach() {
+    const btn = document.getElementById('coachAnalyze');
+    const input = document.getElementById('coachInput');
+    const results = document.getElementById('coachResults');
+    const micBtn = document.getElementById('coachMic');
+
+    // Micro — Web Speech API
+    if (micBtn) {
+        micBtn.onclick = () => {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) { showToast('Reconnaissance vocale non supportée', 'error'); return; }
+            const rec = new SR();
+            rec.lang = 'fr-FR';
+            rec.interimResults = false;
+            micBtn.classList.add('recording');
+            rec.start();
+            rec.onresult = e => {
+                input.value = e.results[0][0].transcript;
+                micBtn.classList.remove('recording');
+            };
+            rec.onerror = () => micBtn.classList.remove('recording');
+            rec.onend = () => micBtn.classList.remove('recording');
+        };
+    }
+
+    if (!btn) return;
+    btn.onclick = async () => {
+        const text = (input ? input.value : '').trim();
+        if (!text) { showToast('Entrez une note à analyser', 'error'); return; }
+
+        results.innerHTML = '<div class="coach-spinner-wrap"><div class="coach-spinner"></div><span>Analyse en cours...</span></div>';
+
+        try {
+            const res = await fetch(`${API_BASE}/api/coach-rgpd`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, language: 'FR' })
+            });
+            if (!res.ok) throw new Error('Erreur serveur');
+            const data = await res.json();
+            renderCoachResults(results, text, data);
+        } catch (e) {
+            results.innerHTML = `<div class="coach-error">Erreur lors de l'analyse. Vérifiez que le serveur est lancé.</div>`;
+        }
+    };
+}
+
+function renderCoachResults(container, originalText, data) {
+    const rgpd_score = data.rgpd_score || 0;
+    const quality_score = data.quality_score || 0;
+    const violations = data.violations || [];
+    const extractable_tags_count = data.extractable_tags_count || 0;
+    const tags = data.tags || [];
+    const feedback = data.feedback || '';
+    const suggestions = data.suggestions || [];
+
+    // Couleur barre RGPD
+    const rgpdColor = rgpd_score >= 80 ? '#22c55e' : rgpd_score >= 50 ? '#f59e0b' : '#ef4444';
+
+    // Texte surligné : wrap les violations dans des spans rouges
+    let highlighted = originalText;
+    const sortedV = [...violations].sort((a, b) => ((b.text || b.value || '').length) - ((a.text || a.value || '').length));
+    sortedV.forEach(v => {
+        const word = v.text || v.value || v.found || '';
+        if (!word) return;
+        const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        highlighted = highlighted.replace(new RegExp(escaped, 'gi'), match =>
+            `<span class="coach-violation-hl" title="${v.category || v.type || 'Donnée sensible'}">${match}</span>`
+        );
+    });
+
+    // Pills tags
+    const tagPills = tags.map(tg =>
+        `<span class="coach-tag-pill tag-${(tg.c || '').toLowerCase()}">${tg.t || tg}</span>`
+    ).join('');
+
+    // Suggestions Mistral
+    const suggestionsHTML = suggestions.length ? `
+        <div class="coach-section">
+            <h3 class="coach-section-title">Suggestions de reformulation</h3>
+            ${suggestions.map(s => `
+                <div class="coach-suggestion">
+                    <div class="coach-suggestion-original"><s>${s.original}</s></div>
+                    <div class="coach-suggestion-arrow">→</div>
+                    <div class="coach-suggestion-new">${s.reformulation}</div>
+                    <div class="coach-suggestion-reason">${s.reason}</div>
+                </div>
+            `).join('')}
+        </div>
+    ` : '';
+
+    container.innerHTML = `
+        <div class="coach-scores">
+            <div class="coach-score-item">
+                <div class="coach-score-label">Conformité RGPD</div>
+                <div class="coach-score-bar-wrap">
+                    <div class="coach-score-bar" style="width:${rgpd_score}%;background:${rgpdColor}"></div>
+                </div>
+                <div class="coach-score-value" style="color:${rgpdColor}">${rgpd_score}%</div>
+            </div>
+            <div class="coach-score-item">
+                <div class="coach-score-label">Richesse de la note</div>
+                <div class="coach-score-bar-wrap">
+                    <div class="coach-score-bar" style="width:${quality_score}%;background:#3b82f6"></div>
+                </div>
+                <div class="coach-score-value" style="color:#3b82f6">${quality_score}%</div>
+            </div>
+        </div>
+
+        <div class="coach-section">
+            <h3 class="coach-section-title">Votre note analysée</h3>
+            <div class="coach-highlighted-text">${highlighted}</div>
+            ${violations.length ? `<p class="coach-violation-count">${violations.length} violation(s) RGPD détectée(s)</p>` : '<p class="coach-ok">Aucune violation RGPD détectée</p>'}
+        </div>
+
+        ${suggestionsHTML}
+
+        ${feedback ? `
+        <div class="coach-section">
+            <h3 class="coach-section-title">Feedback</h3>
+            <p class="coach-feedback">${feedback}</p>
+        </div>` : ''}
+
+        ${tags.length ? `
+        <div class="coach-section">
+            <h3 class="coach-section-title">Tags extractibles (${extractable_tags_count})</h3>
+            <div class="coach-tags-wrap">${tagPills}</div>
+        </div>` : ''}
+
+        <button class="coach-retry-btn" onclick="document.getElementById('coachInput').value='';document.getElementById('coachResults').innerHTML='';document.getElementById('coachInput').focus()">
+            Réessayer
+        </button>
+    `;
 }

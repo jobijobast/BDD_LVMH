@@ -49,7 +49,9 @@ const VENDEUR_NAV = [
     { id: 'clients', icon: ICONS.user, label: 'Mes Clients', page: 'page-clients', title: 'Mes Clients' },
     { id: 'nba', icon: ICONS.target, label: 'NBA', page: 'page-nba', title: 'Next Best Action' },
     { id: 'products', icon: ICONS.bag, label: 'Produits', page: 'page-products', title: 'Product Matcher' },
+    { id: 'brief', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`, label: 'Brief', page: 'page-v-brief', title: 'Client Readiness Brief' },
     { id: 'followup', icon: ICONS.mail, label: 'Follow-up', page: 'page-followup', title: 'Follow-up' },
+    { id: 'v-coach', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`, label: 'Coach RGPD', page: 'page-coach', title: 'Coach RGPD' },
 ];
 
 const MANAGER_NAV = [
@@ -57,9 +59,11 @@ const MANAGER_NAV = [
     { id: 'clients', icon: ICONS.users, label: 'Tous les Clients', page: 'page-clients', title: 'Tous les Clients' },
     { id: 'nba', icon: ICONS.target, label: 'NBA', page: 'page-nba', title: 'Next Best Action' },
     { id: 'products', icon: ICONS.bag, label: 'Produits', page: 'page-products', title: 'Product Matcher' },
+    { id: 'brief', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`, label: 'Brief', page: 'page-v-brief', title: 'Client Readiness Brief' },
     { id: 'followup', icon: ICONS.mail, label: 'Follow-up', page: 'page-followup', title: 'Follow-up' },
     { id: 'sep1', sep: true },
     { id: 'm-privacy', icon: ICONS.shield, label: 'Privacy', page: 'page-m-privacy', title: 'Privacy Score' },
+    { id: 'm-coach', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`, label: 'Coach RGPD', page: 'page-coach', title: 'Coach RGPD' },
     { id: 'm-crossbrand', icon: ICONS.column, label: 'Cross-Brand', page: 'page-m-crossbrand', title: 'Cross-Brand Intelligence' },
     { id: 'm-sentiment', icon: ICONS.chat, label: 'Sentiment', page: 'page-m-sentiment', title: 'Sentiment & Retention' },
     { id: 'm-boutique', icon: ICONS.store, label: 'Boutique', page: 'page-m-boutique', title: 'Dashboard Boutique' },
@@ -287,6 +291,9 @@ function renderPage(navId) {
             case 'products':
                 renderProducts();
                 break;
+            case 'brief':
+                renderBrief();
+                break;
             case 'followup':
                 renderFollowup();
                 const houseSelect = $('followupHouse');
@@ -317,6 +324,10 @@ function renderPage(navId) {
                 break;
             case 'm-team':
                 renderTeam();
+                break;
+            case 'v-coach':
+            case 'm-coach':
+                renderCoach();
                 break;
             case 'admin':
                 renderAdmin();

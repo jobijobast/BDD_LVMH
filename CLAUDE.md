@@ -1,5 +1,68 @@
 # LVMH Voice-to-Tag — CLAUDE.md
 
+## ═══════════════════════════════════════════════
+## AGENTS SPÉCIALISÉS — Quand les utiliser
+## ═══════════════════════════════════════════════
+
+Ces agents sont disponibles via `/agent <nom>` ou automatiquement via le `Agent` tool.
+Utilise-les systématiquement dès que la tâche correspond à leur domaine.
+
+### Backend Python / Flask (`server.py`)
+| Agent | Commande | Quand l'invoquer |
+|-------|----------|-----------------|
+| **python-pro** | `/python-pro` | Toute modification de `server.py` : nouveaux endpoints, refacto, async, typage |
+| **refactoring-specialist** | `/refactoring-specialist` | Nettoyage de code existant, réduction de duplication dans `server.py` ou `engine.js` |
+
+### Frontend JavaScript (`engine.js`, `app.js`, `tagger.js`)
+| Agent | Commande | Quand l'invoquer |
+|-------|----------|-----------------|
+| **javascript-pro** | `/javascript-pro` | Toute modification JS vanilla : nouveaux renders, corrections bugs, optimisations |
+| **ui-designer** | `/ui-designer` | Nouveaux composants visuels, amélioration UX des pages, cohérence design system |
+| **frontend-developer** | `/frontend-developer` | Intégration complète page-à-page (HTML + CSS + JS ensemble) |
+
+### Base de données Supabase / PostgreSQL
+| Agent | Commande | Quand l'invoquer |
+|-------|----------|-----------------|
+| **postgres-pro** | `/postgres-pro` | Optimisation requêtes, nouveaux index, migrations Supabase, schéma BDD |
+| **database-optimizer** | `/database-optimizer` | Requêtes lentes, analyse de performance, structure JSONB (`tags`, `taxonomy`) |
+| **sql-pro** | `/sql-pro` | Écriture de requêtes SQL complexes, agrégations pour le dashboard cockpit |
+
+### IA / Mistral / Prompts
+| Agent | Commande | Quand l'invoquer |
+|-------|----------|-----------------|
+| **prompt-engineer** | `/prompt-engineer` | Amélioration des prompts Mistral (nettoyage, sentiment, NBA, smart follow-up, coach RGPD) |
+| **llm-architect** | `/llm-architect` | Architecture du pipeline IA multi-étapes, gestion des fallbacks, RAG éventuel |
+| **ai-engineer** | `/ai-engineer` | Intégration end-to-end Mistral → Supabase, optimisation du pipeline production |
+
+### RGPD / Conformité légale
+| Agent | Commande | Quand l'invoquer |
+|-------|----------|-----------------|
+| **legal-advisor** | `/legal-advisor` | Validation conformité RGPD, rédaction mentions légales, analyse des violations détectées, coach RGPD feature |
+
+### Qualité / Sécurité
+| Agent | Commande | Quand l'invoquer |
+|-------|----------|-----------------|
+| **code-reviewer** | `/code-reviewer` | Avant tout commit important : review complète d'un fichier ou d'une feature |
+| **security-auditor** | `/security-auditor` | Audit sécurité `app.js` (SUPABASE_KEY exposée), injection SQL, XSS, API keys |
+| **performance-optimizer** | `/performance-optimizer` | Optimisation Product Matcher (3.4MB JSON), temps de réponse pipeline IA, rendering |
+
+### Documentation / Présentation LVMH
+| Agent | Commande | Quand l'invoquer |
+|-------|----------|-----------------|
+| **documentation-engineer** | `/documentation-engineer` | Rédaction guides, documentation API, supports de démo pour la présentation LVMH |
+| **technical-writer** | `/technical-writer` | Synthèse technique pour le pitch LVMH, rédaction du README, slides techniques |
+
+### Règles d'orchestration automatique
+- **Toute tâche `server.py`** → invoquer `python-pro` en premier
+- **Toute tâche `engine.js` / `app.js`** → invoquer `javascript-pro` en premier
+- **Tout prompt Mistral** → invoquer `prompt-engineer` pour optimisation
+- **Toute migration BDD** → invoquer `postgres-pro` + `sql-pro`
+- **Avant commit feature complète** → invoquer `code-reviewer` + `security-auditor`
+- **Feature RGPD / Coach RGPD** → invoquer `legal-advisor` + `security-auditor`
+- **Présentation / demo LVMH** → invoquer `documentation-engineer`
+
+---
+
 ## Projet
 
 Plateforme CRM IA pour les boutiques LVMH. Les vendeurs dictent des notes vocales sur leurs rendez-vous clients ; un pipeline IA nettoie le texte, extrait des tags, génère des recommandations (NBA) et analyse le sentiment. Les managers accèdent à un cockpit analytique complet.
