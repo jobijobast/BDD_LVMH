@@ -18,7 +18,6 @@ async function loadLVProducts() {
         
         LV_PRODUCTS = await response.json();
         PRODUCTS_LOADED = true;
-        console.log(`✅ Loaded ${LV_PRODUCTS.length} Louis Vuitton products from Hugging Face`);
     } catch (error) {
         console.error('❌ Error loading LV products:', error);
         LV_PRODUCTS = [];
@@ -37,10 +36,8 @@ const LVMH_HOUSES = ['Louis Vuitton','Dior','Fendi','Givenchy','Celine','Loewe',
 const CAT_NAMES = { profil:'Profil', interet:'Intérêt', voyage:'Voyage', contexte:'Contexte', service:'Service', marque:'Marque', crm:'CRM' };
 const legendColors = { profil:'#60a5fa', interet:'#d4af37', voyage:'#34d399', contexte:'#c084fc', service:'#f472b6', marque:'#fb923c', crm:'#facc15' };
 
-// ===== RENDER: DASHBOARD (Manager) =====
 // ===== RENDER: DASHBOARD (Manager - COCKPIT) =====
 function renderDashboard() {
-    console.log("Rendering Cockpit Dashboard...");
 
     // 1. Mini KPIs (Sparklines)
     renderSparkline('spark1', [10, 15, 12, 18, 20, 15, 22, 25, 20, 28], '#10b981'); // Clients
@@ -73,7 +70,6 @@ function renderSparkline(id, data, color) {
     const max = Math.max(...data);
     const min = Math.min(...data);
     const range = max - min || 1;
-    const padding = 0; // No padding for full area effect
 
     // Points for the line
     const points = data.map((val, i) => {
@@ -295,56 +291,331 @@ function renderGrid(filter) {
     });
 }
 
-// ===== RENDER: NBA =====
+// ===== UPLIFT SCORING ALGORITHM =====
+function calculateUpliftScore(client) {
+    // Formule : P(Achat|Action) - P(Achat|Pas d'Action)
+    // Simplifie : (sentiment/100) * tagDensity * eventBoost - baseline
+    
+    // Extract sentiment safely
+    let sentimentScore = 50;
+    if (client.sentiment && typeof client.sentiment === 'object') {
+        sentimentScore = client.sentiment.score || 50;
+    }
+    
+    const tagDensity = Math.min(1, (Array.isArray(client.tags) ? client.tags.length : 0) / 10);
+    const contextTags = Array.isArray(client.tags) ? client.tags.filter(t => t.c === 'contexte') : [];
+    const eventBoost = contextTags.length > 0 ? 1.5 : 1.0;
+    const baseline = 0.3; // 30% achètent sans intervention
+    
+    const upliftScore = (sentimentScore / 100) * tagDensity * eventBoost - baseline;
+    return Math.max(-1, Math.min(1, upliftScore));
+}
+
+function getUpliftSegment(upliftScore, sentimentLevel) {
+    if (upliftScore > 0.3 && sentimentLevel !== 'negative') {
+        return { segment: 'persuadables', label: 'Persuadables', color: '#10b981' };
+    } else if (upliftScore > 0 && sentimentLevel === 'positive') {
+        return { segment: 'valeurs-sures', label: 'Valeurs Sûres', color: '#3b82f6' };
+    } else if (upliftScore < -0.2 || sentimentLevel === 'negative') {
+        return { segment: 'cas-perdus', label: 'Cas Perdus', color: '#ef4444' };
+    } else {
+        return { segment: 'chiens-dormants', label: 'Chiens Dormants', color: '#fb923c' };
+    }
+}
+
+// ===== RENDER: NBA WITH UPLIFT =====
 function renderNBA() {
     const grid = $('nbaGrid');
     if (!grid) return;
-    grid.innerHTML = '';
+    grid.innerHTML = ''; // FIX: clear before render to prevent duplication
 
-    const withNBA = DATA.filter(p => p.nba && p.nba.length > 0);
+    const withNBA = DATA.filter(p => p.nba && Array.isArray(p.nba) && p.nba.length > 0);
+
     if (withNBA.length === 0) {
-        grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucune action NBA disponible.</p>';
+        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><p>Aucune action NBA disponible.</p></div>';
         return;
     }
 
-    const typeLabels = { immediate:'Immédiat', short_term:'Court terme', long_term:'Long terme' };
-    const typeClasses = { immediate:'immediate', short_term:'shortterm', long_term:'longterm' };
+    const clientsWithUplift = withNBA.map(client => {
+        const upliftScore = calculateUpliftScore(client);
+        const sentimentLevel = (client.sentiment && typeof client.sentiment === 'object') ? client.sentiment.level : 'neutral';
+        return { ...client, upliftScore, segment: getUpliftSegment(upliftScore, sentimentLevel || 'neutral') };
+    });
 
-    withNBA.forEach(p => {
-        // Safety check for tags
+    const segmentCounts = {
+        'all': clientsWithUplift.length,
+        'persuadables': clientsWithUplift.filter(c => c.segment.segment === 'persuadables').length,
+        'valeurs-sures': clientsWithUplift.filter(c => c.segment.segment === 'valeurs-sures').length,
+        'chiens-dormants': clientsWithUplift.filter(c => c.segment.segment === 'chiens-dormants').length,
+        'cas-perdus': clientsWithUplift.filter(c => c.segment.segment === 'cas-perdus').length
+    };
+
+    // Segment cards = filters (combined, no duplication)
+    const segments = [
+        { key: 'all',            label: 'Tous',           desc: `${clientsWithUplift.length} clients`, color: '#B8965A', icon: '◈' },
+        { key: 'persuadables',   label: 'Persuadables',   desc: 'ROI élevé',                          color: '#10b981', icon: '↑' },
+        { key: 'valeurs-sures',  label: 'Valeurs Sûres',  desc: 'Achètent naturellement',             color: '#3b82f6', icon: '✓' },
+        { key: 'chiens-dormants',label: 'À Réveiller',    desc: 'Approche douce requise',             color: '#fb923c', icon: '◎' },
+        { key: 'cas-perdus',     label: 'Cas Perdus',     desc: 'Ne pas solliciter',                  color: '#ef4444', icon: '↓' }
+    ];
+
+    const header = document.createElement('div');
+    header.className = 'nba-header';
+    header.innerHTML = `
+        <div class="nba-segments">
+            ${segments.map(s => `
+                <button class="nba-seg-btn ${s.key === 'all' ? 'active' : ''}" data-filter="${s.key}" style="--seg-color:${s.color}">
+                    <span class="nba-seg-icon">${s.icon}</span>
+                    <span class="nba-seg-count">${segmentCounts[s.key]}</span>
+                    <span class="nba-seg-label">${s.label}</span>
+                    <span class="nba-seg-desc">${s.desc}</span>
+                </button>
+            `).join('')}
+        </div>
+    `;
+
+    const container = document.createElement('div');
+    container.className = 'nba-container';
+    container.appendChild(header);
+
+    const gridEl = document.createElement('div');
+    gridEl.className = 'nba-cards-grid';
+    gridEl.id = 'nbaGridContent';
+
+    const sorted = clientsWithUplift.sort((a, b) => b.upliftScore - a.upliftScore);
+    const typeLabels = { immediate: 'Immédiat', short_term: 'Court terme', long_term: 'Long terme' };
+    const typeClasses = { immediate: 'immediate', short_term: 'shortterm', long_term: 'longterm' };
+
+    sorted.forEach(p => {
         const tags = Array.isArray(p.tags) ? p.tags : [];
         const nbaList = Array.isArray(p.nba) ? p.nba : [];
         if (nbaList.length === 0) return;
 
-        let html = `<div class="nba-card-header"><span class="nba-client-id">${p.ca || p.id}</span><div class="person-meta"><span>${tags.length} tags</span><span>${p.lang}</span></div></div>`;
-        html += `<div class="nba-context">${tags.map(t => t.t).join(' · ')}</div>`;
-        html += '<div class="nba-actions">';
-        nbaList.forEach((a, i) => {
-            const cls = typeClasses[a.type] || 'shortterm';
-            html += `<div class="nba-action"><div class="nba-action-num">${i + 1}</div><div><div class="nba-action-text">${a.action}</div><span class="nba-action-type ${cls}">${typeLabels[a.type] || a.type}</span></div></div>`;
-        });
-        html += '</div>';
+        const upliftPct = Math.abs((p.upliftScore * 100)).toFixed(0);
+        const upliftSign = p.upliftScore >= 0 ? '+' : '-';
+        const roiLabel = p.upliftScore > 0.3 ? 'Élevé' : p.upliftScore > 0 ? 'Moyen' : 'Faible';
+        const sentScore = (p.sentiment && p.sentiment.score) ? p.sentiment.score : 50;
 
         const card = document.createElement('div');
-        card.className = 'nba-card';
-        card.innerHTML = html;
-        grid.appendChild(card);
+        card.className = `nba-card segment-${p.segment.segment}`;
+        card.setAttribute('data-segment', p.segment.segment);
+        card.innerHTML = `
+            <div class="nba-card-stripe" style="background:${p.segment.color}"></div>
+            <div class="nba-card-body">
+                <div class="nba-card-head">
+                    <div class="nba-card-identity">
+                        <span class="nba-client-name">${p.ca || p.id}</span>
+                        <span class="nba-seg-pill" style="color:${p.segment.color};border-color:${p.segment.color}20;background:${p.segment.color}10">${p.segment.label}</span>
+                    </div>
+                    <div class="nba-kpis">
+                        <div class="nba-kpi">
+                            <span class="nba-kpi-val">${upliftSign}${upliftPct}%</span>
+                            <span class="nba-kpi-lbl">Uplift</span>
+                        </div>
+                        <div class="nba-kpi">
+                            <span class="nba-kpi-val">${roiLabel}</span>
+                            <span class="nba-kpi-lbl">ROI</span>
+                        </div>
+                        <div class="nba-kpi">
+                            <span class="nba-kpi-val">${sentScore}%</span>
+                            <span class="nba-kpi-lbl">Sentiment</span>
+                        </div>
+                    </div>
+                </div>
+                ${tags.length > 0 ? `<div class="nba-tag-strip">${tags.slice(0, 5).map(t => `<span class="nba-tag-pill">${t.t}</span>`).join('')}${tags.length > 5 ? `<span class="nba-tag-more">+${tags.length - 5}</span>` : ''}</div>` : ''}
+                <div class="nba-actions-list">
+                    ${nbaList.map((a, i) => {
+                        const cls = typeClasses[a.type] || 'shortterm';
+                        return `<div class="nba-action-row">
+                            <span class="nba-action-num">${i + 1}</span>
+                            <div class="nba-action-content">
+                                <span class="nba-action-text">${a.action}</span>
+                                <span class="nba-action-badge ${cls}">${typeLabels[a.type] || a.type}</span>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+        gridEl.appendChild(card);
+    });
+
+    container.appendChild(gridEl);
+    grid.appendChild(container);
+
+    // Segment buttons = filters
+    container.querySelectorAll('.nba-seg-btn').forEach(btn => {
+        btn.onclick = () => {
+            container.querySelectorAll('.nba-seg-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const filter = btn.getAttribute('data-filter');
+            gridEl.querySelectorAll('.nba-card').forEach(card => {
+                card.style.display = (filter === 'all' || card.getAttribute('data-segment') === filter) ? '' : 'none';
+            });
+        };
     });
 }
 
-// ===== RENDER: PRIVACY SCORE =====
+// ===== ENHANCED PRIVACY COACHING =====
+function getEnhancedCoaching(violations, level) {
+    const coaching = [];
+    const microLearning = [];
+    
+    if (violations.orientation > 0) {
+        coaching.push({
+            priority: 'critical',
+            message: `${violations.orientation} mention(s) d'orientation. Ne JAMAIS demander ou noter l'orientation sexuelle d'un client.`,
+            action: 'Supprimer immédiatement ces mentions et revoir le protocole RGPD.'
+        });
+        microLearning.push({
+            title: 'Données sensibles : Orientation',
+            duration: '1min',
+            icon: '🔒',
+            url: '#module-orientation'
+        });
+    }
+    
+    if (violations.politics > 0) {
+        coaching.push({
+            priority: 'critical',
+            message: `${violations.politics} mention(s) d'opinion politique. Interdites par le RGPD.`,
+            action: 'Nettoyer les notes et rappeler la neutralité obligatoire.'
+        });
+        microLearning.push({
+            title: 'RGPD : Opinions politiques',
+            duration: '1min',
+            icon: '⚖️',
+            url: '#module-politics'
+        });
+    }
+    
+    if (violations.religion > 0) {
+        coaching.push({
+            priority: 'critical',
+            message: `${violations.religion} mention(s) religieuse(s). Catégorie sensible interdite.`,
+            action: 'Retirer ces informations et former le conseiller.'
+        });
+        microLearning.push({
+            title: 'Respect des convictions',
+            duration: '1min',
+            icon: '🕊️',
+            url: '#module-religion'
+        });
+    }
+    
+    if (violations.health > 0) {
+        coaching.push({
+            priority: 'high',
+            message: `${violations.health} mention(s) de santé. Données médicales non pertinentes pour la vente.`,
+            action: 'Anonymiser et rappeler le périmètre autorisé.'
+        });
+        microLearning.push({
+            title: 'Données de santé : Limites',
+            duration: '1min',
+            icon: '🏥',
+            url: '#module-health'
+        });
+    }
+    
+    if (level === 'critical') {
+        coaching.push({
+            priority: 'critical',
+            message: 'Score critique : risque d\'amende jusqu\'à 4% du CA groupe LVMH.',
+            action: 'Audit immédiat + formation obligatoire dans 48h.'
+        });
+    } else if (level === 'warning') {
+        coaching.push({
+            priority: 'medium',
+            message: 'Score en zone de vigilance. Renforcer les bonnes pratiques.',
+            action: 'Révision du protocole de prise de notes recommandée.'
+        });
+    }
+    
+    return { coaching, microLearning };
+}
+
+// ===== RENDER: PRIVACY SCORE WITH ENHANCEMENTS =====
 function renderPrivacy() {
     const overview = $('privacyOverview');
     if (!overview) return;
 
+    // Aggregate violation types
+    const violationsByType = {
+        orientation: 0,
+        politics: 0,
+        religion: 0,
+        health: 0,
+        other: 0
+    };
+    
+    PRIVACY_SCORES.forEach(p => {
+        violationsByType.orientation += p.violations_detail?.orientation || 0;
+        violationsByType.politics += p.violations_detail?.politics || 0;
+        violationsByType.religion += p.violations_detail?.religion || 0;
+        violationsByType.health += p.violations_detail?.health || 0;
+        violationsByType.other += Math.max(0, p.violations - 
+            (p.violations_detail?.orientation || 0) - 
+            (p.violations_detail?.politics || 0) - 
+            (p.violations_detail?.religion || 0) - 
+            (p.violations_detail?.health || 0));
+    });
+
     const totalViolations = PRIVACY_SCORES.reduce((s, p) => s + p.violations, 0);
     const criticalCount = PRIVACY_SCORES.filter(p => p.level === 'critical').length;
     const avgLevel = STATS.privacyAvg >= 90 ? 'excellent' : STATS.privacyAvg >= 75 ? 'good' : STATS.privacyAvg >= 60 ? 'warning' : 'critical';
+    
+    // Calculate trend (mock: compare to previous period)
+    const previousAvg = STATS.privacyAvg - (Math.random() * 10 - 5);
+    const trend = STATS.privacyAvg - previousAvg;
+    const trendIcon = trend > 0 ? '📈' : trend < 0 ? '📉' : '➡️';
+    const trendText = trend > 0 ? `+${trend.toFixed(1)}%` : `${trend.toFixed(1)}%`;
 
     overview.innerHTML = `
-        <div class="privacy-score-card"><div class="privacy-score-circle ${avgLevel}">${STATS.privacyAvg}%</div><div style="color:#888;font-size:.8rem">Score Global</div></div>
-        <div class="privacy-score-card"><div style="font-size:2.2rem;font-weight:700;color:${totalViolations>0?'#ef4444':'#10b981'};margin-bottom:8px">${totalViolations}</div><div style="color:#888;font-size:.8rem">Violations</div></div>
-        <div class="privacy-score-card"><div style="font-size:2.2rem;font-weight:700;color:${criticalCount>0?'#ef4444':'#10b981'};margin-bottom:8px">${criticalCount}</div><div style="color:#888;font-size:.8rem">CA en alerte</div></div>
+        <div class="privacy-overview-grid">
+            <div class="privacy-gauge-container">
+                <div class="privacy-gauge-visual">
+                    <svg width="180" height="180" viewBox="0 0 180 180">
+                        <circle cx="90" cy="90" r="70" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
+                        <circle cx="90" cy="90" r="70" fill="none" stroke="${avgLevel === 'excellent' ? '#10b981' : avgLevel === 'good' ? '#3b82f6' : avgLevel === 'warning' ? '#fb923c' : '#ef4444'}" stroke-width="12" stroke-dasharray="${(STATS.privacyAvg / 100) * 440} 440" stroke-linecap="round" transform="rotate(-90 90 90)"/>
+                        <text x="90" y="85" text-anchor="middle" font-size="32" font-weight="700" fill="#f1e5ac">${STATS.privacyAvg}%</text>
+                        <text x="90" y="105" text-anchor="middle" font-size="12" fill="rgba(241,229,172,0.6)">Score Global</text>
+                    </svg>
+                </div>
+                <div class="privacy-trend">
+                    ${trendIcon} ${trendText} vs période précédente
+                </div>
+            </div>
+            <div class="privacy-violations-chart">
+                <div class="privacy-chart-title">Répartition des violations</div>
+                <div class="privacy-violations-bars">
+                    ${Object.entries(violationsByType).map(([type, count]) => {
+                        const labels = { orientation: 'Orientation', politics: 'Politique', religion: 'Religion', health: 'Santé', other: 'Autres' };
+                        const colors = { orientation: '#ef4444', politics: '#f97316', religion: '#fb923c', health: '#fbbf24', other: '#94a3b8' };
+                        const maxCount = Math.max(...Object.values(violationsByType), 1);
+                        const percent = (count / maxCount) * 100;
+                        return count > 0 ? `
+                            <div class="privacy-violation-bar-item">
+                                <div class="privacy-violation-bar-label">${labels[type]}</div>
+                                <div class="privacy-violation-bar-container">
+                                    <div class="privacy-violation-bar-fill" style="width:${percent}%;background:${colors[type]}"></div>
+                                    <span class="privacy-violation-bar-value">${count}</span>
+                                </div>
+                            </div>
+                        ` : '';
+                    }).join('')}
+                </div>
+            </div>
+            <div class="privacy-stats-cards">
+                <div class="privacy-stat-mini">
+                    <div class="privacy-stat-mini-value" style="color:${totalViolations>0?'#ef4444':'#10b981'}">${totalViolations}</div>
+                    <div class="privacy-stat-mini-label">Violations totales</div>
+                </div>
+                <div class="privacy-stat-mini">
+                    <div class="privacy-stat-mini-value" style="color:${criticalCount>0?'#ef4444':'#10b981'}">${criticalCount}</div>
+                    <div class="privacy-stat-mini-label">CA en alerte</div>
+                </div>
+            </div>
+        </div>
     `;
 
     const grid = $('privacyGrid');
@@ -354,18 +625,52 @@ function renderPrivacy() {
     PRIVACY_SCORES.forEach(p => {
         const badgeClass = p.level === 'critical' ? 'alert' : p.level === 'warning' ? 'warn' : 'ok';
         const barColor = p.level === 'critical' ? '#ef4444' : p.level === 'warning' ? '#fb923c' : p.level === 'good' ? '#3b82f6' : '#10b981';
+        
+        const violations = p.violations_detail || { orientation: 0, politics: 0, religion: 0, health: 0 };
+        const enhanced = getEnhancedCoaching(violations, p.level);
 
         let html = `
-            <div class="privacy-card-header"><span class="privacy-ca-name">${p.ca}</span><span class="privacy-badge ${badgeClass}">${p.score}% — ${p.level.toUpperCase()}</span></div>
+            <div class="privacy-card-header">
+                <span class="privacy-ca-name">${p.ca}</span>
+                <span class="privacy-badge ${badgeClass}">${p.score}% — ${p.level.toUpperCase()}</span>
+            </div>
             <div class="privacy-bar"><div class="privacy-bar-fill" style="width:${p.score}%;background:${barColor}"></div></div>
             <div class="privacy-detail">${p.total} notes · ${p.violations} violation${p.violations>1?'s':''}</div>
         `;
-        if (p.coaching.length > 0) {
-            html += '<div class="coaching-alert">⚠️ Coaching requis:<br>' + p.coaching.map(c => '→ ' + c).join('<br>') + '</div>';
+        
+        if (enhanced.coaching.length > 0) {
+            html += '<div class="coaching-section"><div class="coaching-title">🎯 Actions prioritaires</div>';
+            enhanced.coaching.forEach(c => {
+                const priorityColors = { critical: '#ef4444', high: '#fb923c', medium: '#fbbf24' };
+                html += `
+                    <div class="coaching-item" style="border-left:3px solid ${priorityColors[c.priority]}">
+                        <div class="coaching-priority">${c.priority.toUpperCase()}</div>
+                        <div class="coaching-message">${c.message}</div>
+                        <div class="coaching-action">→ ${c.action}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        
+        if (enhanced.microLearning.length > 0) {
+            html += '<div class="microlearning-section"><div class="microlearning-title">📚 Micro-learning recommandé</div>';
+            enhanced.microLearning.forEach(ml => {
+                html += `
+                    <a href="${ml.url}" class="microlearning-card">
+                        <span class="microlearning-icon">${ml.icon}</span>
+                        <div class="microlearning-info">
+                            <div class="microlearning-name">${ml.title}</div>
+                            <div class="microlearning-duration">${ml.duration}</div>
+                        </div>
+                    </a>
+                `;
+            });
+            html += '</div>';
         }
 
         const card = document.createElement('div');
-        card.className = 'privacy-card';
+        card.className = 'privacy-card privacy-card-enhanced';
         card.innerHTML = html;
         grid.appendChild(card);
     });
@@ -398,7 +703,136 @@ function renderCrossBrand() {
     });
 }
 
-// ===== RENDER: LUXURY PULSE =====
+// ===== TREND VELOCITY CALCULATION =====
+function calculateTrendVelocity() {
+    if (DATA.length < 4) {
+        return { velocities: new Map(), emerging: [] };
+    }
+    
+    // Split data into first half and second half
+    const midPoint = Math.floor(DATA.length / 2);
+    const firstHalf = DATA.slice(0, midPoint);
+    const secondHalf = DATA.slice(midPoint);
+    
+    // Count tag frequencies in each period
+    const firstHalfFreq = new Map();
+    const secondHalfFreq = new Map();
+    
+    firstHalf.forEach(row => {
+        row.tags.forEach(t => {
+            firstHalfFreq.set(t.t, (firstHalfFreq.get(t.t) || 0) + 1);
+        });
+    });
+    
+    secondHalf.forEach(row => {
+        row.tags.forEach(t => {
+            secondHalfFreq.set(t.t, (secondHalfFreq.get(t.t) || 0) + 1);
+        });
+    });
+    
+    // Calculate velocity for each tag
+    const velocities = new Map();
+    const allTags = new Set([...firstHalfFreq.keys(), ...secondHalfFreq.keys()]);
+    
+    allTags.forEach(tag => {
+        const firstCount = firstHalfFreq.get(tag) || 0;
+        const secondCount = secondHalfFreq.get(tag) || 0;
+        const totalCount = firstCount + secondCount;
+        
+        // Velocity = percentage change from first to second period
+        let velocity = 0;
+        if (firstCount === 0 && secondCount > 0) {
+            velocity = 100; // New emerging tag
+        } else if (firstCount > 0) {
+            velocity = ((secondCount - firstCount) / firstCount) * 100;
+        }
+        
+        velocities.set(tag, {
+            total: totalCount,
+            velocity: Math.round(velocity),
+            firstCount,
+            secondCount,
+            isEmerging: firstCount === 0 && secondCount > 0
+        });
+    });
+    
+    // Identify emerging topics (new in second half)
+    const emerging = Array.from(velocities.entries())
+        .filter(([, data]) => data.isEmerging && data.secondCount >= 2)
+        .sort((a, b) => b[1].secondCount - a[1].secondCount)
+        .slice(0, 5);
+    
+    return { velocities, emerging };
+}
+
+function getStrategicRecommendations(topTrends, emerging, catFreq) {
+    const recommendations = [];
+    
+    // Analyze top trends
+    const topTrendTags = topTrends.slice(0, 3).map(t => t.tag);
+    
+    if (topTrendTags.some(t => t.includes('Sustainability') || t.includes('Eco') || t.includes('Vegan'))) {
+        recommendations.push({
+            priority: 'high',
+            category: 'Product Strategy',
+            icon: '🌿',
+            title: 'Accélérer les collections durables',
+            action: 'Forte demande pour matériaux éco-responsables. Recommandation: mettre en avant la ligne "Conscious Craft".',
+            impact: 'Hausse prévue de 20% des ventes sur ce segment'
+        });
+    }
+    
+    if (topTrendTags.some(t => t.includes('Travel') || t.includes('Voyage'))) {
+        recommendations.push({
+            priority: 'high',
+            category: 'Marketing Campaign',
+            icon: '✈️',
+            title: 'Campagne "Horizons Luxueux"',
+            action: 'Spike de mentions voyage. Lancer une activation autour des bagages et accessoires de voyage.',
+            impact: 'Opportunité cross-sell avec aviation privée'
+        });
+    }
+    
+    if (emerging.length > 0) {
+        const emergingTag = emerging[0][0];
+        recommendations.push({
+            priority: 'medium',
+            category: 'Weak Signal',
+            icon: '🔮',
+            title: `Tendance émergente: ${emergingTag}`,
+            action: `Signal faible détecté. Surveiller l'évolution et préparer une réponse produit/marketing si confirmation.`,
+            impact: 'Avantage stratégique si anticipation réussie'
+        });
+    }
+    
+    const lifestyleCount = catFreq.get('interet') || 0;
+    if (lifestyleCount > DATA.length * 0.4) {
+        recommendations.push({
+            priority: 'high',
+            category: 'Customer Experience',
+            icon: '🏋️',
+            title: 'Programme VIC Lifestyle',
+            action: 'Clients très engagés sur lifestyle. Créer des événements expérientiels (golf, tennis, voyages).',
+            impact: 'Renforcement NPS et fidélisation'
+        });
+    }
+    
+    const contextCount = catFreq.get('contexte') || 0;
+    if (contextCount > 0) {
+        recommendations.push({
+            priority: 'medium',
+            category: 'Sales Training',
+            icon: '🎓',
+            title: 'Formation "Écoute Active"',
+            action: 'Nombreux contextes détectés. Former les CAs à exploiter ces moments clés pour proposer NBA.',
+            impact: 'Augmentation du taux de conversion'
+        });
+    }
+    
+    return recommendations;
+}
+
+// ===== RENDER: LUXURY PULSE WITH REAL VELOCITY =====
 function renderPulse() {
     const tagFreq = new Map();
     const catFreq = new Map();
@@ -408,37 +842,109 @@ function renderPulse() {
             catFreq.set(t.c, (catFreq.get(t.c)||0)+1);
         });
     });
+    
+    const { velocities, emerging } = calculateTrendVelocity();
+    
+    // Sort by total count
     const sorted = Array.from(tagFreq.entries()).sort((a,b) => b[1]-a[1]);
     const totalTags = sorted.reduce((s,[,c]) => s+c, 0);
+    
+    // Get top trends with velocity
+    const topTrends = sorted.slice(0, 12).map(([tag, count]) => {
+        const velocityData = velocities.get(tag) || { velocity: 0, firstCount: 0, secondCount: 0 };
+        return {
+            tag,
+            count,
+            velocity: velocityData.velocity,
+            firstCount: velocityData.firstCount,
+            secondCount: velocityData.secondCount
+        };
+    });
 
     const ps = $('pulseStats');
     if (ps) ps.innerHTML = `
         <div class="pulse-stat"><div class="pulse-stat-value">${sorted.length}</div><div class="pulse-stat-label">Tags uniques</div></div>
         <div class="pulse-stat"><div class="pulse-stat-value">${totalTags}</div><div class="pulse-stat-label">Mentions totales</div></div>
-        <div class="pulse-stat"><div class="pulse-stat-value">${DATA.length}</div><div class="pulse-stat-label">Notes analysées</div></div>
+        <div class="pulse-stat"><div class="pulse-stat-value">${emerging.length}</div><div class="pulse-stat-label">Topics émergents</div></div>
         <div class="pulse-stat"><div class="pulse-stat-value">${Array.from(catFreq.keys()).length}</div><div class="pulse-stat-label">Catégories actives</div></div>
     `;
 
     const trends = $('pulseTrends');
     if (trends) {
         trends.innerHTML = '';
-        sorted.slice(0,12).forEach(([tag, count]) => {
-            const pct = ((count/DATA.length)*100).toFixed(0);
-            const change = Math.floor(Math.random()*30)-10;
-            const changeClass = change>5?'up':change<-5?'down':'stable';
-            const changeLabel = change>0?`+${change}%`:`${change}%`;
-            const bars = Array.from({length:8}, () => {
-                const h = Math.max(4, Math.floor(Math.random()*28)+2);
+        topTrends.forEach(trend => {
+            const pct = ((trend.count/DATA.length)*100).toFixed(0);
+            const velocity = trend.velocity;
+            const changeClass = velocity > 10 ? 'up' : velocity < -10 ? 'down' : 'stable';
+            const changeLabel = velocity > 0 ? `+${velocity}%` : `${velocity}%`;
+            
+            // Create realistic bars based on actual data
+            const maxCount = Math.max(trend.firstCount, trend.secondCount, 1);
+            const bars = Array.from({length: 8}, (_, i) => {
+                const progress = (i + 1) / 8;
+                const interpolated = trend.firstCount + (trend.secondCount - trend.firstCount) * progress;
+                const h = Math.max(4, Math.round((interpolated / maxCount) * 28));
                 return `<div class="pulse-bar-segment" style="height:${h}px;flex:1"></div>`;
             }).join('');
+            
             const card = document.createElement('div');
             card.className = 'pulse-trend-card';
             card.innerHTML = `
-                <div class="pulse-trend-header"><span class="pulse-trend-name">${tag}</span><span class="pulse-trend-change ${changeClass}">${changeLabel}</span></div>
+                <div class="pulse-trend-header">
+                    <span class="pulse-trend-name">${trend.tag}</span>
+                    <span class="pulse-trend-change ${changeClass}">${changeLabel}</span>
+                </div>
                 <div class="pulse-trend-bar">${bars}</div>
-                <div class="pulse-trend-meta"><span>${count} mentions</span><span>${pct}% des clients</span></div>
+                <div class="pulse-trend-meta">
+                    <span>${trend.count} mentions</span>
+                    <span>${pct}% des clients</span>
+                    <span class="pulse-velocity-badge">Velocity: ${changeLabel}</span>
+                </div>
             `;
             trends.appendChild(card);
+        });
+    }
+
+    // Emerging topics section
+    const emergingSection = $('pulseEmerging');
+    if (emergingSection && emerging.length > 0) {
+        emergingSection.innerHTML = '<h3 style="margin-bottom:14px;font-size:1.05rem">🌱 Topics Émergents</h3>';
+        emerging.forEach(([tag, data]) => {
+            const card = document.createElement('div');
+            card.className = 'pulse-emerging-card';
+            card.innerHTML = `
+                <div class="pulse-emerging-icon">🆕</div>
+                <div class="pulse-emerging-content">
+                    <div class="pulse-emerging-name">${tag}</div>
+                    <div class="pulse-emerging-desc">${data.secondCount} mentions dans période récente</div>
+                </div>
+                <span class="pulse-emerging-badge">Nouveau</span>
+            `;
+            emergingSection.appendChild(card);
+        });
+    }
+
+    // Strategic recommendations
+    const recommendations = getStrategicRecommendations(topTrends, emerging, catFreq);
+    const recoSection = $('pulseRecommendations');
+    if (recoSection && recommendations.length > 0) {
+        recoSection.innerHTML = '<h3 style="margin-bottom:14px;font-size:1.05rem">💡 Recommandations Stratégiques</h3>';
+        recommendations.forEach(reco => {
+            const card = document.createElement('div');
+            card.className = `pulse-reco-card priority-${reco.priority}`;
+            card.innerHTML = `
+                <div class="pulse-reco-header">
+                    <span class="pulse-reco-icon">${reco.icon}</span>
+                    <div class="pulse-reco-meta">
+                        <span class="pulse-reco-category">${reco.category}</span>
+                        <span class="pulse-reco-priority ${reco.priority}">${reco.priority.toUpperCase()}</span>
+                    </div>
+                </div>
+                <div class="pulse-reco-title">${reco.title}</div>
+                <div class="pulse-reco-action">${reco.action}</div>
+                <div class="pulse-reco-impact">📊 Impact: ${reco.impact}</div>
+            `;
+            recoSection.appendChild(card);
         });
     }
 
@@ -539,19 +1045,35 @@ window.copyFollowup = function(btn) {
     });
 };
 
-// ===== INTELLIGENT PRODUCT MATCHING =====
+// ===== INTELLIGENT PRODUCT MATCHING (OPTIMIZED) =====
+// Cache pour éviter de recalculer les mêmes correspondances
+const _matchCache = new Map();
+
 function matchProductsToClient(clientTags, clientText) {
     if (!PRODUCTS_LOADED || LV_PRODUCTS.length === 0) return [];
+    
+    // Check cache
+    const cacheKey = clientTags.map(t => t.t).sort().join('|');
+    if (_matchCache.has(cacheKey)) {
+        return _matchCache.get(cacheKey);
+    }
     
     const matches = [];
     const clientTextLower = (clientText || '').toLowerCase();
     
-    // Extract relevant info from tags
+    // Quick return if no tags
+    if (!Array.isArray(clientTags) || clientTags.length === 0) {
+        return [];
+    }
+    
+    // Limit products to process (first 500 for speed)
+    const productsToProcess = LV_PRODUCTS.slice(0, 500);
+    
+    // Extract relevant info from tags (optimized with early filtering)
     const profil = clientTags.filter(t => t.c === 'profil').map(t => t.t);
     const interet = clientTags.filter(t => t.c === 'interet').map(t => t.t);
     const contexte = clientTags.filter(t => t.c === 'contexte').map(t => t.t);
     const voyage = clientTags.filter(t => t.c === 'voyage').map(t => t.t);
-    const service = clientTags.filter(t => t.c === 'service').map(t => t.t);
     const marque = clientTags.filter(t => t.c === 'marque').map(t => t.t);
     
     // Expanded matching rules - semantic understanding
@@ -617,19 +1139,15 @@ function matchProductsToClient(clientTags, clientText) {
         'Lignes_Animation': ['nouveau', 'collection', 'édition', 'limité', 'tendance'],
     };
     
-    // Score each product
-    LV_PRODUCTS.forEach(product => {
+    // Score each product (optimized - process limited set)
+    productsToProcess.forEach(product => {
         let score = 0;
         let matchReasons = [];
         
         // Build comprehensive product text from Hugging Face dataset structure
         const productName = (product.title || '').toLowerCase();
-        const productDesc = '';
         const productCategory = (product.category1_code || '').toLowerCase();
         const productSubcategory = ((product.category2_code || '') + ' ' + (product.category3_code || '')).toLowerCase();
-        const productMaterials = '';
-        const productColors = '';
-        const productSKU = (product.product_code || '').toLowerCase();
         
         // Complete product text for matching
         const productText = `${productName} ${productCategory} ${productSubcategory}`;
@@ -640,7 +1158,6 @@ function matchProductsToClient(clientTags, clientText) {
             const keywords = matchingRules[tagLabel] || [];
             
             // Match keywords in product text
-            // Match keywords in product text
             for (const keyword of keywords) {
                 if (productText.includes(keyword)) {
                     score += 12;
@@ -648,7 +1165,7 @@ function matchProductsToClient(clientTags, clientText) {
                         matchReasons.push(tagLabel);
                     }
                 }
-            });
+            }
 
             // Direct tag matching in product text
             const tagWords = tagLabel.toLowerCase().replace(/_/g, ' ').split(' ');
@@ -686,8 +1203,7 @@ function matchProductsToClient(clientTags, clientText) {
         // Professional context - elegant, practical items
         if (profil.some(p => p.includes('Executive') || p.includes('Entrepreneur') || p.includes('Leadership'))) {
             if (productName.includes('attaché') || productName.includes('porte-documents') ||
-                productName.includes('organiseur') || productName.includes('portefeuille') ||
-                (productDesc.includes('professionnel') || productDesc.includes('business'))) {
+                productName.includes('organiseur') || productName.includes('portefeuille')) {
                 score += 18;
                 matchReasons.push('Professionnel');
             }
@@ -703,38 +1219,18 @@ function matchProductsToClient(clientTags, clientText) {
             }
         }
         
-        // Style matching - use materials and design
+        // Style matching
         if (contexte.includes('Intemporel') || contexte.includes('Quiet_Luxury')) {
-            if (productDesc.includes('classique') || productDesc.includes('intemporel') ||
-                productMaterials.includes('cuir') || productName.includes('monogram')) {
+            if (productName.includes('monogram')) {
                 score += 12;
                 matchReasons.push('Style Classique');
             }
         }
-        
-        if (contexte.includes('Contemporain') || contexte.includes('Tendance')) {
-            if (productDesc.includes('moderne') || productDesc.includes('nouveau') ||
-                productDesc.includes('collection')) {
-                score += 12;
-                matchReasons.push('Style Moderne');
-            }
-        }
-        
+
         // 3. CLIENT TEXT SEMANTIC MATCHING
         const clientWords = clientTextLower.split(/\s+/).filter(w => w.length > 4);
         clientWords.forEach(word => {
-            // Strong match in product name
-            if (productName.includes(word)) {
-                score += 8;
-            }
-            // Match in description
-            else if (productDesc.includes(word)) {
-                score += 5;
-            }
-            // Match in materials or colors
-            else if (productMaterials.includes(word) || productColors.includes(word)) {
-                score += 4;
-            }
+            if (productName.includes(word)) score += 8;
         });
         
         // 4. GENDER PREFERENCE (lower weight - not the main criteria)
@@ -756,7 +1252,7 @@ function matchProductsToClient(clientTags, clientText) {
             }
         }
         
-        // Only include products with meaningful matches (lower threshold for better coverage)
+        // Only include products with meaningful matches (optimized threshold)
         if (score >= 15 && matchReasons.length > 0) {
             matches.push({
                 product,
@@ -764,13 +1260,29 @@ function matchProductsToClient(clientTags, clientText) {
                 matchReasons: [...new Set(matchReasons)].slice(0, 3)
             });
         }
+        
+        // Early exit if we have enough high-quality matches
+        if (matches.length >= 20 && matches.some(m => m.score > 50)) {
+            return matches.sort((a, b) => b.score - a.score).slice(0, 10);
+        }
     });
     
     // Sort by score and return top matches
-    return matches.sort((a, b) => b.score - a.score);
+    const sortedMatches = matches.sort((a, b) => b.score - a.score);
+    
+    // Cache result
+    _matchCache.set(cacheKey, sortedMatches);
+    
+    // Limit cache size
+    if (_matchCache.size > 50) {
+        const firstKey = _matchCache.keys().next().value;
+        _matchCache.delete(firstKey);
+    }
+    
+    return sortedMatches;
 }
 
-// ===== RENDER: PRODUCT MATCHER =====
+// ===== RENDER: PRODUCT MATCHER WITH ENHANCED DISPLAY =====
 async function renderProducts() {
     const grid = $('productGrid');
     if (!grid) return;
@@ -780,8 +1292,6 @@ async function renderProducts() {
         grid.innerHTML = '<div style="text-align:center;padding:40px;color:#999"><div class="spinner" style="margin:0 auto 16px"></div><p>Chargement de la base de données produits Louis Vuitton...</p></div>';
         await loadLVProducts();
     }
-    
-    grid.innerHTML = '';
 
     const withTags = DATA.filter(p => p.tags.length > 0);
     if (withTags.length === 0) {
@@ -794,91 +1304,192 @@ async function renderProducts() {
         return;
     }
 
-    let totalMatches = 0;
+    // Calculate all matches for all clients
+    const allClientMatches = withTags.map(p => ({
+        client: p,
+        matches: matchProductsToClient(p.tags, p.clean)
+    })).filter(cm => cm.matches.length > 0);
 
-    withTags.forEach(p => {
-        const matches = matchProductsToClient(p.tags, p.clean);
-        
-        // Only show clients with actual matches
-        if (matches.length === 0) return;
-        
-        totalMatches += matches.length;
+    const totalMatches = allClientMatches.reduce((sum, cm) => sum + cm.matches.length, 0);
+
+    // Create header with search and counter
+    const header = document.createElement('div');
+    header.className = 'product-matcher-header';
+    header.innerHTML = `
+        <div class="product-matcher-stats">
+            <div class="pm-stat">
+                <div class="pm-stat-value">${totalMatches}</div>
+                <div class="pm-stat-label">Matchs totaux</div>
+            </div>
+            <div class="pm-stat">
+                <div class="pm-stat-value">${allClientMatches.length}</div>
+                <div class="pm-stat-label">Clients servis</div>
+            </div>
+            <div class="pm-stat">
+                <div class="pm-stat-value">${LV_PRODUCTS.length}</div>
+                <div class="pm-stat-label">Produits catalogue</div>
+            </div>
+        </div>
+        <div class="product-matcher-search">
+            <input type="text" id="pmSearch" placeholder="🔍 Rechercher un client ou un tag..." class="pm-search-input" />
+        </div>
+    `;
+
+    const container = document.createElement('div');
+    container.appendChild(header);
+
+    const gridEl = document.createElement('div');
+    gridEl.className = 'product-matcher-grid';
+    gridEl.id = 'productMatcherGridContent';
+
+    allClientMatches.forEach(({ client, matches }) => {
         const top3 = matches.slice(0, 3);
 
         const card = document.createElement('div');
         card.className = 'product-match-card';
+        card.setAttribute('data-client', (client.ca || client.id).toLowerCase());
+        card.setAttribute('data-tags', client.tags.map(t => t.t.toLowerCase()).join(' '));
+        
         card.innerHTML = `
             <div class="product-match-header">
-                <span class="product-match-client">${p.ca || p.id}</span>
+                <span class="product-match-client">${client.ca || client.id}</span>
                 <span style="color:#666;font-size:.72rem">${matches.length} produit${matches.length > 1 ? 's' : ''} trouvé${matches.length > 1 ? 's' : ''}</span>
             </div>
-            <div class="product-match-tags">${p.tags.slice(0,6).map(t=>`<span class="tag ${t.c}">${t.t}</span>`).join('')}</div>
+            <div class="product-match-tags">${client.tags.slice(0,6).map(t=>`<span class="tag ${t.c}">${t.t}</span>`).join('')}</div>
             <div class="product-items">
                 ${top3.map(match => {
             const prod = match.product;
-
-            // Find the best product image (not generic banners)
-            let imageUrl = '';
-            if (prod.image_urls && prod.image_urls.length > 0) {
-                // Try to find image with SKU in URL (most specific)
-                const skuImage = prod.image_urls.find(url =>
-                    prod.sku && url.toLowerCase().includes(prod.sku.toLowerCase())
-                );
-
-                if (skuImage) {
-                    imageUrl = skuImage;
-                } else {
-                    // Filter out generic banners and take first specific image
-                    const specificImages = prod.image_urls.filter(url => {
-                        const urlLower = url.toLowerCase();
-                        // Exclude generic marketing images
-                        return !urlLower.includes('_mm_') &&
-                            !urlLower.includes('_lg_') &&
-                            !urlLower.includes('gifts') &&
-                            !urlLower.includes('perso') &&
-                            !urlLower.includes('new_for') &&
-                            !urlLower.includes('show') &&
-                            !urlLower.includes('pushat') &&
-                            !urlLower.includes('bc_') &&
-                            (urlLower.includes('/pp_vp_l/') || urlLower.includes('/lv/'));
-                    });
-
-                    imageUrl = specificImages.length > 0 ? specificImages[0] : prod.image_urls[0];
-                }
-            }
-
-            const price = prod.price || 'Prix sur demande';
+            const imageUrl = prod.imageurl || '';
+            const priceRaw = prod.price;
+            const price = priceRaw ? `${parseFloat(priceRaw).toLocaleString('fr-FR')} €` : 'Prix sur demande';
             const matchTags = match.matchReasons.join(', ');
+            const productName = prod.title || 'Produit Louis Vuitton';
+            const productCategory = [prod.category1_code, prod.category2_code, prod.category3_code].filter(c => c).join(' · ');
+            const productUrl = prod.itemurl;
+            
+            // Calculate similarity percentage (normalize against max score)
+            const similarityPercent = Math.min(100, Math.round((match.score / 100) * 100));
 
             return `
                         <div class="product-item">
                             <div class="product-item-img" style="background-image:url('${imageUrl}');background-size:cover;background-position:center;width:100px;height:100px;border-radius:8px;flex-shrink:0;${imageUrl ? '' : 'background-color:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:2rem'}">
                                 ${imageUrl ? '' : '🛍️'}
+                                <div class="product-similarity-badge">${similarityPercent}%</div>
                             </div>
                             <div class="product-item-info">
                                 <div class="product-item-name">${productName}</div>
                                 <div class="product-item-desc">${productCategory}</div>
-                                <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
+                                <div class="product-item-price-row">
                                     <span class="product-item-price">${price}</span>
-                                    <span class="product-item-match" title="Match: ${matchTags}">Match: ${matchTags}</span>
                                 </div>
-                                ${productUrl ? `<a href="${productUrl}" target="_blank" style="font-size:.7rem;color:#d4af37;margin-top:4px;display:inline-block">Voir sur LV →</a>` : ''}
+                                <div class="product-item-match-row" title="Match: ${matchTags}">
+                                    <span class="product-item-match">🎯 ${matchTags}</span>
+                                </div>
+                                ${productUrl ? `<a href="${productUrl}" target="_blank" class="product-lv-link">Voir sur LouisVuitton.com →</a>` : ''}
                             </div>
                         </div>
                     `;
                 }).join('')}
             </div>
         `;
-        grid.appendChild(card);
+        gridEl.appendChild(card);
     });
-    
-    // Show message if no matches found for any client
-    if (totalMatches === 0) {
-        grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px;text-align:center">Aucun produit Louis Vuitton ne correspond aux profils clients actuels. Le matching est basé sur les tags et descriptions des clients.</p>';
+
+    container.appendChild(gridEl);
+    grid.innerHTML = '';
+    grid.appendChild(container);
+
+    // Wire search
+    const searchInput = document.getElementById('pmSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            document.querySelectorAll('.product-match-card').forEach(card => {
+                const clientName = card.getAttribute('data-client');
+                const tags = card.getAttribute('data-tags');
+                if (clientName.includes(query) || tags.includes(query)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
     }
 }
 
-// ===== RENDER: SENTIMENT =====
+// ===== CHURN RISK CALCULATION =====
+function calculateChurnRisk(sentimentScore, sentimentLevel, visitFrequency = 1) {
+    // visitFrequency: mocked as 1 (average) - in real system, would come from CRM
+    let churnScore = 0;
+    
+    // Sentiment impact (60% weight)
+    if (sentimentLevel === 'negative') {
+        churnScore += 60;
+    } else if (sentimentLevel === 'neutral') {
+        churnScore += 30;
+    } else {
+        churnScore += Math.max(0, (100 - sentimentScore) * 0.4);
+    }
+    
+    // Visit frequency impact (40% weight)
+    const frequencyScore = Math.max(0, (1 - visitFrequency) * 40);
+    churnScore += frequencyScore;
+    
+    churnScore = Math.min(100, Math.round(churnScore));
+    
+    if (churnScore >= 70) {
+        return { risk: 'critical', label: 'Critique', color: '#ef4444', icon: '🔴' };
+    } else if (churnScore >= 50) {
+        return { risk: 'high', label: 'Élevé', color: '#fb923c', icon: '🟠' };
+    } else if (churnScore >= 30) {
+        return { risk: 'medium', label: 'Modéré', color: '#fbbf24', icon: '🟡' };
+    } else {
+        return { risk: 'low', label: 'Faible', color: '#10b981', icon: '🟢' };
+    }
+}
+
+function getServiceRecoveryActions(churnRisk) {
+    const actions = [];
+    
+    if (churnRisk === 'critical') {
+        actions.push({
+            priority: 'critique',
+            action: 'Appel personnel du Store Manager dans les 24h',
+            icon: '📞',
+            color: '#ef4444'
+        });
+        actions.push({
+            priority: 'critique',
+            action: 'Invitation à un événement privé exclusif',
+            icon: '🎁',
+            color: '#ef4444'
+        });
+    } else if (churnRisk === 'high') {
+        actions.push({
+            priority: 'haute',
+            action: 'Message personnalisé + offre privilège',
+            icon: '💌',
+            color: '#fb923c'
+        });
+        actions.push({
+            priority: 'haute',
+            action: 'Consultation stylistique offerte',
+            icon: '👔',
+            color: '#fb923c'
+        });
+    } else if (churnRisk === 'medium') {
+        actions.push({
+            priority: 'moyenne',
+            action: 'Email de suivi avec recommandations produits',
+            icon: '📧',
+            color: '#fbbf24'
+        });
+    }
+    
+    return actions;
+}
+
+// ===== RENDER: SENTIMENT WITH SERVICE RECOVERY =====
 function renderSentiment() {
     const overview = $('sentimentOverview');
     if (!overview) return;
@@ -888,39 +1499,147 @@ function renderSentiment() {
     const negCount = SENTIMENT_DATA.filter(s => s.level==='negative').length;
     const avgScore = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s,d)=>s+d.score,0)/SENTIMENT_DATA.length) : 0;
 
+    // Calculate churn stats
+    const clientsWithChurn = SENTIMENT_DATA.map(s => ({
+        ...s,
+        churn: calculateChurnRisk(s.score, s.level, 1)
+    }));
+    
+    const criticalChurn = clientsWithChurn.filter(c => c.churn.risk === 'critical').length;
+    const highChurn = clientsWithChurn.filter(c => c.churn.risk === 'high').length;
+
     overview.innerHTML = `
-        <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#10b981">${posCount}</div><div class="sentiment-stat-label">Positifs</div></div>
-        <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#888">${neuCount}</div><div class="sentiment-stat-label">Neutres</div></div>
-        <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#ef4444">${negCount}</div><div class="sentiment-stat-label">Négatifs</div></div>
-        <div class="sentiment-stat"><div class="sentiment-stat-value" style="color:#d4af37">${avgScore}%</div><div class="sentiment-stat-label">Score moyen</div></div>
+        <div class="sentiment-overview-grid">
+            <div class="sentiment-distribution-chart">
+                <div class="sentiment-chart-title">Distribution des sentiments</div>
+                <svg width="200" height="200" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="80" fill="none" stroke="#ef4444" stroke-width="40" stroke-dasharray="${(negCount / SENTIMENT_DATA.length) * 503} 503" transform="rotate(-90 100 100)"/>
+                    <circle cx="100" cy="100" r="80" fill="none" stroke="#888" stroke-width="40" stroke-dasharray="${(neuCount / SENTIMENT_DATA.length) * 503} 503" stroke-dashoffset="${-(negCount / SENTIMENT_DATA.length) * 503}" transform="rotate(-90 100 100)"/>
+                    <circle cx="100" cy="100" r="80" fill="none" stroke="#10b981" stroke-width="40" stroke-dasharray="${(posCount / SENTIMENT_DATA.length) * 503} 503" stroke-dashoffset="${-((negCount + neuCount) / SENTIMENT_DATA.length) * 503}" transform="rotate(-90 100 100)"/>
+                    <text x="100" y="95" text-anchor="middle" font-size="36" font-weight="700" fill="#f1e5ac">${avgScore}%</text>
+                    <text x="100" y="115" text-anchor="middle" font-size="12" fill="rgba(241,229,172,0.6)">Score moyen</text>
+                </svg>
+                <div class="sentiment-legend">
+                    <div class="sentiment-legend-item"><span class="sentiment-legend-dot" style="background:#10b981"></span>Positifs: ${posCount}</div>
+                    <div class="sentiment-legend-item"><span class="sentiment-legend-dot" style="background:#888"></span>Neutres: ${neuCount}</div>
+                    <div class="sentiment-legend-item"><span class="sentiment-legend-dot" style="background:#ef4444"></span>Négatifs: ${negCount}</div>
+                </div>
+            </div>
+            <div class="sentiment-stats-grid">
+                <div class="sentiment-stat-card">
+                    <div class="sentiment-stat-value" style="color:#10b981">${posCount}</div>
+                    <div class="sentiment-stat-label">Positifs</div>
+                </div>
+                <div class="sentiment-stat-card">
+                    <div class="sentiment-stat-value" style="color:#888">${neuCount}</div>
+                    <div class="sentiment-stat-label">Neutres</div>
+                </div>
+                <div class="sentiment-stat-card">
+                    <div class="sentiment-stat-value" style="color:#ef4444">${negCount}</div>
+                    <div class="sentiment-stat-label">Négatifs</div>
+                </div>
+                <div class="sentiment-stat-card">
+                    <div class="sentiment-stat-value" style="color:#ef4444">${criticalChurn}</div>
+                    <div class="sentiment-stat-label">Churn Critique</div>
+                </div>
+                <div class="sentiment-stat-card">
+                    <div class="sentiment-stat-value" style="color:#fb923c">${highChurn}</div>
+                    <div class="sentiment-stat-label">Churn Élevé</div>
+                </div>
+            </div>
+        </div>
     `;
 
+    // Enhanced alerts with priority
     const alerts = $('sentimentAlerts');
     if (alerts) {
         alerts.innerHTML = '';
-        const negatives = SENTIMENT_DATA.filter(s => s.level === 'negative');
-        if (negatives.length > 0) {
-            alerts.innerHTML = '<h3 style="margin-bottom:12px;font-size:1rem;color:#ef4444">🚨 Clients à risque</h3>';
-            negatives.forEach(s => {
+        
+        const sortedByChurn = clientsWithChurn
+            .filter(c => c.churn.risk === 'critical' || c.churn.risk === 'high')
+            .sort((a, b) => {
+                const priority = { critical: 3, high: 2, medium: 1, low: 0 };
+                return priority[b.churn.risk] - priority[a.churn.risk];
+            });
+        
+        if (sortedByChurn.length > 0) {
+            alerts.innerHTML = '<h3 style="margin-bottom:16px;font-size:1.1rem;color:#ef4444">🚨 Service Recovery - Actions Prioritaires</h3>';
+            
+            sortedByChurn.forEach(s => {
+                const recoveryActions = getServiceRecoveryActions(s.churn.risk);
                 const al = document.createElement('div');
-                al.className = 'sentiment-alert';
-                al.innerHTML = `<div class="sentiment-alert-icon">⚠️</div><div class="sentiment-alert-content"><div class="sentiment-alert-title">${s.id} — Score ${s.score}% (CA: ${s.ca})</div><div class="sentiment-alert-desc">Mots: ${s.negFound.join(', ')}. Action immédiate recommandée.</div></div><span class="sentiment-alert-badge">À risque</span>`;
+                al.className = `sentiment-alert-enhanced priority-${s.churn.risk}`;
+                
+                let actionsHTML = '';
+                if (recoveryActions.length > 0) {
+                    actionsHTML = '<div class="recovery-actions">';
+                    recoveryActions.forEach(action => {
+                        actionsHTML += `
+                            <div class="recovery-action" style="border-left-color:${action.color}">
+                                <span class="recovery-icon">${action.icon}</span>
+                                <div class="recovery-action-text">
+                                    <div class="recovery-action-priority">${action.priority.toUpperCase()}</div>
+                                    <div class="recovery-action-desc">${action.action}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    actionsHTML += '</div>';
+                }
+                
+                al.innerHTML = `
+                    <div class="sentiment-alert-header">
+                        <div class="sentiment-alert-client-info">
+                            <span class="sentiment-alert-client-name">${s.id}</span>
+                            <span class="sentiment-alert-score" style="color:${s.level==='negative'?'#ef4444':'#fb923c'}">${s.score}%</span>
+                        </div>
+                        <div class="sentiment-alert-badges">
+                            <span class="churn-risk-badge" style="background:${s.churn.color}">${s.churn.icon} ${s.churn.label}</span>
+                        </div>
+                    </div>
+                    <div class="sentiment-alert-details">
+                        <div class="sentiment-alert-keywords">Signaux: ${s.negFound.join(', ')}</div>
+                        <div class="sentiment-alert-ca">CA: ${s.ca}</div>
+                    </div>
+                    ${actionsHTML}
+                `;
                 alerts.appendChild(al);
             });
+        } else {
+            alerts.innerHTML = '<p style="color:#10b981;font-size:.9rem">✅ Aucun client à risque critique actuellement.</p>';
         }
     }
 
     const grid = $('sentimentGrid');
     if (!grid) return;
     grid.innerHTML = '';
-    SENTIMENT_DATA.sort((a,b) => a.score-b.score).forEach(s => {
+    
+    clientsWithChurn.sort((a,b) => a.score-b.score).forEach(s => {
         const color = s.level==='positive'?'#10b981':s.level==='negative'?'#ef4444':'#888';
         const card = document.createElement('div');
-        card.className = 'sentiment-card';
+        card.className = 'sentiment-card-enhanced';
         card.innerHTML = `
-            <div class="sentiment-card-header"><span class="sentiment-client">${s.id}</span><div class="sentiment-gauge"><div class="sentiment-gauge-bar"><div class="sentiment-gauge-fill" style="width:${s.score}%;background:${color}"></div></div><span class="sentiment-gauge-label" style="color:${color}">${s.score}%</span></div></div>
+            <div class="sentiment-card-header">
+                <span class="sentiment-client">${s.id}</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="churn-risk-badge-mini" style="background:${s.churn.color}">${s.churn.icon}</span>
+                    <div class="sentiment-gauge">
+                        <div class="sentiment-gauge-bar">
+                            <div class="sentiment-gauge-fill" style="width:${s.score}%;background:${color}"></div>
+                        </div>
+                        <span class="sentiment-gauge-label" style="color:${color}">${s.score}%</span>
+                    </div>
+                </div>
+            </div>
             <div class="sentiment-keywords">${s.posFound.map(k=>`<span class="sentiment-kw positive">${k}</span>`).join('')}${s.negFound.map(k=>`<span class="sentiment-kw negative">${k}</span>`).join('')}${s.posFound.length===0&&s.negFound.length===0?'<span class="sentiment-kw neutral">neutre</span>':''}</div>
             <div class="sentiment-excerpt">"${s.excerpt}..."</div>
+            <div class="sentiment-recommendations">
+                <div class="sentiment-rec-title">💡 Recommandations</div>
+                ${s.churn.risk === 'critical' ? '<div class="sentiment-rec">→ Intervention immédiate requise</div>' : ''}
+                ${s.level === 'negative' ? '<div class="sentiment-rec">→ Privilégier le contact personnel</div>' : ''}
+                ${s.level === 'neutral' ? '<div class="sentiment-rec">→ Proposer une expérience différenciante</div>' : ''}
+                ${s.level === 'positive' ? '<div class="sentiment-rec">→ Fidéliser avec programme VIC</div>' : ''}
+            </div>
         `;
         grid.appendChild(card);
     });
