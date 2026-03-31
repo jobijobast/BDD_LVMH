@@ -64,7 +64,6 @@ const MANAGER_NAV = [
     { id: 'sep1', sep: true },
     { id: 'm-privacy', icon: ICONS.shield, label: 'Privacy', page: 'page-m-privacy', title: 'Privacy Score' },
     { id: 'm-coach', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`, label: 'Coach RGPD', page: 'page-coach', title: 'Coach RGPD' },
-    { id: 'm-crossbrand', icon: ICONS.column, label: 'Cross-Brand', page: 'page-m-crossbrand', title: 'Cross-Brand Intelligence' },
     { id: 'm-sentiment', icon: ICONS.chat, label: 'Sentiment', page: 'page-m-sentiment', title: 'Sentiment & Retention' },
     { id: 'm-boutique', icon: ICONS.store, label: 'Boutique', page: 'page-m-boutique', title: 'Dashboard Boutique' },
     { id: 'm-pulse', icon: ICONS.pulse, label: 'Pulse', page: 'page-m-pulse', title: 'The Luxury Pulse' },
@@ -306,9 +305,6 @@ function renderPage(navId) {
                 break;
             case 'm-privacy':
                 renderPrivacy();
-                break;
-            case 'm-crossbrand':
-                renderCrossBrand();
                 break;
             case 'm-sentiment':
                 renderSentiment();

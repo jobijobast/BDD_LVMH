@@ -29,9 +29,6 @@ if (typeof window !== 'undefined') {
     loadLVProducts();
 }
 
-// ===== LVMH HOUSES =====
-const LVMH_HOUSES = ['Louis Vuitton','Dior','Fendi','Givenchy','Celine','Loewe','Berluti','Loro Piana','Tiffany & Co.','Bulgari','TAG Heuer','Hublot','Moët Hennessy','Sephora','Rimowa'];
-
 // ===== HELPERS =====
 const CAT_NAMES = { profil:'Profil', interet:'Intérêt', voyage:'Voyage', contexte:'Contexte', service:'Service', marque:'Marque', crm:'CRM' };
 const legendColors = { profil:'#60a5fa', interet:'#d4af37', voyage:'#34d399', contexte:'#c084fc', service:'#f472b6', marque:'#fb923c', crm:'#facc15' };
@@ -792,31 +789,6 @@ function renderPrivacy() {
 }
 
 // ===== RENDER: CROSS-BRAND =====
-function renderCrossBrand() {
-    const grid = $('crossbrandGrid');
-    if (!grid) return;
-    grid.innerHTML = '';
-
-    DATA.forEach(p => {
-        if (p.tags.length < 2) return;
-        const numHouses = Math.min(Math.floor(Math.random()*3)+1, 3);
-        const houses = [...LVMH_HOUSES].sort(() => Math.random()-.5).slice(0, numHouses);
-        const anonId = 'USP-' + btoa(p.id).substring(0,8).toUpperCase();
-        const styleTags = p.tags.filter(t => ['contexte','interet'].includes(t.c));
-        const productTags = p.tags.filter(t => ['marque','voyage'].includes(t.c));
-        const segmentTags = p.tags.filter(t => ['profil','crm'].includes(t.c));
-
-        let html = `<div class="crossbrand-header"><span class="crossbrand-id">${anonId}</span><div class="crossbrand-houses">${houses.map(h=>`<span class="crossbrand-house">${h}</span>`).join('')}</div></div>`;
-        if (styleTags.length>0) html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Style DNA</div><div class="crossbrand-tags">${styleTags.map(t=>`<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
-        if (productTags.length>0) html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Univers Produit</div><div class="crossbrand-tags">${productTags.map(t=>`<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
-        if (segmentTags.length>0) html += `<div class="crossbrand-section"><div class="crossbrand-section-title">Segment</div><div class="crossbrand-tags">${segmentTags.map(t=>`<span class="crossbrand-tag">${t.t}</span>`).join('')}</div></div>`;
-
-        const card = document.createElement('div');
-        card.className = 'crossbrand-card';
-        card.innerHTML = html;
-        grid.appendChild(card);
-    });
-}
 
 // ===== TREND VELOCITY CALCULATION =====
 function calculateTrendVelocity() {
@@ -880,222 +852,351 @@ function calculateTrendVelocity() {
     return { velocities, emerging };
 }
 
-function getStrategicRecommendations(topTrends, emerging, catFreq) {
-    const recommendations = [];
-    
-    // Analyze top trends
-    const topTrendTags = topTrends.slice(0, 3).map(t => t.tag);
-    
-    if (topTrendTags.some(t => t.includes('Sustainability') || t.includes('Eco') || t.includes('Vegan'))) {
-        recommendations.push({
-            priority: 'high',
-            category: 'Product Strategy',
-            icon: '🌿',
-            title: 'Accélérer les collections durables',
-            action: 'Forte demande pour matériaux éco-responsables. Recommandation: mettre en avant la ligne "Conscious Craft".',
-            impact: 'Hausse prévue de 20% des ventes sur ce segment'
+// ===== ROI MATRIX — Signal → Action → Revenue =====
+function buildROIMatrix({ giftingClients, keyAccounts, travelClients, persuadables, dormants, atRisk }) {
+    const matrix = [];
+
+    if (atRisk > 0) {
+        matrix.push({
+            priority: 'urgent',
+            signal: 'Clients à sentiment négatif / churn critique',
+            clients: atRisk,
+            action: 'Service Recovery — appel Store Manager + geste commercial dans les 24h',
+            roiPer: 2000,
+            roi: atRisk * 2000,
+            effort: 'Urgent',
+            timeline: 'Immédiat'
         });
     }
-    
-    if (topTrendTags.some(t => t.includes('Travel') || t.includes('Voyage'))) {
-        recommendations.push({
+
+    if (persuadables > 0) {
+        matrix.push({
             priority: 'high',
-            category: 'Marketing Campaign',
-            icon: '✈️',
-            title: 'Campagne "Horizons Luxueux"',
-            action: 'Spike de mentions voyage. Lancer une activation autour des bagages et accessoires de voyage.',
-            impact: 'Opportunité cross-sell avec aviation privée'
+            signal: 'Uplift élevé — fort potentiel d\'achat détecté',
+            clients: persuadables,
+            action: 'Smart Follow-up IA personnalisé dans les 48h avec produits LV matchés',
+            roiPer: 450,
+            roi: persuadables * 450,
+            effort: 'Faible',
+            timeline: '< 48h'
         });
     }
-    
-    if (emerging.length > 0) {
-        const emergingTag = emerging[0][0];
-        recommendations.push({
+
+    if (giftingClients > 0) {
+        matrix.push({
+            priority: 'high',
+            signal: 'Occasions gifting / célébrations (tags Contexte)',
+            clients: giftingClients,
+            action: 'Activer sélection cadeaux ciblée + message IA avec produits LV adaptés',
+            roiPer: 800,
+            roi: giftingClients * 800,
+            effort: 'Faible',
+            timeline: '< 24h'
+        });
+    }
+
+    if (keyAccounts > 0) {
+        matrix.push({
+            priority: 'high',
+            signal: 'Key Accounts identifiés dans les notes CA',
+            clients: keyAccounts,
+            action: 'Programme VIC dédié — accès CA attitré, preview exclusive collections',
+            roiPer: 5000,
+            roi: keyAccounts * 5000,
+            effort: 'Moyen',
+            timeline: '1 semaine'
+        });
+    }
+
+    if (travelClients > 0) {
+        matrix.push({
             priority: 'medium',
-            category: 'Weak Signal',
-            icon: '🔮',
-            title: `Tendance émergente: ${emergingTag}`,
-            action: `Signal faible détecté. Surveiller l'évolution et préparer une réponse produit/marketing si confirmation.`,
-            impact: 'Avantage stratégique si anticipation réussie'
+            signal: 'Profils voyageurs identifiés (tags Voyage)',
+            clients: travelClients,
+            action: 'Upsell bagagerie LV — Keepall, Horizon, Pégase, Delta',
+            roiPer: 1200,
+            roi: travelClients * 1200,
+            effort: 'Moyen',
+            timeline: '1 semaine'
         });
     }
-    
-    const lifestyleCount = catFreq.get('interet') || 0;
-    if (lifestyleCount > DATA.length * 0.4) {
-        recommendations.push({
-            priority: 'high',
-            category: 'Customer Experience',
-            icon: '🏋️',
-            title: 'Programme VIC Lifestyle',
-            action: 'Clients très engagés sur lifestyle. Créer des événements expérientiels (golf, tennis, voyages).',
-            impact: 'Renforcement NPS et fidélisation'
-        });
-    }
-    
-    const contextCount = catFreq.get('contexte') || 0;
-    if (contextCount > 0) {
-        recommendations.push({
+
+    if (dormants > 0) {
+        matrix.push({
             priority: 'medium',
-            category: 'Sales Training',
-            icon: '🎓',
-            title: 'Formation "Écoute Active"',
-            action: 'Nombreux contextes détectés. Former les CAs à exploiter ces moments clés pour proposer NBA.',
-            impact: 'Augmentation du taux de conversion'
+            signal: 'Clients dormants — uplift faible, engagement bas',
+            clients: dormants,
+            action: 'Campagne réactivation — newsletter personnalisée avec nouveautés collection',
+            roiPer: 600,
+            roi: dormants * 600,
+            effort: 'Moyen',
+            timeline: '2 semaines'
         });
     }
-    
-    return recommendations;
+
+    return matrix;
 }
 
-// ===== RENDER: LUXURY PULSE WITH REAL VELOCITY =====
+// ===== RENDER: LUXURY PULSE — ROI DASHBOARD =====
 function renderPulse() {
     const tagFreq = new Map();
     const catFreq = new Map();
     DATA.forEach(row => {
         row.tags.forEach(t => {
-            tagFreq.set(t.t, (tagFreq.get(t.t)||0)+1);
-            catFreq.set(t.c, (catFreq.get(t.c)||0)+1);
+            tagFreq.set(t.t, (tagFreq.get(t.t) || 0) + 1);
+            catFreq.set(t.c, (catFreq.get(t.c) || 0) + 1);
         });
     });
-    
-    const { velocities, emerging } = calculateTrendVelocity();
-    
-    // Sort by total count
-    const sorted = Array.from(tagFreq.entries()).sort((a,b) => b[1]-a[1]);
-    const totalTags = sorted.reduce((s,[,c]) => s+c, 0);
-    
-    // Get top trends with velocity
-    const topTrends = sorted.slice(0, 12).map(([tag, count]) => {
-        const velocityData = velocities.get(tag) || { velocity: 0, firstCount: 0, secondCount: 0 };
-        return {
-            tag,
-            count,
-            velocity: velocityData.velocity,
-            firstCount: velocityData.firstCount,
-            secondCount: velocityData.secondCount
-        };
-    });
 
+    // ── Business metrics ──────────────────────────────────────────
+    const giftingClients  = DATA.filter(d => d.tags.some(t => t.c === 'contexte')).length;
+    const keyAccounts     = tagFreq.get('Key_Account') || 0;
+    const travelClients   = DATA.filter(d => d.tags.some(t => t.c === 'voyage')).length;
+
+    const segments = DATA.map(d => {
+        const u = calculateUpliftScore(d);
+        const sl = (d.sentiment && d.sentiment.level) || 'neutral';
+        return getUpliftSegment(u, sl).segment;
+    });
+    const persuadables = segments.filter(s => s === 'persuadables').length;
+    const dormants     = segments.filter(s => s === 'chiens-dormants').length;
+    const atRisk       = segments.filter(s => s === 'cas-perdus').length;
+
+    const roiMatrix = buildROIMatrix({ giftingClients, keyAccounts, travelClients, persuadables, dormants, atRisk });
+    const totalROI  = roiMatrix.reduce((s, r) => s + r.roi, 0);
+
+    const fmt = v => v >= 1000 ? `${(v / 1000).toFixed(0)}k€` : `${v}€`;
+
+    // ── Section 1: Business KPI row ───────────────────────────────
     const ps = $('pulseStats');
     if (ps) ps.innerHTML = `
-        <div class="pulse-stat"><div class="pulse-stat-value">${sorted.length}</div><div class="pulse-stat-label">Tags uniques</div></div>
-        <div class="pulse-stat"><div class="pulse-stat-value">${totalTags}</div><div class="pulse-stat-label">Mentions totales</div></div>
-        <div class="pulse-stat"><div class="pulse-stat-value">${emerging.length}</div><div class="pulse-stat-label">Topics émergents</div></div>
-        <div class="pulse-stat"><div class="pulse-stat-value">${Array.from(catFreq.keys()).length}</div><div class="pulse-stat-label">Catégories actives</div></div>
+        <div class="pulse-stat">
+            <div class="pulse-stat-value">${giftingClients}</div>
+            <div class="pulse-stat-label">Gifting Opportunities</div>
+            <div class="pulse-kpi-sub">${fmt(giftingClients * 800)} estimés</div>
+        </div>
+        <div class="pulse-stat">
+            <div class="pulse-stat-value">${keyAccounts}</div>
+            <div class="pulse-stat-label">Key Accounts</div>
+            <div class="pulse-kpi-sub">${keyAccounts > 0 ? fmt(keyAccounts * 5000) + ' potentiel' : 'Aucun détecté'}</div>
+        </div>
+        <div class="pulse-stat">
+            <div class="pulse-stat-value">${persuadables}</div>
+            <div class="pulse-stat-label">Persuadables</div>
+            <div class="pulse-kpi-sub">Uplift +30% conv.</div>
+        </div>
+        <div class="pulse-stat${atRisk > 0 ? ' pulse-stat-alert' : ''}">
+            <div class="pulse-stat-value">${atRisk}</div>
+            <div class="pulse-stat-label">Clients à Risque</div>
+            <div class="pulse-kpi-sub">${atRisk > 0 ? 'Churn critique' : 'Aucun à risque'}</div>
+        </div>
+        <div class="pulse-stat pulse-stat-roi">
+            <div class="pulse-stat-value">${fmt(totalROI)}</div>
+            <div class="pulse-stat-label">ROI Total Estimé</div>
+            <div class="pulse-kpi-sub">Potentiel activable</div>
+        </div>
     `;
 
-    const trends = $('pulseTrends');
-    if (trends) {
-        trends.innerHTML = '';
-        topTrends.forEach(trend => {
-            const pct = ((trend.count/DATA.length)*100).toFixed(0);
-            const velocity = trend.velocity;
-            const changeClass = velocity > 10 ? 'up' : velocity < -10 ? 'down' : 'stable';
-            const changeLabel = velocity > 0 ? `+${velocity}%` : `${velocity}%`;
-            
-            // Create realistic bars based on actual data
-            const maxCount = Math.max(trend.firstCount, trend.secondCount, 1);
-            const bars = Array.from({length: 8}, (_, i) => {
-                const progress = (i + 1) / 8;
-                const interpolated = trend.firstCount + (trend.secondCount - trend.firstCount) * progress;
-                const h = Math.max(4, Math.round((interpolated / maxCount) * 28));
-                return `<div class="pulse-bar-segment" style="height:${h}px;flex:1"></div>`;
-            }).join('');
-            
-            const card = document.createElement('div');
-            card.className = 'pulse-trend-card';
-            card.innerHTML = `
-                <div class="pulse-trend-header">
-                    <span class="pulse-trend-name">${trend.tag}</span>
-                    <span class="pulse-trend-change ${changeClass}">${changeLabel}</span>
-                </div>
-                <div class="pulse-trend-bar">${bars}</div>
-                <div class="pulse-trend-meta">
-                    <span>${trend.count} mentions</span>
-                    <span>${pct}% des clients</span>
-                    <span class="pulse-velocity-badge">Velocity: ${changeLabel}</span>
+    // ── Section 2: Signal → Action → ROI table ───────────────────
+    const trendsEl = $('pulseTrends');
+    if (trendsEl) {
+        trendsEl.innerHTML = '';
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'pulse-roi-section';
+
+        const sectionHeader = document.createElement('div');
+        sectionHeader.className = 'pulse-section-title';
+        sectionHeader.textContent = 'Signal → Action → Revenue';
+        tableWrap.appendChild(sectionHeader);
+
+        if (DATA.length === 0) {
+            tableWrap.innerHTML += '<div class="pulse-empty-state">Importez des données pour générer le tableau de ROI.</div>';
+        } else {
+            const table = document.createElement('div');
+            table.className = 'pulse-roi-table';
+            table.innerHTML = `
+                <div class="pulse-roi-header">
+                    <div class="pulse-roi-col-prio">Priorité</div>
+                    <div class="pulse-roi-col-signal">Signal détecté</div>
+                    <div class="pulse-roi-col-clients">Clients</div>
+                    <div class="pulse-roi-col-action">Action recommandée</div>
+                    <div class="pulse-roi-col-timeline">Délai</div>
+                    <div class="pulse-roi-col-roi">ROI estimé*</div>
                 </div>
             `;
-            trends.appendChild(card);
-        });
+
+            if (roiMatrix.length === 0) {
+                table.innerHTML += '<div class="pulse-empty-state">Pas assez de données. Importez plus de notes clients.</div>';
+            } else {
+                const prioConfig = {
+                    urgent: { label: 'URGENT', bg: '#ef4444', color: '#fff' },
+                    high:   { label: 'HIGH',   bg: '#fb923c', color: '#fff' },
+                    medium: { label: 'MEDIUM', bg: '#2563EB', color: '#fff' }
+                };
+                roiMatrix.forEach(row => {
+                    const pc = prioConfig[row.priority] || { label: row.priority.toUpperCase(), bg: '#888', color: '#fff' };
+                    const tr = document.createElement('div');
+                    tr.className = 'pulse-roi-row';
+                    tr.innerHTML = `
+                        <div class="pulse-roi-col-prio">
+                            <span class="pulse-prio-badge" style="background:${pc.bg};color:${pc.color}">${pc.label}</span>
+                        </div>
+                        <div class="pulse-roi-col-signal">${row.signal}</div>
+                        <div class="pulse-roi-col-clients">${row.clients}</div>
+                        <div class="pulse-roi-col-action">${row.action}</div>
+                        <div class="pulse-roi-col-timeline">${row.timeline}</div>
+                        <div class="pulse-roi-col-roi">
+                            <div class="pulse-roi-value">${fmt(row.roi)}</div>
+                            <div class="pulse-roi-per">${fmt(row.roiPer)}/client</div>
+                        </div>
+                    `;
+                    table.appendChild(tr);
+                });
+            }
+
+            tableWrap.appendChild(table);
+            const note = document.createElement('div');
+            note.className = 'pulse-roi-note';
+            note.textContent = '* Estimations indicatives — panier moyen LV 1 500€. Uplift persuadables +30% conversion. Rétention churn évaluée à 2 000€/client.';
+            tableWrap.appendChild(note);
+        }
+
+        trendsEl.appendChild(tableWrap);
     }
 
-    // Emerging topics section
-    const emergingSection = $('pulseEmerging');
-    if (emergingSection && emerging.length > 0) {
-        emergingSection.innerHTML = '<h3 style="margin-bottom:14px;font-size:1.05rem">🌱 Topics Émergents</h3>';
-        emerging.forEach(([tag, data]) => {
-            const card = document.createElement('div');
-            card.className = 'pulse-emerging-card';
-            card.innerHTML = `
-                <div class="pulse-emerging-icon">🆕</div>
-                <div class="pulse-emerging-content">
-                    <div class="pulse-emerging-name">${tag}</div>
-                    <div class="pulse-emerging-desc">${data.secondCount} mentions dans période récente</div>
-                </div>
-                <span class="pulse-emerging-badge">Nouveau</span>
-            `;
-            emergingSection.appendChild(card);
-        });
-    }
+    // ── Section 3: Charts row (tag bars + category donut) ─────────
+    const emergingEl = $('pulseEmerging');
+    if (emergingEl) {
+        emergingEl.innerHTML = '';
+        const chartsRow = document.createElement('div');
+        chartsRow.className = 'pulse-charts-row';
 
-    // Strategic recommendations
-    const recommendations = getStrategicRecommendations(topTrends, emerging, catFreq);
-    const recoSection = $('pulseRecommendations');
-    if (recoSection && recommendations.length > 0) {
-        recoSection.innerHTML = '<h3 style="margin-bottom:14px;font-size:1.05rem">💡 Recommandations Stratégiques</h3>';
-        recommendations.forEach(reco => {
-            const card = document.createElement('div');
-            card.className = `pulse-reco-card priority-${reco.priority}`;
-            card.innerHTML = `
-                <div class="pulse-reco-header">
-                    <span class="pulse-reco-icon">${reco.icon}</span>
-                    <div class="pulse-reco-meta">
-                        <span class="pulse-reco-category">${reco.category}</span>
-                        <span class="pulse-reco-priority ${reco.priority}">${reco.priority.toUpperCase()}</span>
+        // Left: horizontal bar chart — Top Tags
+        const leftBlock = document.createElement('div');
+        leftBlock.className = 'pulse-chart-block';
+        leftBlock.innerHTML = '<div class="pulse-chart-title">Distribution des Tags</div>';
+
+        const { velocities } = calculateTrendVelocity();
+        const sorted = Array.from(tagFreq.entries()).sort((a, b) => b[1] - a[1]);
+        const top10 = sorted.slice(0, 10);
+        const maxCount = top10.length > 0 ? top10[0][1] : 1;
+
+        if (top10.length === 0) {
+            leftBlock.innerHTML += '<div style="color:var(--text-secondary);font-size:0.82rem;text-align:center;padding:20px">Aucune donnée</div>';
+        } else {
+            top10.forEach(([tag, count]) => {
+                const vel = (velocities.get(tag) || { velocity: 0 }).velocity;
+                const velClass = vel > 10 ? 'up' : vel < -10 ? 'down' : 'stable';
+                const velLabel = vel > 10 ? `+${vel}%` : vel < -10 ? `${vel}%` : '—';
+                const widthPct = Math.round((count / maxCount) * 100);
+                const displayName = tag.replace(/_/g, ' ');
+                const barRow = document.createElement('div');
+                barRow.className = 'pulse-bar-row';
+                barRow.innerHTML = `
+                    <span class="pulse-bar-label" title="${displayName}">${displayName}</span>
+                    <div class="pulse-bar-track"><div class="pulse-bar-fill" style="width:${widthPct}%"></div></div>
+                    <span class="pulse-bar-count">${count}</span>
+                    <span class="pulse-velocity ${velClass}">${velLabel}</span>
+                `;
+                leftBlock.appendChild(barRow);
+            });
+        }
+
+        // Right: donut — Répartition par catégorie
+        const rightBlock = document.createElement('div');
+        rightBlock.className = 'pulse-chart-block';
+        rightBlock.innerHTML = '<div class="pulse-chart-title">Répartition par Catégorie</div>';
+
+        const catTotal = Array.from(catFreq.values()).reduce((s, v) => s + v, 0);
+        if (catTotal === 0) {
+            rightBlock.innerHTML += '<div style="color:var(--text-secondary);font-size:0.82rem;text-align:center;padding:40px 0">Aucune donnée</div>';
+        } else {
+            const circumference = 2 * Math.PI * 44;
+            let offset = 0;
+            const slices = Array.from(catFreq.entries()).sort((a, b) => b[1] - a[1]).map(([cat, cnt]) => {
+                const dash = (cnt / catTotal) * circumference;
+                const gap  = circumference - dash;
+                const color = legendColors[cat] || '#888';
+                const sl = { cat, cnt, color, dash, gap, offset };
+                offset += dash;
+                return sl;
+            });
+
+            rightBlock.innerHTML += `
+                <div class="pulse-donut-wrap">
+                    <svg viewBox="0 0 120 120" width="120" height="120">
+                        <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="16"/>
+                        ${slices.map(sl => `<circle cx="60" cy="60" r="44" fill="none" stroke="${sl.color}" stroke-width="16" stroke-dasharray="${sl.dash.toFixed(2)} ${sl.gap.toFixed(2)}" stroke-dashoffset="${(-sl.offset + circumference / 4).toFixed(2)}"/>`).join('')}
+                    </svg>
+                    <div class="pulse-donut-legend">
+                        ${slices.map(sl => `
+                            <div class="pulse-donut-legend-item">
+                                <span class="pulse-donut-dot" style="background:${sl.color}"></span>
+                                <span class="pulse-donut-legend-label">${CAT_NAMES[sl.cat] || sl.cat}</span>
+                                <span class="pulse-donut-legend-count">${sl.cnt}</span>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
-                <div class="pulse-reco-title">${reco.title}</div>
-                <div class="pulse-reco-action">${reco.action}</div>
-                <div class="pulse-reco-impact">📊 Impact: ${reco.impact}</div>
             `;
-            recoSection.appendChild(card);
-        });
+        }
+
+        chartsRow.appendChild(leftBlock);
+        chartsRow.appendChild(rightBlock);
+        emergingEl.appendChild(chartsRow);
     }
 
-    const signals = $('pulseSignals');
-    if (signals) {
-        signals.innerHTML = '<h3 style="margin-bottom:14px;font-size:1.05rem">🔔 Signaux Faibles</h3>';
-        generateSignals(tagFreq, catFreq).forEach(s => {
-            const sig = document.createElement('div');
-            sig.className = `pulse-signal ${s.level}`;
-            sig.innerHTML = `<div class="pulse-signal-icon">${s.icon}</div><div class="pulse-signal-content"><div class="pulse-signal-title">${s.title}</div><div class="pulse-signal-desc">${s.desc}</div></div><span class="pulse-signal-badge ${s.level}">${s.level==='hot'?'Signal fort':s.level==='warm'?'Signal moyen':'Signal faible'}</span>`;
-            signals.appendChild(sig);
-        });
-    }
-}
+    // ── Section 4: Prioritized action pipeline ────────────────────
+    const recoSection = $('pulseRecommendations');
+    if (recoSection) {
+        recoSection.innerHTML = '';
+        if (roiMatrix.length > 0) {
+            const pipelineWrap = document.createElement('div');
 
-function generateSignals(tagFreq, catFreq) {
-    const signals = [];
-    const total = DATA.length || 1;
+            const pipelineHeader = document.createElement('div');
+            pipelineHeader.className = 'pulse-section-title';
+            pipelineHeader.textContent = 'Pipeline d\'Actions Prioritaires';
+            pipelineWrap.appendChild(pipelineHeader);
 
-    const durability = tagFreq.get('Sustainability_Focus') || 0;
-    if (durability > 0) {
-        const pct = ((durability/total)*100).toFixed(0);
-        signals.push({ icon:'🌍', title:`Durabilité: ${pct}% mentionnent des matériaux responsables`, desc:`${durability} mentions détectées.`, level: durability/total>0.1?'hot':'warm' });
+            const pipeline = document.createElement('div');
+            pipeline.className = 'pulse-pipeline';
+
+            const effortColors = { 'Urgent': '#ef4444', 'Faible': '#10b981', 'Moyen': '#fb923c', 'Immédiat': '#ef4444' };
+
+            roiMatrix.forEach((row, i) => {
+                const effortColor = effortColors[row.effort] || '#888';
+                const item = document.createElement('div');
+                item.className = 'pulse-pipeline-item';
+                item.innerHTML = `
+                    <div class="pulse-pipeline-rank">#${i + 1}</div>
+                    <div class="pulse-pipeline-content">
+                        <div class="pulse-pipeline-title">${row.action}</div>
+                        <div class="pulse-pipeline-meta">
+                            <span class="pulse-pipeline-signal">${row.signal}</span>
+                            <span class="pulse-pipeline-sep">·</span>
+                            <span class="pulse-pipeline-clients">${row.clients} client${row.clients > 1 ? 's' : ''}</span>
+                            <span class="pulse-pipeline-sep">·</span>
+                            <span class="pulse-pipeline-effort" style="color:${effortColor}">Effort : ${row.effort}</span>
+                            <span class="pulse-pipeline-sep">·</span>
+                            <span class="pulse-pipeline-timeline">${row.timeline}</span>
+                        </div>
+                    </div>
+                    <div class="pulse-pipeline-roi">
+                        <div class="pulse-pipeline-roi-value">${fmt(row.roi)}</div>
+                        <div class="pulse-pipeline-roi-label">estimé</div>
+                    </div>
+                `;
+                pipeline.appendChild(item);
+            });
+
+            pipelineWrap.appendChild(pipeline);
+            recoSection.appendChild(pipelineWrap);
+        }
     }
-    const lifestyleCount = catFreq.get('interet') || 0;
-    if (lifestyleCount > total*0.3) signals.push({ icon:'🏃', title:`Lifestyle actif dominant: ${lifestyleCount} mentions`, desc:'Opportunité collections sport-chic.', level:'hot' });
-    const occasionCount = catFreq.get('contexte') || 0;
-    if (occasionCount > 0) signals.push({ icon:'🎁', title:`${occasionCount} occasions de gifting`, desc:'Activer les campagnes de gifting personnalisé.', level:'warm' });
-    const vipCount = tagFreq.get('Key_Account') || 0;
-    if (vipCount > 0) signals.push({ icon:'💎', title:`${vipCount} clients high-value`, desc:`${vipCount} Key Accounts identifiés.`, level:'hot' });
-    const mini = tagFreq.get('Design_Minimaliste') || 0;
-    if (mini > 0) signals.push({ icon:'⚪', title:'Tendance minimalisme', desc:`${mini} clients orientés minimaliste.`, level:'warm' });
-    const netCount = catFreq.get('profil') || 0;
-    if (netCount > 0) signals.push({ icon:'📱', title:`${netCount} connexions réseau`, desc:'Potentiel UGC et ambassadeurs.', level:'cool' });
-    if (signals.length === 0) signals.push({ icon:'📊', title:'Analyse en cours...', desc:'Importez plus de données.', level:'cool' });
-    return signals;
+
+    // ── Section 5: Clear legacy container ────────────────────────
+    const signalsEl = $('pulseSignals');
+    if (signalsEl) signalsEl.innerHTML = '';
 }
 
 // ===== RENDER: FOLLOW-UP =====
@@ -1784,7 +1885,7 @@ function renderSentiment() {
     // Calculate churn stats
     const clientsWithChurn = SENTIMENT_DATA.map(s => ({
         ...s,
-        churn: calculateChurnRisk(s.score, s.level, 1)
+        churn: calculateChurnRisk(s.score, s.level, DATA.filter(d => d.ca === s.ca && s.ca).length || 1)
     }));
     
     const criticalChurn = clientsWithChurn.filter(c => c.churn.risk === 'critical').length;
@@ -2057,7 +2158,8 @@ function generateBriefContent(clientId, container) {
 
     // Churn risk
     const sentimentScore = (client.sentiment && typeof client.sentiment === 'object') ? (client.sentiment.score || 50) : 50;
-    const churnRisk = calculateChurnRisk(sentimentScore, sentimentLevel, 1);
+    const visitFrequency = DATA.filter(d => d.ca === client.ca && client.ca).length || 1;
+    const churnRisk = calculateChurnRisk(sentimentScore, sentimentLevel, visitFrequency);
 
     // Products
     const products = (typeof matchProductsToClient === 'function' && PRODUCTS_LOADED)
@@ -2308,13 +2410,13 @@ function renderCoachResults(container, originalText, data) {
 
     // Texte surligné : wrap les violations dans des spans rouges
     let highlighted = originalText;
-    const sortedV = [...violations].sort((a, b) => ((b.text || b.value || '').length) - ((a.text || a.value || '').length));
+    const sortedV = [...violations].sort((a, b) => ((b.word || b.text || b.value || '').length) - ((a.word || a.text || a.value || '').length));
     sortedV.forEach(v => {
-        const word = v.text || v.value || v.found || '';
+        const word = v.word || v.text || v.value || v.found || '';
         if (!word) return;
         const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         highlighted = highlighted.replace(new RegExp(escaped, 'gi'), match =>
-            `<span class="coach-violation-hl" title="${v.category || v.type || 'Donnée sensible'}">${match}</span>`
+            `<span class="coach-violation-hl" title="${v.cat || v.category || v.type || 'Donnée sensible'}">${match}</span>`
         );
     });
 
