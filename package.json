@@ -1,0 +1,25 @@
+{
+  "name": "bdd_lvmh",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "node test_agent.js",
+    "test:watch": "node test_agent.js && echo 'Run again to re-test'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jobijobast/BDD_LVMH.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jobijobast/BDD_LVMH/issues"
+  },
+  "homepage": "https://github.com/jobijobast/BDD_LVMH#readme",
+  "dependencies": {
+    "playwright": "^1.58.2"
+  }
+}

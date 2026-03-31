@@ -256,8 +256,11 @@ function navigateTo(navId) {
     const activeMob = document.querySelector(`.mobile-nav-item[data-nav-id="${navId}"]`);
     if (activeMob) activeMob.classList.add('active');
 
-    // Update page title
-    $('pageTitle').textContent = item.title;
+    // Update page title (legacy element + new layout element)
+    const legacyTitle = $('pageTitle');
+    if (legacyTitle) legacyTitle.textContent = item.title;
+    const newTitle = $('page-title');
+    if (newTitle) newTitle.textContent = item.title;
 
     // Close mobile sidebar
     $('sidebar').classList.remove('open');
@@ -265,6 +268,9 @@ function navigateTo(navId) {
     if (overlay) overlay.classList.remove('active');
 
     currentPage = navId;
+
+    // Update new layout meta elements (no-op if elements don't exist yet)
+    _updatePageMeta(navId);
 
     // Render page content
     try {
@@ -487,6 +493,14 @@ function populateStateFromPipeline(result) {
 
     // Re-derive stats, RGPD, sentiment, privacy from full DATA
     recomputeStats();
+
+    // Refresh active views that depend on DATA
+    if (currentPage === 'clients') {
+        if (typeof renderClients === 'function') renderClients();
+    }
+    if (currentPage === 'v-home') {
+        if (typeof renderVendeurHome === 'function') renderVendeurHome();
+    }
 }
 
 // ===== WEB SPEECH API =====
@@ -937,6 +951,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSpeechRecognition();
     setupMobileMenu();
 
+    // Wire rail icon clicks (new layout — no-op if elements don't exist yet)
+    document.querySelectorAll('.rail-icon[data-page]').forEach(icon => {
+        icon.addEventListener('click', () => showPage(icon.dataset.page));
+    });
+
     // Check for existing session
     if (restoreSession()) {
         await startApp();
@@ -1023,10 +1042,373 @@ async function startApp() {
 
     buildSidebar();
 
+    // Expose currentUser as window.CURRENT_USER for PAGE_CONFIG role checks
+    window.CURRENT_USER = currentUser;
+
     // Load data from Supabase
     await loadClientsFromDB();
+
+    // Expose DATA globally for PAGE_CONFIG badge
+    window.DATA = DATA;
 
     // Navigate to first page
     const firstNav = (currentUser.role || '').toLowerCase() === 'manager' ? 'm-dashboard' : 'v-home';
     navigateTo(firstNav);
+
+    // Apply role visibility for new layout elements (rail icons etc.)
+    applyRoleVisibility();
+}
+
+// ═══════════════════════════════════════════════
+// NEW LAYOUT — PAGE_CONFIG + showPage() system
+// Rail icons, top nav tabs, page header badge
+// All DOM manipulations are null-guarded:
+// elements from the new layout may not exist yet.
+// ═══════════════════════════════════════════════
+
+// Maps PAGE_CONFIG logical IDs → existing nav IDs and HTML page IDs
+const PAGE_CONFIG = {
+    accueil: {
+        _navId: 'v-home',
+        title: 'Dictée vocale',
+        badge: 'Nouveau client',
+        navItems: [],
+        headerActions: `<button class="btn btn-primary" onclick="startRecording()">+ Démarrer dictée</button>`,
+        roles: ['vendeur', 'manager', 'admin']
+    },
+    clients: {
+        _navId: 'clients',
+        title: 'Mes clients',
+        badge: '',
+        navItems: ['Tous', 'Nouveaux', 'Prioritaires', 'À relancer'],
+        headerActions: `
+            <button class="btn" id="btn-filtres-clients" onclick="openClientFilters(this)">Filtres</button>
+            <button class="btn" onclick="navigateTo('m-import')">Import CSV</button>
+            <button class="btn btn-primary" onclick="navigateTo('v-home')">+ Nouvelle note</button>
+        `,
+        roles: ['vendeur', 'manager', 'admin']
+    },
+    nba: {
+        _navId: 'nba',
+        title: 'Next Best Actions',
+        badge: '',
+        navItems: ['Toutes', 'Conversion', 'Engagement', 'Nurture'],
+        headerActions: `<button class="btn">Exporter</button>`,
+        roles: ['vendeur', 'manager', 'admin']
+    },
+    produits: {
+        _navId: 'products',
+        title: 'Produits',
+        badge: 'Louis Vuitton',
+        navItems: ['Tous', 'Maroquinerie', 'Prêt-à-porter', 'Accessoires'],
+        headerActions: ``,
+        roles: ['vendeur', 'manager', 'admin']
+    },
+    followup: {
+        _navId: 'followup',
+        title: 'Follow-up IA',
+        badge: 'Smart',
+        navItems: [],
+        headerActions: ``,
+        roles: ['vendeur', 'manager', 'admin']
+    },
+    brief: {
+        _navId: 'brief',
+        title: 'Client Brief',
+        badge: 'Auto-généré',
+        navItems: [],
+        headerActions: ``,
+        roles: ['vendeur', 'manager', 'admin']
+    },
+    dashboard: {
+        _navId: 'm-dashboard',
+        title: 'Dashboard',
+        badge: 'Manager',
+        navItems: ['Vue globale', 'Performance', 'Équipe'],
+        headerActions: `<button class="btn">Exporter</button>`,
+        roles: ['manager', 'admin']
+    },
+    privacy: {
+        _navId: 'm-privacy',
+        title: 'Privacy Score',
+        badge: 'RGPD',
+        navItems: ['Par vendeur', 'Violations', 'Historique'],
+        headerActions: ``,
+        roles: ['manager', 'admin']
+    },
+    coach: {
+        _navId: 'v-coach',  // navigateTo handles both v-coach and m-coach
+        title: 'Coach RGPD',
+        badge: 'Formation',
+        navItems: [],
+        headerActions: ``,
+        roles: ['vendeur', 'manager', 'admin']
+    },
+    sentiment: {
+        _navId: 'm-sentiment',
+        title: 'Analyse Sentiment',
+        badge: 'IA',
+        navItems: ['Global', 'Par vendeur', 'Timeline'],
+        headerActions: ``,
+        roles: ['manager', 'admin']
+    },
+    equipe: {
+        _navId: 'm-team',
+        title: 'Équipe',
+        badge: '',
+        navItems: [],
+        headerActions: ``,
+        roles: ['manager', 'admin']
+    },
+    pulse: {
+        _navId: 'm-pulse',
+        title: 'Luxury Pulse',
+        badge: 'ROI',
+        navItems: ['Signaux', 'ROI', 'Tendances'],
+        headerActions: `<button class="btn">Exporter rapport</button>`,
+        roles: ['manager', 'admin']
+    },
+    boutique: {
+        _navId: 'm-boutique',
+        title: 'Dashboard Boutique',
+        badge: 'Manager',
+        navItems: ['KPIs', 'Stock', 'Performance'],
+        headerActions: `<button class="btn">Rapport</button>`,
+        roles: ['manager', 'admin']
+    },
+    import: {
+        _navId: 'm-import',
+        title: 'Import CSV',
+        badge: '',
+        navItems: [],
+        headerActions: ``,
+        roles: ['manager', 'admin']
+    },
+    admin: {
+        _navId: 'admin',
+        title: 'Administration',
+        badge: 'Admin uniquement',
+        navItems: [],
+        headerActions: ``,
+        roles: ['admin']
+    }
+};
+
+// Aliases: old navIds or alternate names → PAGE_CONFIG keys
+const PAGE_ALIASES = {
+    'v-home': 'accueil',
+    'home': 'accueil',
+    'products': 'produits',
+    'm-dashboard': 'dashboard',
+    'cockpit': 'dashboard',
+    'm-privacy': 'privacy',
+    'v-coach': 'coach',
+    'm-coach': 'coach',
+    'm-sentiment': 'sentiment',
+    'm-team': 'equipe',
+    'm-pulse': 'pulse',
+    'm-boutique': 'boutique',
+    'm-import': 'import',
+};
+
+// Public entry point — accepts both PAGE_CONFIG keys and legacy nav IDs
+function showPage(pageId) {
+    const key = PAGE_ALIASES[pageId] || pageId;
+    const config = PAGE_CONFIG[key];
+
+    if (config) {
+        // Role check
+        const role = (currentUser && currentUser.role) ? currentUser.role.toLowerCase() : 'vendeur';
+        const allowed = config.roles;
+        if (!allowed.includes(role) && role !== 'admin') {
+            console.warn('showPage: accès refusé à', key, 'pour le rôle', role);
+            return;
+        }
+        navigateTo(config._navId);
+    } else {
+        // Fallback: treat as a direct navId
+        navigateTo(pageId);
+    }
+}
+
+// Called by navigateTo() — updates new layout elements if they exist
+function _updatePageMeta(navId) {
+    // Find PAGE_CONFIG entry for this navId
+    const configKey = PAGE_ALIASES[navId] || Object.keys(PAGE_CONFIG).find(k => PAGE_CONFIG[k]._navId === navId);
+    const config = configKey ? PAGE_CONFIG[configKey] : null;
+    if (!config) return;
+
+    // Badge
+    const badgeEl = $('page-badge');
+    if (badgeEl) {
+        let badge = config.badge || '';
+        if (configKey === 'clients') {
+            const count = (window.DATA || DATA || []).length;
+            const role = (currentUser && currentUser.role) || 'vendeur';
+            badge = `${count} client${count > 1 ? 's' : ''} · ${role}`;
+        }
+        badgeEl.textContent = badge;
+        badgeEl.style.display = badge ? 'inline-flex' : 'none';
+    }
+
+    // Header actions
+    const actionsEl = $('page-header-actions');
+    if (actionsEl) actionsEl.innerHTML = config.headerActions || '';
+
+    // Top nav tabs
+    renderTopNav(navId, config.navItems);
+
+    // Rail icon active state
+    document.querySelectorAll('.rail-icon').forEach(icon => {
+        icon.classList.toggle('active', icon.dataset.page === configKey || icon.dataset.page === navId);
+    });
+}
+
+function renderTopNav(navId, navItems) {
+    const nav = $('top-nav');
+    if (!nav) return;
+
+    if (!navItems || navItems.length === 0) {
+        nav.style.display = 'none';
+        return;
+    }
+
+    nav.style.display = 'flex';
+    nav.innerHTML = navItems.map((item, i) =>
+        `<div class="nav-item${i === 0 ? ' active' : ''}" onclick="switchNavTab(this,'${navId}','${item}')">${item}</div>`
+    ).join('') + '<div class="nav-right" id="nav-right-slot"></div>';
+}
+
+function switchNavTab(el, navId, tab) {
+    document.querySelectorAll('#top-nav .nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    onNavTab(navId, tab);
+}
+
+function onNavTab(navId, tab) {
+    if (navId === 'clients') {
+        const data = window.DATA || DATA || [];
+        let filtered = data;
+        if (tab === 'Nouveaux') {
+            filtered = data.filter(c => {
+                const days = Math.floor((Date.now() - new Date(c.date || Date.now())) / 86400000);
+                return days <= 3;
+            });
+        } else if (tab === 'Prioritaires') {
+            filtered = data.filter(c => (c.sentiment && c.sentiment.score != null ? c.sentiment.score : 50) < 50);
+        } else if (tab === 'À relancer') {
+            filtered = data.filter(c => {
+                const days = Math.floor((Date.now() - new Date(c.date || Date.now())) / 86400000);
+                return days > 14;
+            });
+        }
+        if (typeof renderClients === 'function') renderClients(filtered);
+    }
+}
+
+// ===== FILTRES CLIENTS =====
+function openClientFilters(btn) {
+    // Toggle : fermer si déjà ouvert
+    const existing = document.getElementById('client-filter-panel');
+    if (existing) { existing.remove(); btn.classList.remove('active'); return; }
+    btn.classList.add('active');
+
+    const cats = [
+        { key: '', label: 'Tous' },
+        { key: 'profil', label: 'Profil' },
+        { key: 'interet', label: 'Intérêt' },
+        { key: 'voyage', label: 'Voyage' },
+        { key: 'contexte', label: 'Contexte' },
+        { key: 'service', label: 'Service' },
+        { key: 'marque', label: 'Marque' },
+        { key: 'crm', label: 'CRM' },
+    ];
+
+    const stores = [...new Set((DATA || []).map(c => c.store).filter(Boolean))];
+
+    const panel = document.createElement('div');
+    panel.id = 'client-filter-panel';
+    panel.className = 'filter-panel';
+    panel.innerHTML = `
+        <div class="filter-panel-title">Filtrer les clients</div>
+        <div class="filter-panel-label">Catégorie de tag</div>
+        <div class="filter-panel-cats">
+            ${cats.map(c => `<button class="filter-cat-btn${!c.key ? ' active' : ''}" data-cat="${c.key}" onclick="applyClientCategoryFilter('${c.key}',this)">${c.label}</button>`).join('')}
+        </div>
+        <div class="filter-panel-row">
+            <div style="flex:1">
+                <div class="filter-panel-label">Sentiment</div>
+                <select id="filter-sentiment" onchange="applyClientAdvancedFilter()" class="filter-select">
+                    <option value="">Tous</option>
+                    <option value="positive">Positif</option>
+                    <option value="neutral">Neutre</option>
+                    <option value="negative">Négatif</option>
+                </select>
+            </div>
+            ${stores.length ? `<div style="flex:1">
+                <div class="filter-panel-label">Boutique</div>
+                <select id="filter-store" onchange="applyClientAdvancedFilter()" class="filter-select">
+                    <option value="">Toutes</option>
+                    ${stores.map(s => `<option value="${s}">${s}</option>`).join('')}
+                </select>
+            </div>` : ''}
+        </div>
+        <button class="filter-reset-btn" onclick="resetClientFilters()">Réinitialiser</button>
+    `;
+
+    const rect = btn.getBoundingClientRect();
+    panel.style.cssText = `position:fixed;top:${rect.bottom + 8}px;right:20px;z-index:500`;
+    document.body.appendChild(panel);
+
+    setTimeout(() => {
+        document.addEventListener('click', function handler(e) {
+            if (!panel.contains(e.target) && e.target !== btn) {
+                panel.remove();
+                btn.classList.remove('active');
+                document.removeEventListener('click', handler);
+            }
+        });
+    }, 50);
+}
+
+function applyClientCategoryFilter(cat, btn) {
+    document.querySelectorAll('.filter-cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyClientAdvancedFilter();
+}
+
+function applyClientAdvancedFilter() {
+    const cat = (document.querySelector('.filter-cat-btn.active') || {}).dataset?.cat || '';
+    const sentiment = (document.getElementById('filter-sentiment') || {}).value || '';
+    const store = (document.getElementById('filter-store') || {}).value || '';
+
+    let filtered = DATA || [];
+    if (cat) filtered = filtered.filter(c => c.tags && c.tags.some(t => t.c === cat));
+    if (sentiment) filtered = filtered.filter(c => c.sentiment && c.sentiment.level === sentiment);
+    if (store) filtered = filtered.filter(c => c.store === store);
+
+    if (typeof renderClients === 'function') renderClients(filtered);
+}
+
+function resetClientFilters() {
+    document.querySelectorAll('.filter-cat-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+    const s = document.getElementById('filter-sentiment'); if (s) s.value = '';
+    const st = document.getElementById('filter-store'); if (st) st.value = '';
+    if (typeof renderClients === 'function') renderClients(DATA);
+}
+
+function applyRoleVisibility() {
+    const role = (currentUser && currentUser.role) ? currentUser.role.toLowerCase() : 'vendeur';
+    const isManager = role === 'manager' || role === 'admin';
+
+    document.querySelectorAll('.manager-only').forEach(el => {
+        el.style.display = isManager ? 'flex' : 'none';
+    });
+
+    // Update rail avatar if it exists
+    const av = $('rail-user-avatar');
+    if (av && currentUser) {
+        const name = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim();
+        av.textContent = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+    }
 }

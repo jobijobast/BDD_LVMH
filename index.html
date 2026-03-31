@@ -8,13 +8,358 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="index.css?v=9">
+    <link rel="stylesheet" href="index.css?v=10">
+    <style>
+        /* ══ NEW LAYOUT TOKENS ══════════════════════════════════════ */
+
+        /* App shell: icon-rail + app-body côte à côte */
+        #appShell.app-shell {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Icon Rail */
+        .icon-rail {
+            width: 56px;
+            min-width: 56px;
+            background: var(--carbon, #1A1A1A);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 2px;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .rail-logo {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            color: var(--gold, #B8965A);
+            font-family: var(--font-display, 'Cormorant Garamond', serif);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            border: 1px solid rgba(184,150,90,0.3);
+        }
+
+        .rail-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.35);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: color 0.2s, background 0.2s;
+            position: relative;
+        }
+
+        .rail-icon:hover {
+            color: rgba(255,255,255,0.8);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .rail-icon.active {
+            color: var(--gold, #B8965A);
+            background: rgba(184,150,90,0.1);
+        }
+
+        .rail-icon[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: #1a1a1e;
+            color: rgba(255,255,255,0.9);
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 11px;
+            white-space: nowrap;
+            padding: 4px 8px;
+            border-radius: 2px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 200;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .rail-icon:hover[data-tooltip]::after {
+            opacity: 1;
+        }
+
+        .rail-sep {
+            width: 20px;
+            height: 1px;
+            background: rgba(255,255,255,0.08);
+            margin: 4px 0;
+            flex-shrink: 0;
+        }
+
+        .rail-footer {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            width: 100%;
+        }
+
+        .rail-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(184,150,90,0.15);
+            border: 1px solid rgba(184,150,90,0.4);
+            color: var(--gold, #B8965A);
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 10px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+        }
+
+        .rail-logout-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.25);
+            cursor: pointer;
+            border-radius: 2px;
+            transition: color 0.2s;
+            padding: 0;
+        }
+
+        .rail-logout-btn:hover {
+            color: rgba(255,100,100,0.7);
+        }
+
+        /* Hidden user info — populated by buildSidebar() */
+        #userNameDisplay,
+        #userRoleDisplay {
+            display: none;
+        }
+
+        /* App Body: top-nav + page-header + page-canvas */
+        .app-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--content-bg, #FAFAF8);
+            margin-left: 56px; /* compense le icon-rail position:fixed (56px) */
+        }
+
+        /* Top Nav (tabs contextuels) */
+        .top-nav {
+            height: 40px;
+            min-height: 40px;
+            background: var(--surface, #fff);
+            border-bottom: 1px solid var(--border, #EBEBEB);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        /* Page Header */
+        .page-header {
+            height: 52px;
+            min-height: 52px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 24px;
+            background: var(--surface, #fff);
+            border-bottom: 1px solid var(--border, #EBEBEB);
+            flex-shrink: 0;
+        }
+
+        .page-header .page-title {
+            font-family: var(--font-display, 'Cormorant Garamond', serif);
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--text-primary, #111010);
+            letter-spacing: 0.02em;
+        }
+
+        .page-header .boutique-name {
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 11px;
+            color: var(--text-secondary, #888880);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        /* Hide menuToggle (replaced by icon-rail) */
+        .menu-toggle {
+            display: none !important;
+        }
+
+        /* Page Canvas: fills remaining height, no scroll on container */
+        .page-canvas {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 20px 24px;
+        }
+
+        /* Layout grids */
+        .kanban-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--space-md, 16px);
+            min-height: 0;
+        }
+
+        .kanban-col {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            background: var(--surface, #fff);
+            border: 1px solid var(--border, #EBEBEB);
+            border-radius: 2px;
+        }
+
+        .kanban-col .col-header {
+            padding: 10px 14px;
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-secondary, #888880);
+            border-bottom: 1px solid var(--border, #EBEBEB);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .kanban-col .col-count {
+            background: var(--border, #EBEBEB);
+            color: var(--text-secondary, #888880);
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+
+        .kanban-col .col-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .avatar-strip {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm, 8px);
+            padding: 0 2px;
+            flex-shrink: 0;
+            margin-bottom: 12px;
+        }
+
+        .stats-bar {
+            flex-shrink: 0;
+            margin-top: 12px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            gap: var(--space-md, 16px);
+        }
+
+        .followup-layout {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: var(--space-md, 16px);
+        }
+
+        .privacy-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: var(--space-md, 16px);
+        }
+
+        .nba-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md, 16px);
+        }
+
+        /* ── Sidebar nav caché — conservé pour buildSidebar() ── */
+        #sidebarNav {
+            display: none !important;
+            position: absolute;
+            width: 0;
+            height: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* ══ FIX: Login background (bg-luxury.png) ═══════════════
+           Problème : .login-page { background: var(--bg-canvas) } dans index.css
+           efface le ::before qui porte bg-luxury.png (z-index:-1 va derrière body).
+           Fix : rendre .login-page transparent + passer ::before en position:absolute
+           afin qu'il soit relatif à .login-page (stacking context isolé).
+        ══════════════════════════════════════════════════════════ */
+        .login-page {
+            background: transparent !important;
+            position: relative !important;
+            isolation: isolate;
+        }
+        .login-page::before {
+            position: absolute !important;
+            z-index: -1 !important;
+        }
+        .login-card {
+            position: relative !important;
+            z-index: 1;
+        }
+
+        /* ══ FIX: Login mobile — card trop large à < 480px ═══════ */
+        @media (max-width: 480px) {
+            .login-page {
+                padding: 16px !important;
+            }
+            .login-card {
+                padding: 36px 20px 28px !important;
+                max-width: calc(100vw - 32px) !important;
+            }
+            .login-footer {
+                white-space: normal !important;
+                overflow-wrap: break-word !important;
+                word-break: break-word !important;
+                letter-spacing: 0.8px !important;
+            }
+        }
+    </style>
 </head>
 
 <body>
-    <!-- ===== BG LINES ===== -->
-
-
     <!-- ===== LOGIN PAGE ===== -->
     <div id="loginPage" class="login-page">
         <div class="login-card">
@@ -50,172 +395,292 @@
 
     <!-- ===== APP SHELL ===== -->
     <div id="appShell" class="app-shell hidden">
-        <!-- OVERLAY -->
+
+        <!-- ══ ICON RAIL ══════════════════════════════════════════ -->
+        <!-- id="sidebar" conservé — app.js fait $('sidebar').classList.remove('open') -->
+        <nav class="icon-rail" id="sidebar">
+            <div class="rail-logo"><span>LV</span></div>
+
+            <!-- ── Vendeur ── -->
+            <div class="rail-icon active" data-page="v-home" data-tooltip="Dictée vocale">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="1" width="6" height="9" rx="3"/>
+                    <path d="M2 8a6 6 0 0012 0M8 14v2M5 16h6"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon" data-page="clients" data-tooltip="Mes clients">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="8" cy="6" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon" data-page="nba" data-tooltip="Next Best Actions">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 2l1.5 3.5L13 6.5l-2.5 2.5.5 3.5L8 11l-3 1.5.5-3.5L3 6.5l3.5-1z"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon" data-page="products" data-tooltip="Produits">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 4l1.5 8h9L14 4H2zM6 4V3a2 2 0 014 0v1"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon" data-page="followup" data-tooltip="Follow-up IA">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2L2 7l5 2 2 5 5-12z"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon" data-page="brief" data-tooltip="Client Brief">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="1" width="10" height="14" rx="1"/><path d="M6 5h4M6 8h4M6 11h2"/>
+                </svg>
+            </div>
+
+            <div class="rail-sep"></div>
+
+            <!-- ── Manager uniquement (masqués via JS si rôle vendeur) ── -->
+            <div class="rail-icon manager-only" data-page="m-dashboard" data-tooltip="Dashboard">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
+                    <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon manager-only" data-page="m-privacy" data-tooltip="Privacy Score">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 1L2 4v4c0 3.3 2.7 6 6 7 3.3-1 6-3.7 6-7V4L8 1z"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon manager-only" data-page="m-coach" data-tooltip="Coach RGPD">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 2L3 9l4 1 1 4 5-12z"/><path d="M9 7l3-3"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon manager-only" data-page="m-sentiment" data-tooltip="Analyse Sentiment">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12l3-4 3 2 3-5 3 3"/>
+                </svg>
+            </div>
+
+            <div class="rail-icon manager-only" data-page="m-team" data-tooltip="Équipe">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="6" cy="6" r="2.5"/><path d="M1 14c0-2.5 2.2-4 5-4s5 1.5 5 4"/>
+                    <circle cx="12" cy="5" r="2"/><path d="M12 10c1.5 0 3 .8 3 3"/>
+                </svg>
+            </div>
+
+            <div class="rail-sep"></div>
+
+            <!-- ── Footer rail : user info + logout ── -->
+            <div class="rail-footer">
+                <!-- Peuplé par buildSidebar() via JS, cachés visuellement mais dans le DOM -->
+                <div id="userNameDisplay" class="sidebar-user-name"></div>
+                <div id="userRoleDisplay" class="sidebar-user-role"></div>
+                <div class="rail-avatar" id="rail-user-avatar" title="Compte utilisateur">BL</div>
+                <button id="logoutBtn" class="rail-logout-btn" title="Déconnexion">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6"/>
+                    </svg>
+                </button>
+            </div>
+        </nav>
+
+        <!-- ── Sidebar nav caché — buildSidebar() y injecte les radios pour la navigation ── -->
+        <nav id="sidebarNav" class="sidebar-nav"></nav>
+
+        <!-- OVERLAY (conservé pour app.js) -->
         <div class="sidebar-overlay"></div>
 
-        <!-- SIDEBAR -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-brand">
-                <span class="sidebar-brand-text">LVMH</span>
-                <span class="sidebar-brand-sub">Voice-to-Tag</span>
-            </div>
-            <nav id="sidebarNav" class="sidebar-nav"></nav>
-            <div class="sidebar-footer">
-                <div class="sidebar-user">
-                    <div id="userNameDisplay" class="sidebar-user-name"></div>
-                    <div id="userRoleDisplay" class="sidebar-user-role"></div>
-                </div>
-                <button id="logoutBtn" class="sidebar-logout">Deconnexion</button>
-            </div>
-        </aside>
+        <!-- ══ APP BODY ══════════════════════════════════════════ -->
+        <div class="app-body">
 
-        <!-- MAIN CONTENT -->
-        <main id="mainContent" class="main-content">
-            <header id="appHeader" class="app-header">
+            <!-- Top Nav (tabs contextuels selon la page) -->
+            <nav class="top-nav" id="top-nav">
+                <!-- Injecté dynamiquement par engine.js selon la page active -->
+            </nav>
+
+            <!-- Page Header -->
+            <header id="appHeader" class="page-header">
+                <!-- menuToggle conservé dans le DOM (app.js lui assigne un onclick) mais caché via CSS -->
                 <button id="menuToggle" class="menu-toggle">&#9776;</button>
-                <div id="pageTitle" class="page-title"></div>
+                <div id="pageTitle" class="page-title">
+                    <span id="page-badge" class="page-badge" style="display:none"></span>
+                </div>
                 <div id="boutiqueNameDisplay" class="boutique-name"></div>
+                <div id="page-header-actions" class="page-header-actions"></div>
             </header>
 
-            <!-- PAGE: VENDEUR HOME -->
-            <div id="page-v-home" class="page hidden">
-                <div class="page-content">
-                    <div class="v-quick-stats" id="vQuickStats">
-                        <div class="qs-card">
-                            <div class="qs-value" id="vStatClients">0</div>
-                            <div class="qs-label">Mes clients</div>
+            <!-- ══ PAGES ══════════════════════════════════════════ -->
+
+            <!-- PAGE: VENDEUR HOME — id conservé: page-v-home (navId: v-home) -->
+            <div id="page-v-home" class="page page-canvas hidden">
+                <div class="v-quick-stats" id="vQuickStats">
+                    <div class="qs-card">
+                        <div class="qs-value" id="vStatClients">0</div>
+                        <div class="qs-label">Mes clients</div>
+                    </div>
+                    <div class="qs-card">
+                        <div class="qs-value" id="vStatLast">--</div>
+                        <div class="qs-label">Dernier ajout</div>
+                    </div>
+                    <div class="qs-card">
+                        <div class="qs-value" id="vStatTags">0</div>
+                        <div class="qs-label">Tags</div>
+                    </div>
+                </div>
+
+                <!-- LVMH Separator -->
+                <div class="conteneur-ligne">
+                    <div class="ligne-horizontale gold animer-ligne"></div>
+                </div>
+                <div class="conteneur-ligne-verticale" style="height: 60px; margin-top:-40px; margin-bottom: 20px;">
+                    <div class="ligne-verticale gold animer-ligne"></div>
+                </div>
+
+                <div class="record-card">
+                    <h3>Nouveau compte-rendu client</h3>
+                    <p class="record-hint">Dictez ou saisissez les notes de votre rendez-vous client</p>
+                    <input type="text" id="clientNameInput" class="form-input"
+                        placeholder="Nom du client (ex: Mme Dubois)">
+                    <div class="mic-area">
+                        <button id="micBtn" class="mic-btn" title="Dicter">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>
+                        </button>
+                        <div id="micStatus" class="mic-status">Cliquez pour dicter</div>
+                    </div>
+                    <textarea id="transcriptArea" class="transcript-area"
+                        placeholder="La transcription apparaitra ici... Vous pouvez aussi taper directement."></textarea>
+                    <button id="submitVocal" class="btn btn-gold" disabled>Analyser et sauvegarder</button>
+                </div>
+
+                <!-- LVMH Separator -->
+                <div class="conteneur-ligne">
+                    <div class="ligne-horizontale animer-ligne"></div>
+                </div>
+
+                <div class="recent-section">
+                    <h3>Mes derniers clients</h3>
+                    <div id="vRecentClients" class="recent-grid"></div>
+                </div>
+            </div>
+
+            <!-- PAGE: CLIENTS — id conservé: page-clients (navId: clients) -->
+            <div id="page-clients" class="page page-canvas hidden">
+                <!-- Strip avatars -->
+                <div class="avatar-strip" id="clients-avatar-strip">
+                    <!-- Injecté par renderAvatarStrip() dans engine.js -->
+                </div>
+
+                <!-- Barre de recherche + légende (contenu existant conservé) -->
+                <div class="section-header">
+                    <h2>Fiches Clients</h2>
+                    <input type="text" class="search-input" id="personSearch"
+                        placeholder="Rechercher client, tag...">
+                </div>
+                <div class="legend" id="tagLegend"></div>
+
+                <!-- Grille kanban 4 colonnes -->
+                <div class="kanban-grid" id="kanban-grid">
+                    <!-- Colonne 1 : Nouveaux -->
+                    <div class="kanban-col">
+                        <div class="col-header">Nouveaux <span class="col-count" id="count-nouveaux">0</span></div>
+                        <div class="col-body" id="col-nouveaux">
+                            <!-- Cards injectées par renderKanban() -->
                         </div>
-                        <div class="qs-card">
-                            <div class="qs-value" id="vStatLast">--</div>
-                            <div class="qs-label">Dernier ajout</div>
+                    </div>
+                    <!-- Colonne 2 : En suivi -->
+                    <div class="kanban-col">
+                        <div class="col-header">En suivi <span class="col-count" id="count-suivi">0</span></div>
+                        <div class="col-body" id="col-suivi"></div>
+                    </div>
+                    <!-- Colonne 3 : NBA générés -->
+                    <div class="kanban-col">
+                        <div class="col-header">NBA générés <span class="col-count" id="count-nba">0</span></div>
+                        <div class="col-body" id="col-nba-done"></div>
+                    </div>
+                    <!-- Colonne 4 : Prioritaires -->
+                    <div class="kanban-col" id="col-detail-wrap">
+                        <div class="col-header">Prioritaires <span class="col-count" id="count-prioritaires">0</span></div>
+                        <div class="col-body" id="col-prioritaires"></div>
+                    </div>
+                </div>
+
+                <!-- Grille classique (contenu existant — rendu par renderClients()) -->
+                <div class="person-grid" id="personGrid"></div>
+
+                <!-- Stats bar -->
+                <div class="stats-bar" id="clients-stats-bar">
+                    <!-- Injecté par renderStatsBar() -->
+                </div>
+            </div>
+
+            <!-- PAGE: NBA — id conservé: page-nba (navId: nba) -->
+            <div id="page-nba" class="page page-canvas hidden">
+                <div class="nba-grid" id="nbaGrid"></div>
+            </div>
+
+            <!-- PAGE: PRODUCTS — id conservé: page-products (navId: products) -->
+            <div id="page-products" class="page page-canvas hidden">
+                <div class="product-grid" id="productGrid"></div>
+            </div>
+
+            <!-- PAGE: CLIENT READINESS BRIEF — id conservé: page-v-brief (navId: brief) -->
+            <div id="page-v-brief" class="page page-canvas hidden">
+                <div class="section-header">
+                    <h2>Client Readiness Brief</h2>
+                    <p class="subtitle">Preparez votre rendez-vous client en quelques secondes</p>
+                </div>
+                <div class="brief-selector">
+                    <label class="brief-select-label" for="briefClientSelect">Selectionner un client</label>
+                    <select id="briefClientSelect" class="brief-select">
+                        <option value="">— Choisir un client —</option>
+                    </select>
+                </div>
+                <div id="briefContent"></div>
+            </div>
+
+            <!-- PAGE: FOLLOW-UP — id conservé: page-followup (navId: followup) -->
+            <div id="page-followup" class="page page-canvas hidden">
+                <div class="followup-layout">
+                    <div>
+                        <div class="followup-controls">
+                            <select id="followupHouse" class="select-input">
+                                <option value="Louis Vuitton">Louis Vuitton</option>
+                                <option value="Dior">Dior</option>
+                                <option value="Fendi">Fendi</option>
+                                <option value="Tiffany & Co.">Tiffany &amp; Co.</option>
+                                <option value="Bulgari">Bulgari</option>
+                                <option value="Givenchy">Givenchy</option>
+                                <option value="Celine">Celine</option>
+                                <option value="Loewe">Loewe</option>
+                                <option value="Berluti">Berluti</option>
+                                <option value="Loro Piana">Loro Piana</option>
+                            </select>
+                            <select id="followupChannel" class="select-input">
+                                <option value="email">Email</option>
+                                <option value="whatsapp">WhatsApp</option>
+                            </select>
                         </div>
-                        <div class="qs-card">
-                            <div class="qs-value" id="vStatTags">0</div>
-                            <div class="qs-label">Tags</div>
-                        </div>
+                        <div class="followup-grid" id="followupGrid"></div>
+                        <div id="followup-container"></div>
                     </div>
-
-                    <!-- LVMH Separator -->
-                    <div class="conteneur-ligne">
-                        <div class="ligne-horizontale gold animer-ligne"></div>
-                    </div>
-                    <div class="conteneur-ligne-verticale" style="height: 60px; margin-top:-40px; margin-bottom: 20px;">
-                        <div class="ligne-verticale gold animer-ligne"></div>
-                    </div>
-
-                    <div class="record-card">
-                        <h3>Nouveau compte-rendu client</h3>
-                        <p class="record-hint">Dictez ou saisissez les notes de votre rendez-vous client</p>
-                        <input type="text" id="clientNameInput" class="form-input"
-                            placeholder="Nom du client (ex: Mme Dubois)">
-                        <div class="mic-area">
-                            <button id="micBtn" class="mic-btn" title="Dicter">
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
-                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                                    <line x1="12" y1="19" x2="12" y2="23"></line>
-                                    <line x1="8" y1="23" x2="16" y2="23"></line>
-                                </svg>
-                            </button>
-                            <div id="micStatus" class="mic-status">Cliquez pour dicter</div>
-                        </div>
-                        <textarea id="transcriptArea" class="transcript-area"
-                            placeholder="La transcription apparaitra ici... Vous pouvez aussi taper directement."></textarea>
-                        <button id="submitVocal" class="btn btn-gold" disabled>Analyser et sauvegarder</button>
-                    </div>
-
-                    <!-- LVMH Separator -->
-                    <div class="conteneur-ligne">
-                        <div class="ligne-horizontale animer-ligne"></div>
-                    </div>
-
-                    <div class="recent-section">
-                        <h3>Mes derniers clients</h3>
-                        <div id="vRecentClients" class="recent-grid"></div>
-                    </div>
+                    <div id="followup-products-panel"></div>
                 </div>
             </div>
 
-            <!-- PAGE: CLIENTS (shared vendeur/manager) -->
-            <div id="page-clients" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Fiches Clients</h2>
-                        <input type="text" class="search-input" id="personSearch"
-                            placeholder="Rechercher client, tag...">
-                    </div>
-                    <div class="legend" id="tagLegend"></div>
-                    <div class="person-grid" id="personGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: NBA (vendeur-focused) -->
-            <div id="page-nba" class="page hidden">
-                <div class="page-content">
-
-                    <div class="nba-grid" id="nbaGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: PRODUCTS -->
-            <div id="page-products" class="page hidden">
-                <div class="page-content">
-
-                    <div class="product-grid" id="productGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: CLIENT READINESS BRIEF -->
-            <div id="page-v-brief" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Client Readiness Brief</h2>
-                        <p class="subtitle">Preparez votre rendez-vous client en quelques secondes</p>
-                    </div>
-                    <div class="brief-selector">
-                        <label class="brief-select-label" for="briefClientSelect">Selectionner un client</label>
-                        <select id="briefClientSelect" class="brief-select">
-                            <option value="">— Choisir un client —</option>
-                        </select>
-                    </div>
-                    <div id="briefContent"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: FOLLOW-UP -->
-            <div id="page-followup" class="page hidden">
-                <div class="page-content">
-
-                    <div class="followup-controls">
-                        <select id="followupHouse" class="select-input">
-                            <option value="Louis Vuitton">Louis Vuitton</option>
-                            <option value="Dior">Dior</option>
-                            <option value="Fendi">Fendi</option>
-                            <option value="Tiffany & Co.">Tiffany &amp; Co.</option>
-                            <option value="Bulgari">Bulgari</option>
-                            <option value="Givenchy">Givenchy</option>
-                            <option value="Celine">Celine</option>
-                            <option value="Loewe">Loewe</option>
-                            <option value="Berluti">Berluti</option>
-                            <option value="Loro Piana">Loro Piana</option>
-                        </select>
-                        <select id="followupChannel" class="select-input">
-                            <option value="email">Email</option>
-                            <option value="whatsapp">WhatsApp</option>
-                        </select>
-                    </div>
-                    <div class="followup-grid" id="followupGrid"></div>
-                    <div id="followup-container"></div>
-                </div>
-            </div>
-
-            <!-- ===== COACH RGPD ===== -->
-            <div id="page-coach" class="page hidden">
-                <div class="page-header">
-                    <h1>Coach RGPD</h1>
-                    <p class="page-subtitle">Entraînez-vous à rédiger des notes conformes et riches en informations</p>
-                </div>
+            <!-- PAGE: COACH RGPD — id conservé: page-coach (navId: v-coach / m-coach) -->
+            <div id="page-coach" class="page page-canvas hidden">
                 <div class="coach-container">
                     <div class="coach-input-section">
                         <label class="coach-label">Votre note (fictive)</label>
@@ -231,317 +696,272 @@
                 </div>
             </div>
 
-            <!-- ===== MANAGER DASHBOARD (High Density Cockpit) ===== -->
-            <div id="page-m-dashboard" class="page hidden">
-  <div class="ck-shell">
+            <!-- PAGE: MANAGER DASHBOARD — id conservé: page-m-dashboard (navId: m-dashboard) -->
+            <div id="page-m-dashboard" class="page page-canvas hidden">
+                <div class="ck-shell">
 
-    <!-- TOP BAR -->
-    <div class="ck-topbar">
-      <div class="ck-tb-left">
-        <div class="ck-store-badge">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
-          LV Montaigne
-        </div>
-        <div class="ck-tb-divider"></div>
-        <div class="ck-tb-inline-stats">
-          <span class="ck-tb-stat"><span id="ck-tb-clients">—</span> clients</span>
-          <span class="ck-tb-dot">·</span>
-          <span class="ck-tb-stat"><span id="ck-tb-tags">—</span> tags</span>
-          <span class="ck-tb-dot">·</span>
-          <span class="ck-tb-stat"><span id="ck-tb-privacy">—</span>% conformité</span>
-          <span class="ck-tb-dot">·</span>
-          <span class="ck-tb-stat"><span id="ck-tb-nba">—</span> actions NBA</span>
-        </div>
-      </div>
-      <div class="ck-tb-right">
-        <span class="ck-tb-date" id="ck-tb-date">—</span>
-      </div>
-    </div>
-
-    <!-- HERO -->
-    <div class="ck-hero">
-      <div class="ck-hero-left">
-        <div class="ck-hero-eyebrow">CLIENTS ANALYSÉS · BOUTIQUE LV MONTAIGNE</div>
-        <div class="ck-hero-number" id="ck-hero-num">0</div>
-        <div class="ck-hero-sub">Notes vocales traitées par l'IA · Pipeline Voice-to-Tag</div>
-      </div>
-      <div class="ck-hero-right">
-        <div class="ck-hero-stat">
-          <div class="ck-hs-val" id="ck-hs-privacy">—</div>
-          <div class="ck-hs-label">Score RGPD</div>
-        </div>
-        <div class="ck-hero-divider"></div>
-        <div class="ck-hero-stat">
-          <div class="ck-hs-val" id="ck-hs-tags">—</div>
-          <div class="ck-hs-label">Tags extraits</div>
-        </div>
-        <div class="ck-hero-divider"></div>
-        <div class="ck-hero-stat">
-          <div class="ck-hs-val" id="ck-hs-nba">—</div>
-          <div class="ck-hs-label">Actions NBA</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- KPI ROW -->
-    <div class="ck-kpi-row">
-      <div class="ck-kpi-card">
-        <div class="ck-kpi-top">
-          <span class="ck-kpi-label">Clients</span>
-          <span class="ck-kpi-trend" id="ck-trend-1">—</span>
-        </div>
-        <div class="ck-kpi-val" id="ck-kval-1">—</div>
-        <div class="ck-kpi-spark" id="spark1"></div>
-      </div>
-      <div class="ck-kpi-card">
-        <div class="ck-kpi-top">
-          <span class="ck-kpi-label">Tags extraits</span>
-          <span class="ck-kpi-trend" id="ck-trend-2">—</span>
-        </div>
-        <div class="ck-kpi-val" id="ck-kval-2">—</div>
-        <div class="ck-kpi-spark" id="spark3"></div>
-      </div>
-      <div class="ck-kpi-card">
-        <div class="ck-kpi-top">
-          <span class="ck-kpi-label">Actions NBA</span>
-          <span class="ck-kpi-trend" id="ck-trend-3">—</span>
-        </div>
-        <div class="ck-kpi-val" id="ck-kval-3">—</div>
-        <div class="ck-kpi-spark" id="spark4"></div>
-      </div>
-      <div class="ck-kpi-card">
-        <div class="ck-kpi-top">
-          <span class="ck-kpi-label">Conformité RGPD</span>
-          <span class="ck-kpi-trend" id="ck-trend-4">—</span>
-        </div>
-        <div class="ck-kpi-val" id="ck-kval-4">—</div>
-        <div class="ck-kpi-bar-wrap">
-          <div class="ck-kpi-bar" id="ck-privacy-bar"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CHARTS ROW -->
-    <div class="ck-charts-row">
-
-      <!-- Main chart -->
-      <div class="ck-chart-main-card">
-        <div class="ck-chart-head">
-          <div class="ck-chart-title">Activité & Intelligence</div>
-          <div class="ck-chart-legend">
-            <span class="ck-leg-item ck-leg-gold">
-              <span class="ck-leg-line"></span> Notes
-            </span>
-            <span class="ck-leg-item ck-leg-blue">
-              <span class="ck-leg-line"></span> Tags
-            </span>
-          </div>
-          <div class="ck-chart-opts">
-            <button class="ck-opt active" data-range="7">7j</button>
-            <button class="ck-opt" data-range="14">14j</button>
-            <button class="ck-opt" data-range="30">30j</button>
-          </div>
-        </div>
-        <div class="ck-chart-body" id="cockpitMainChart"></div>
-      </div>
-
-      <!-- Side: donut + radar -->
-      <div class="ck-chart-side">
-
-        <!-- Privacy donut -->
-        <div class="ck-side-card">
-          <div class="ck-side-title">Conformité RGPD</div>
-          <div class="ck-donut-wrap" id="cockpitPrivacyDonut"></div>
-        </div>
-
-        <!-- Tag radar -->
-        <div class="ck-side-card">
-          <div class="ck-side-title">Mix Taxonomique</div>
-          <div class="ck-radar-wrap" id="cockpitRadar"></div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- BOTTOM ROW -->
-    <div class="ck-bottom-row">
-
-      <!-- Alertes -->
-      <div class="ck-bottom-card">
-        <div class="ck-bottom-title">Alertes</div>
-        <div class="ck-alert-list" id="ck-alert-list">
-          <div class="ck-alert high"><span class="ck-alert-dot"></span>Clients à risque churn</div>
-          <div class="ck-alert mid"><span class="ck-alert-dot"></span>RGPD : 2 violations récentes</div>
-          <div class="ck-alert low"><span class="ck-alert-dot"></span>Pipeline IA opérationnel</div>
-        </div>
-      </div>
-
-      <!-- Top tags -->
-      <div class="ck-bottom-card ck-bottom-wide">
-        <div class="ck-bottom-title">Top Catégories de Tags</div>
-        <div class="ck-tags-bars" id="cockpitTags"></div>
-      </div>
-
-      <!-- Calendrier -->
-      <div class="ck-bottom-card">
-        <div class="ck-bottom-title">Agenda <span class="ck-cal-month" id="ck-cal-month"></span></div>
-        <div class="ck-calendar-grid" id="cockpitCalendar"></div>
-      </div>
-
-    </div>
-
-  </div>
-</div>
-
-            <!-- PAGE: MANAGER PRIVACY -->
-            <div id="page-m-privacy" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Privacy Score &amp; Coaching</h2>
-                        <p class="subtitle">Score de conformite par Client Advisor</p>
-                    </div>
-                    <div class="privacy-overview" id="privacyOverview"></div>
-                    <div class="privacy-grid" id="privacyGrid"></div>
-                </div>
-            </div>
-
-
-            <!-- PAGE: MANAGER SENTIMENT -->
-            <div id="page-m-sentiment" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Sentiment &amp; Retention</h2>
-                        <p class="subtitle">Detection des frustrations et alertes automatiques</p>
-                    </div>
-                    <div class="sentiment-overview" id="sentimentOverview"></div>
-                    <div class="sentiment-alerts" id="sentimentAlerts"></div>
-                    <div class="sentiment-grid" id="sentimentGrid"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER BOUTIQUE -->
-            <div id="page-m-boutique" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Dashboard Boutique</h2>
-                        <p class="subtitle">Vue synthetique pour piloter la boutique</p>
-                    </div>
-                    <div class="boutique-kpis" id="boutiqueKPIs"></div>
-                    <div class="grid-2">
-                        <div class="section-box">
-                            <h3>Top 5 Interets</h3>
-                            <div id="boutiqueTopList"></div>
-                        </div>
-                        <div class="section-box">
-                            <h3>Actions Prioritaires</h3>
-                            <div id="boutiqueActionsList"></div>
-                        </div>
-                    </div>
-                    <div class="grid-2">
-                        <div class="section-box">
-                            <h3>Performance CA</h3>
-                            <div id="boutiqueCAPerfList"></div>
-                        </div>
-                        <div class="section-box">
-                            <h3>Recommandations Stock</h3>
-                            <div id="boutiqueStockList"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER PULSE -->
-            <div id="page-m-pulse" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>The Luxury Pulse</h2>
-                        <p class="subtitle">Tendances et signaux faibles</p>
-                    </div>
-                    <div class="pulse-stats" id="pulseStats"></div>
-                    <div class="pulse-trends" id="pulseTrends"></div>
-                    <div class="pulse-emerging" id="pulseEmerging"></div>
-                    <div class="pulse-recommendations" id="pulseRecommendations"></div>
-                    <div class="pulse-signals" id="pulseSignals"></div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER IMPORT CSV -->
-            <div id="page-m-import" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Import CSV</h2>
-                        <p class="subtitle">Importer des transcriptions en masse</p>
-                    </div>
-                    <div class="import-card">
-                        <div class="upload-zone" id="csvUploadArea">
-                            <div class="upload-icon">&#x1F4C4;</div>
-                            <p>Glissez votre fichier CSV ici ou</p>
-                            <input type="file" id="csvFileInput" accept=".csv" hidden>
-                            <button class="btn" id="csvSelectBtn">Parcourir</button>
-                        </div>
-                    </div>
-                    <div id="importResult" class="import-result hidden">
-                        <h3>Resultat de l'import</h3>
-                        <div id="importSummary"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PAGE: MANAGER TEAM -->
-            <div id="page-m-team" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Equipe</h2>
-                        <p class="subtitle">Gestion des vendeurs de la boutique</p>
-                    </div>
-                    <div id="teamList" class="team-list"></div>
-                    <div class="team-add">
-                        <h3>Ajouter un vendeur</h3>
-                        <form id="addSellerForm" class="team-form">
-                            <input type="text" id="newSellerFirst" class="form-input" placeholder="Prenom" required>
-                            <input type="text" id="newSellerLast" class="form-input" placeholder="Nom" required>
-                            <select id="newSellerRole" class="select-input">
-                                <option value="vendeur">Vendeur</option>
-                                <option value="manager">Manager</option>
-                            </select>
-                            <button type="submit" class="btn btn-gold btn-sm">Ajouter</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PAGE: ADMIN (Bruno Lopes - suppression des donnees) -->
-            <div id="page-admin" class="page hidden">
-                <div class="page-content">
-                    <div class="section-header">
-                        <h2>Supprimer les donnees</h2>
-                        <p class="subtitle">Acces reserve. Entrez le code admin pour continuer.</p>
-                    </div>
-                    <div id="adminCodeSection" class="admin-code-section">
-                        <div class="admin-code-row">
-                            <input type="password" id="adminCodeInput" class="form-input admin-code-input"
-                                placeholder="Code admin" autocomplete="off">
-                            <button type="button" id="adminCodeBtn" class="btn btn-gold">Acceder</button>
-                        </div>
-                        <div id="adminCodeError" class="login-error hidden"></div>
-                    </div>
-                    <div id="adminActionsSection" class="admin-actions-section hidden">
-                        <div class="section-box danger">
-                            <h3>Actions irreversibles</h3>
-                            <p class="admin-warning">Ces actions suppriment definitivement les donnees dans la base.</p>
-                            <div class="admin-btns">
-                                <button type="button" id="adminClearClients" class="btn btn-danger">Vider la table
-                                    clients</button>
-                                <button type="button" id="adminClearAll" class="btn btn-danger-outline">Vider tout
-                                    (clients + vendeurs)</button>
+                    <!-- TOP BAR -->
+                    <div class="ck-topbar">
+                        <div class="ck-tb-left">
+                            <div class="ck-store-badge">
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                                LV Montaigne
                             </div>
-                            <div id="adminResult" class="admin-result hidden"></div>
+                            <div class="ck-tb-divider"></div>
+                            <div class="ck-tb-inline-stats">
+                                <span class="ck-tb-stat"><span id="ck-tb-clients">—</span> clients</span>
+                                <span class="ck-tb-dot">·</span>
+                                <span class="ck-tb-stat"><span id="ck-tb-tags">—</span> tags</span>
+                                <span class="ck-tb-dot">·</span>
+                                <span class="ck-tb-stat"><span id="ck-tb-privacy">—</span>% conformité</span>
+                                <span class="ck-tb-dot">·</span>
+                                <span class="ck-tb-stat"><span id="ck-tb-nba">—</span> actions NBA</span>
+                            </div>
                         </div>
+                        <div class="ck-tb-right">
+                            <span class="ck-tb-date" id="ck-tb-date">—</span>
+                        </div>
+                    </div>
+
+                    <!-- KPI ROW -->
+                    <div class="ck-kpi-row">
+                        <div class="ck-kpi-card">
+                            <div class="ck-kpi-top">
+                                <span class="ck-kpi-label">Clients</span>
+                                <span class="ck-kpi-trend" id="ck-trend-1">—</span>
+                            </div>
+                            <div class="ck-kpi-val" id="ck-kval-1">—</div>
+                            <div class="ck-kpi-spark" id="spark1"></div>
+                        </div>
+                        <div class="ck-kpi-card">
+                            <div class="ck-kpi-top">
+                                <span class="ck-kpi-label">Tags extraits</span>
+                                <span class="ck-kpi-trend" id="ck-trend-2">—</span>
+                            </div>
+                            <div class="ck-kpi-val" id="ck-kval-2">—</div>
+                            <div class="ck-kpi-spark" id="spark3"></div>
+                        </div>
+                        <div class="ck-kpi-card">
+                            <div class="ck-kpi-top">
+                                <span class="ck-kpi-label">Actions NBA</span>
+                                <span class="ck-kpi-trend" id="ck-trend-3">—</span>
+                            </div>
+                            <div class="ck-kpi-val" id="ck-kval-3">—</div>
+                            <div class="ck-kpi-spark" id="spark4"></div>
+                        </div>
+                        <div class="ck-kpi-card">
+                            <div class="ck-kpi-top">
+                                <span class="ck-kpi-label">Conformité RGPD</span>
+                                <span class="ck-kpi-trend" id="ck-trend-4">—</span>
+                            </div>
+                            <div class="ck-kpi-val" id="ck-kval-4">—</div>
+                            <div class="ck-kpi-bar-wrap">
+                                <div class="ck-kpi-bar" id="ck-privacy-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BODY GRID 2-COL -->
+                    <div class="ck-body-grid">
+
+                        <!-- LEFT COLUMN -->
+                        <div class="ck-body-left">
+                            <!-- Activity Chart -->
+                            <div class="ck-chart-main-card">
+                                <div class="ck-chart-head">
+                                    <div class="ck-chart-title">Activité & Intelligence</div>
+                                    <div class="ck-chart-legend">
+                                        <span class="ck-leg-item ck-leg-gold">
+                                            <span class="ck-leg-line"></span> Notes
+                                        </span>
+                                        <span class="ck-leg-item ck-leg-blue">
+                                            <span class="ck-leg-line"></span> Tags
+                                        </span>
+                                    </div>
+                                    <div class="ck-chart-opts">
+                                        <button class="ck-opt active" data-range="7">7j</button>
+                                        <button class="ck-opt" data-range="14">14j</button>
+                                        <button class="ck-opt" data-range="30">30j</button>
+                                    </div>
+                                </div>
+                                <div class="ck-chart-body" id="cockpitMainChart"></div>
+                            </div>
+
+                            <!-- Bottom sub-row: Alertes + Tags -->
+                            <div class="ck-bottom-row">
+                                <div class="ck-bottom-card">
+                                    <div class="ck-bottom-title">Alertes</div>
+                                    <div class="ck-alert-list" id="ck-alert-list">
+                                        <div class="ck-alert high"><span class="ck-alert-dot"></span>Clients à risque churn</div>
+                                        <div class="ck-alert mid"><span class="ck-alert-dot"></span>RGPD : 2 violations récentes</div>
+                                        <div class="ck-alert low"><span class="ck-alert-dot"></span>Pipeline IA opérationnel</div>
+                                    </div>
+                                </div>
+                                <div class="ck-bottom-card">
+                                    <div class="ck-bottom-title">Top Catégories de Tags</div>
+                                    <div class="ck-tags-bars" id="cockpitTags"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT COLUMN -->
+                        <div class="ck-body-right">
+                            <div class="ck-side-card">
+                                <div class="ck-side-title">Conformité RGPD</div>
+                                <div class="ck-donut-wrap" id="cockpitPrivacyDonut"></div>
+                            </div>
+                            <div class="ck-side-card">
+                                <div class="ck-side-title">Mix Taxonomique</div>
+                                <div class="ck-radar-wrap" id="cockpitRadar"></div>
+                            </div>
+                            <div class="ck-side-card">
+                                <div class="ck-side-title">Agenda <span class="ck-cal-month" id="ck-cal-month"></span></div>
+                                <div class="ck-calendar-grid" id="cockpitCalendar"></div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- PAGE: MANAGER PRIVACY — id conservé: page-m-privacy (navId: m-privacy) -->
+            <div id="page-m-privacy" class="page page-canvas hidden">
+                <div class="privacy-layout">
+                    <div id="privacy-sellers-list">
+                        <div class="privacy-overview" id="privacyOverview"></div>
+                    </div>
+                    <div id="privacy-detail">
+                        <div class="privacy-grid" id="privacyGrid"></div>
                     </div>
                 </div>
             </div>
-        </main>
-    </div>
+
+            <!-- PAGE: MANAGER SENTIMENT — id conservé: page-m-sentiment (navId: m-sentiment) -->
+            <div id="page-m-sentiment" class="page page-canvas hidden">
+                <div class="section-header">
+                    <h2>Sentiment &amp; Retention</h2>
+                    <p class="subtitle">Detection des frustrations et alertes automatiques</p>
+                </div>
+                <div class="sentiment-overview" id="sentimentOverview"></div>
+                <div class="sentiment-alerts" id="sentimentAlerts"></div>
+                <div class="sentiment-grid" id="sentimentGrid"></div>
+            </div>
+
+            <!-- PAGE: MANAGER BOUTIQUE — id conservé: page-m-boutique (navId: m-boutique) -->
+            <div id="page-m-boutique" class="page page-canvas hidden">
+                <div class="section-header">
+                    <h2>Dashboard Boutique</h2>
+                    <p class="subtitle">Vue synthetique pour piloter la boutique</p>
+                </div>
+                <div class="boutique-kpis" id="boutiqueKPIs"></div>
+                <div class="grid-2">
+                    <div class="section-box">
+                        <h3>Top 5 Interets</h3>
+                        <div id="boutiqueTopList"></div>
+                    </div>
+                    <div class="section-box">
+                        <h3>Actions Prioritaires</h3>
+                        <div id="boutiqueActionsList"></div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="section-box">
+                        <h3>Performance CA</h3>
+                        <div id="boutiqueCAPerfList"></div>
+                    </div>
+                    <div class="section-box">
+                        <h3>Recommandations Stock</h3>
+                        <div id="boutiqueStockList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAGE: MANAGER PULSE — id conservé: page-m-pulse (navId: m-pulse) -->
+            <div id="page-m-pulse" class="page page-canvas hidden">
+                <div class="section-header">
+                    <h2>The Luxury Pulse</h2>
+                    <p class="subtitle">Tendances et signaux faibles</p>
+                </div>
+                <div class="pulse-stats" id="pulseStats"></div>
+                <div class="pulse-trends" id="pulseTrends"></div>
+                <div class="pulse-emerging" id="pulseEmerging"></div>
+                <div class="pulse-recommendations" id="pulseRecommendations"></div>
+                <div class="pulse-signals" id="pulseSignals"></div>
+            </div>
+
+            <!-- PAGE: MANAGER IMPORT CSV — id conservé: page-m-import (navId: m-import) -->
+            <div id="page-m-import" class="page page-canvas hidden">
+                <div class="section-header">
+                    <h2>Import CSV</h2>
+                    <p class="subtitle">Importer des transcriptions en masse</p>
+                </div>
+                <div class="import-card">
+                    <div class="upload-zone" id="csvUploadArea">
+                        <div class="upload-icon">&#x1F4C4;</div>
+                        <p>Glissez votre fichier CSV ici ou</p>
+                        <input type="file" id="csvFileInput" accept=".csv" hidden>
+                        <button class="btn" id="csvSelectBtn">Parcourir</button>
+                    </div>
+                </div>
+                <div id="importResult" class="import-result hidden">
+                    <h3>Resultat de l'import</h3>
+                    <div id="importSummary"></div>
+                </div>
+            </div>
+
+            <!-- PAGE: MANAGER TEAM — id conservé: page-m-team (navId: m-team) -->
+            <div id="page-m-team" class="page page-canvas hidden">
+                <div class="section-header">
+                    <h2>Equipe</h2>
+                    <p class="subtitle">Gestion des vendeurs de la boutique</p>
+                </div>
+                <div id="teamList" class="team-list"></div>
+                <div class="team-add">
+                    <h3>Ajouter un vendeur</h3>
+                    <form id="addSellerForm" class="team-form">
+                        <input type="text" id="newSellerFirst" class="form-input" placeholder="Prenom" required>
+                        <input type="text" id="newSellerLast" class="form-input" placeholder="Nom" required>
+                        <select id="newSellerRole" class="select-input">
+                            <option value="vendeur">Vendeur</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                        <button type="submit" class="btn btn-gold btn-sm">Ajouter</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- PAGE: ADMIN — id conservé: page-admin (navId: admin) -->
+            <div id="page-admin" class="page page-canvas hidden">
+                <div class="section-header">
+                    <h2>Supprimer les donnees</h2>
+                    <p class="subtitle">Acces reserve. Entrez le code admin pour continuer.</p>
+                </div>
+                <div id="adminCodeSection" class="admin-code-section">
+                    <div class="admin-code-row">
+                        <input type="password" id="adminCodeInput" class="form-input admin-code-input"
+                            placeholder="Code admin" autocomplete="off">
+                        <button type="button" id="adminCodeBtn" class="btn btn-gold">Acceder</button>
+                    </div>
+                    <div id="adminCodeError" class="login-error hidden"></div>
+                </div>
+                <div id="adminActionsSection" class="admin-actions-section hidden">
+                    <div class="section-box danger">
+                        <h3>Actions irreversibles</h3>
+                        <p class="admin-warning">Ces actions suppriment definitivement les donnees dans la base.</p>
+                        <div class="admin-btns">
+                            <button type="button" id="adminClearClients" class="btn btn-danger">Vider la table
+                                clients</button>
+                            <button type="button" id="adminClearAll" class="btn btn-danger-outline">Vider tout
+                                (clients + vendeurs)</button>
+                        </div>
+                        <div id="adminResult" class="admin-result hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /.app-body -->
+    </div><!-- /#appShell -->
 
     <!-- MOBILE BOTTOM NAV -->
     <nav id="mobileNav" class="mobile-nav hidden"></nav>
@@ -579,13 +999,11 @@
             document.querySelectorAll('.animer-ligne').forEach(ligne => {
                 observer.observe(ligne);
             });
-
-
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="engine.js?v=5"></script>
-    <script src="app.js?v=5"></script>
+    <script src="engine.js?v=6"></script>
+    <script src="app.js?v=6"></script>
 </body>
 
 </html>

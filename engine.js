@@ -33,6 +33,58 @@ if (typeof window !== 'undefined') {
 const CAT_NAMES = { profil:'Profil', interet:'Intérêt', voyage:'Voyage', contexte:'Contexte', service:'Service', marque:'Marque', crm:'CRM' };
 const legendColors = { profil:'#60a5fa', interet:'#d4af37', voyage:'#34d399', contexte:'#c084fc', service:'#f472b6', marque:'#fb923c', crm:'#facc15' };
 
+// ── Design System Helpers ─────────────────────────────────────────
+const TAG_CLASSES = {
+  voyage: 'tag-voyage', marque: 'tag-marque', interet: 'tag-interet',
+  profil: 'tag-profil', contexte: 'tag-contexte', service: 'tag-service', crm: 'tag-crm'
+};
+
+function getTagClass(category) {
+  return TAG_CLASSES[category?.toLowerCase()] || 'tag-crm';
+}
+
+function getScoreClass(score) {
+  if (score >= 80) return 'score-high';
+  if (score >= 60) return 'score-mid';
+  return 'score-low';
+}
+
+function getProgressClass(score) {
+  if (score >= 80) return 'progress-green';
+  if (score >= 60) return 'progress-amber';
+  return 'progress-red';
+}
+
+function getInitials(name) {
+  if (!name) return '??';
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+const AVATAR_PALETTES = [
+  { bg: '#F0E8D0', color: '#8A6020' },
+  { bg: '#E8EEF5', color: '#3A5A8A' },
+  { bg: '#EBF5EB', color: '#2A6A2A' },
+  { bg: '#F0EBF5', color: '#6A3A8A' },
+  { bg: '#F5EBE8', color: '#8A3A2A' },
+  { bg: '#E8F0F5', color: '#2A5A7A' },
+  { bg: '#F5F0E8', color: '#7A6020' },
+];
+function getAvatarPalette(name) {
+  const idx = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_PALETTES.length;
+  return AVATAR_PALETTES[idx];
+}
+
+function buildTag(tagObj) {
+  const cls = getTagClass(tagObj.c);
+  return `<span class="tag ${cls}">${tagObj.t}</span>`;
+}
+
+function buildClientAvatar(name, size = 30) {
+  const p = getAvatarPalette(name);
+  const initials = getInitials(name);
+  return `<div class="client-av" style="width:${size}px;height:${size}px;background:${p.bg};color:${p.color}">${initials}</div>`;
+}
+
 // ===== DASHBOARD HELPERS =====
 function groupByDate(arr, valueFn) {
     const map = {};
@@ -52,6 +104,44 @@ function lastNDays(map, n) {
         result.push(last[i] !== undefined ? (map[last[i]] || 0) : 0);
     }
     return result.length ? result : Array(n).fill(0);
+}
+
+// ===== DASHBOARD DATA HELPERS =====
+function calcWeeklyActivity(data) {
+  const weeks = Array(8).fill(0);
+  (data || []).forEach(c => {
+    const date = new Date(c.date || c.created_at);
+    const w = Math.floor((Date.now() - date) / (7 * 86400000));
+    if (w >= 0 && w < 8) weeks[7 - w]++;
+  });
+  return weeks;
+}
+
+function calcPrivacyScore(stats, data) {
+  if (stats?.privacyAvg) return stats.privacyAvg;
+  const violations = (data || []).filter(c => c.sensitiveCount > 0).length;
+  return data?.length ? Math.round((1 - violations / data.length) * 100) : 0;
+}
+
+function calcTagDensityByCategory(data) {
+  const cats = { profil: 0, interet: 0, voyage: 0, contexte: 0, service: 0, marque: 0, crm: 0 };
+  (data || []).forEach(c => {
+    (c.tags || []).forEach(t => {
+      const cat = t.c?.toLowerCase();
+      if (cats.hasOwnProperty(cat)) cats[cat]++;
+    });
+  });
+  const max = Math.max(...Object.values(cats), 1);
+  return Object.fromEntries(Object.entries(cats).map(([k, v]) => [k, v / max]));
+}
+
+function calcPrivacyTrend(data) {
+  if (!data || data.length < 2) return 0;
+  const mid = Math.floor(data.length / 2);
+  const first = data.slice(0, mid);
+  const second = data.slice(mid);
+  const avgScore = arr => arr.reduce((a, c) => a + (c.sensitiveCount > 0 ? 0 : 100), 0) / arr.length;
+  return Math.round(avgScore(second) - avgScore(first));
 }
 
 // ===== RENDER: DASHBOARD (Manager - COCKPIT) =====
@@ -347,25 +437,61 @@ function renderCockpitTags() {
 }
 
 // ===== RENDER: CLIENTS (shared) =====
-function renderClients() {
+function renderClients(filteredData) {
+    const data = filteredData || DATA;
+
+    // Légende catégories
     const legend = $('tagLegend');
     if (legend) {
         legend.innerHTML = Object.entries(CAT_NAMES).map(([k, v]) =>
             `<div class="legend-item"><span class="legend-dot" style="background:${legendColors[k]||'#888'}"></span>${v}</div>`
         ).join('');
     }
-    renderGrid();
+
+    // Kanban
+    if (typeof renderKanban === 'function') renderKanban(data);
+
+    // Avatar strip
+    if (typeof renderAvatarStrip === 'function') renderAvatarStrip(data);
+
+    // Stats bar
+    if (typeof renderStatsBar === 'function') renderStatsBar();
+
+    // Masquer l'ancien grid si kanban présent
+    const kanbanGrid = $('kanban-grid');
+    const personGrid = $('personGrid');
+    if (kanbanGrid && personGrid) personGrid.style.display = 'none';
+    if (!kanbanGrid && personGrid) personGrid.style.display = '';
+
+    // Recherche — filtre kanban + grid
     const search = $('personSearch');
-    if (search) search.oninput = e => renderGrid(e.target.value);
+    if (search) {
+        search.oninput = e => {
+            const q = e.target.value.toLowerCase();
+            const base = filteredData || DATA;
+            const result = base.filter(p =>
+                !q ||
+                (p.ca||'').toLowerCase().includes(q) ||
+                p.tags.some(t => t.t.toLowerCase().includes(q)) ||
+                (p.clean||'').toLowerCase().includes(q)
+            );
+            if (typeof renderKanban === 'function') renderKanban(result);
+            renderGrid(q, base);
+        };
+    }
+
+    // Fallback grid si pas de kanban
+    if (!kanbanGrid) renderGrid('', data);
 }
 
-function renderGrid(filter) {
+function renderGrid(filter, sourceData) {
     filter = filter || '';
     const g = $('personGrid');
     if (!g) return;
     g.innerHTML = '';
     const f = filter.toLowerCase();
-    const filtered = DATA.filter(p => !f || p.id.toLowerCase().includes(f) || (p.ca||'').toLowerCase().includes(f) || p.tags.some(t => t.t.toLowerCase().includes(f)) || p.clean.toLowerCase().includes(f));
+    const base = sourceData || DATA;
+    const filtered = base.filter(p => !f || (p.ca||'').toLowerCase().includes(f) || p.tags.some(t => t.t.toLowerCase().includes(f)) || (p.clean||'').toLowerCase().includes(f));
 
     if (filtered.length === 0) {
         g.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client trouve.</p>';
@@ -394,6 +520,281 @@ function renderGrid(filter) {
         card.innerHTML = html;
         g.appendChild(card);
     });
+}
+
+// ===== RENDER: KANBAN CLIENTS =====
+function renderKanban(data) {
+  if (!data || !data.length) return;
+
+  const cols = { nouveaux: [], suivi: [], nbaDone: [], prioritaires: [] };
+
+  data.forEach(client => {
+    const score = client.sentiment?.score || 50;
+    const hasNba = client.nba && client.nba.length > 0;
+    const isChurnRisk = score < 50;
+
+    if (isChurnRisk) {
+      cols.prioritaires.push(client);
+    } else if (hasNba) {
+      cols.nbaDone.push(client);
+    } else {
+      const daysSince = Math.floor((Date.now() - new Date(client.date || Date.now())) / 86400000);
+      if (daysSince <= 3) cols.nouveaux.push(client);
+      else cols.suivi.push(client);
+    }
+  });
+
+  const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  setCount('count-nouveaux', cols.nouveaux.length);
+  setCount('count-suivi', cols.suivi.length);
+  setCount('count-nba', cols.nbaDone.length);
+  setCount('count-prioritaires', cols.prioritaires.length);
+
+  renderKanbanCol('col-nouveaux', cols.nouveaux);
+  renderKanbanCol('col-suivi', cols.suivi);
+  renderKanbanCol('col-nba-done', cols.nbaDone);
+  renderKanbanCol('col-prioritaires', cols.prioritaires);
+}
+
+function renderKanbanCol(containerId, clients) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  clients.slice(0, 6).forEach((client, i) => {
+    const score = client.sentiment?.score || 50;
+    const scoreClass = getScoreClass(score);
+    const progressClass = getProgressClass(score);
+    const top3tags = (client.tags || []).slice(0, 3);
+    const p = getAvatarPalette(client.ca);
+    const initials = getInitials(client.ca);
+
+    const card = document.createElement('div');
+    card.className = 'client-card';
+    card.style.animationDelay = `${i * 40}ms`;
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="client-av" style="width:30px;height:30px;background:${p.bg};color:${p.color}">${initials}</div>
+        <div class="card-info">
+          <div class="card-name">${client.ca || 'Client inconnu'}</div>
+          <div class="card-meta">${client.lang || '?'} · ${client.store || '?'}</div>
+        </div>
+        <div class="card-actions">
+          <div class="card-action-btn ${client._checked ? 'done' : ''}" data-action="check" data-id="${client.id}">
+            <svg viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <div class="card-action-btn" data-action="calendar" data-id="${client.id}">
+            <svg viewBox="0 0 10 10"><rect x="1" y="2" width="8" height="7" rx="1" stroke="currentColor" fill="none" stroke-width="1.5"/><path d="M3 2V1M7 2V1M1 5h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+      </div>
+      ${top3tags.length ? `<div class="card-tags">${top3tags.map(buildTag).join('')}</div>` : ''}
+      <div class="card-bottom">
+        <span class="score-badge ${scoreClass}">${score}</span>
+        <div class="progress-mini"><div class="progress-fill ${progressClass}" style="width:${score}%"></div></div>
+      </div>
+    `;
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action]')) return;
+      document.querySelectorAll('.client-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      openDetailPanel(client);
+    });
+
+    container.appendChild(card);
+  });
+
+  const addBtn = document.createElement('div');
+  addBtn.className = 'add-card';
+  addBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg> Ajouter`;
+  container.appendChild(addBtn);
+}
+
+// ===== DETAIL PANEL =====
+function openDetailPanel(client) {
+  const wrap = document.getElementById('col-detail-wrap');
+  if (!wrap) return;
+
+  const p = getAvatarPalette(client.ca);
+  const initials = getInitials(client.ca);
+  const score = client.sentiment?.score || 50;
+  const scoreClass = getScoreClass(score);
+  const tags = (client.tags || []).slice(0, 8);
+  const nbaItems = (client.nba || []).slice(0, 3);
+  const nbaBgColors = ['#1A1A1A', '#2A4A8A', '#2A5A2A'];
+
+  const sentLevel = client.sentiment?.level || 'neutral';
+  const sentScore = client.sentiment?.score || 50;
+  const sentPos = sentLevel === 'positive' ? sentScore : Math.max(10, 100 - sentScore - 20);
+  const sentNeg = sentLevel === 'negative' ? sentScore : Math.max(0, sentScore - 70);
+  const sentNeu = Math.max(0, 100 - sentPos - sentNeg);
+
+  wrap.innerHTML = `
+    <div class="col-header">
+      ${client.ca}
+      <span class="col-count" style="background:#1A1A1A;color:#fff">actif</span>
+    </div>
+    <div class="detail-panel">
+      <div class="dp-header">
+        <div class="dp-avatar" style="background:${p.bg};color:${p.color}">${initials}</div>
+        <div>
+          <div class="dp-name">${client.ca}</div>
+          <div class="dp-sub">${client.store || ''} · ${client.lang || ''} · Score ${score}</div>
+        </div>
+        <button class="dp-close" onclick="closeDetailPanel()">
+          <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M2 2l6 6M8 2l-6 6"/>
+          </svg>
+        </button>
+      </div>
+      <div class="dp-body">
+
+        <div>
+          <div class="dp-section-label">Tags détectés</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">
+            ${tags.map(buildTag).join('') || '<span style="font-size:11px;color:var(--text-muted)">Aucun tag</span>'}
+          </div>
+        </div>
+
+        <div>
+          <div class="dp-section-label">Next Best Actions</div>
+          <div>
+            ${nbaItems.length ? nbaItems.map((nba, i) => `
+              <div class="nba-item">
+                <div class="nba-num" style="background:${nbaBgColors[i] || '#1A1A1A'}">${i+1}</div>
+                <div class="nba-text">${nba.action || nba}</div>
+              </div>
+            `).join('') : '<span style="font-size:11px;color:var(--text-muted)">Aucune NBA générée</span>'}
+          </div>
+        </div>
+
+        <div>
+          <div class="dp-section-label">Sentiment</div>
+          <div class="sent-row">
+            <span class="sent-label">Positif</span>
+            <div class="sent-bar-bg"><div class="sent-bar-fill" style="width:${sentPos}%;background:var(--green-soft)"></div></div>
+            <span class="sent-value" style="color:var(--green)">${sentPos}</span>
+          </div>
+          <div class="sent-row">
+            <span class="sent-label">Neutre</span>
+            <div class="sent-bar-bg"><div class="sent-bar-fill" style="width:${sentNeu}%;background:var(--border-strong)"></div></div>
+            <span class="sent-value" style="color:var(--text-muted)">${sentNeu}</span>
+          </div>
+          <div class="sent-row">
+            <span class="sent-label">Négatif</span>
+            <div class="sent-bar-bg"><div class="sent-bar-fill" style="width:${sentNeg}%;background:var(--red)"></div></div>
+            <span class="sent-value" style="color:var(--red)">${sentNeg}</span>
+          </div>
+        </div>
+
+        <button class="dp-cta" onclick="renderSmartFollowup(window._selectedClient)">
+          ✦ Générer Follow-up IA
+        </button>
+
+      </div>
+    </div>
+  `;
+
+  window._selectedClient = client;
+}
+
+function closeDetailPanel() {
+  const wrap = document.getElementById('col-detail-wrap');
+  if (!wrap) return;
+  renderKanban(window.DATA || []);
+}
+
+// ===== AVATAR STRIP =====
+function renderAvatarStrip(data) {
+  const container = document.getElementById('clients-avatar-strip');
+  if (!container || !data) return;
+
+  const recent = data.slice(0, 8);
+  container.innerHTML = recent.map(client => {
+    const p = getAvatarPalette(client.ca);
+    const initials = getInitials(client.ca);
+    const hasAlert = (client.sentiment?.score || 50) < 50;
+    const hasNba = client.nba && client.nba.length > 0;
+    const badgeClass = hasAlert ? 'urgent' : hasNba ? 'info' : '';
+    const badgeCount = hasAlert ? '!' : hasNba ? client.nba.length : '';
+
+    return `
+      <div class="av-strip-item" onclick="selectClientFromStrip('${client.id}')">
+        <div class="av-circle" style="background:${p.bg};color:${p.color}">
+          ${initials}
+          ${badgeCount ? `<span class="av-badge ${badgeClass}">${badgeCount}</span>` : ''}
+        </div>
+        <span class="av-strip-name">${(client.ca || '').split(' ')[1] || client.ca}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectClientFromStrip(clientId) {
+  const client = (window.DATA || []).find(c => c.id === clientId);
+  if (client) openDetailPanel(client);
+}
+
+// ===== STATS BAR =====
+function renderStatsBar(stats) {
+  const container = document.getElementById('clients-stats-bar');
+  if (!container) return;
+
+  const s = stats || window.STATS || {};
+  const data = window.DATA || [];
+
+  const last8weeks = Array(8).fill(0);
+  data.forEach(client => {
+    const date = new Date(client.date || client.created_at);
+    const weeksAgo = Math.floor((Date.now() - date) / (7 * 86400000));
+    if (weeksAgo >= 0 && weeksAgo < 8) last8weeks[7 - weeksAgo]++;
+  });
+  const maxBar = Math.max(...last8weeks, 1);
+
+  const bars = last8weeks.map((v, i) => {
+    const h = Math.max(4, Math.round((v / maxBar) * 24));
+    const isCurrent = i === 7;
+    return `<div class="spark-bar ${isCurrent ? 'current' : ''}" style="height:${h}px"></div>`;
+  }).join('');
+
+  const privacyAvg = s.privacyAvg || (s.rgpd ? Math.round((1 - s.rgpd / Math.max(s.clients, 1)) * 100) : 88);
+  const sentimentAvg = data.length
+    ? Math.round(data.reduce((acc, c) => acc + (c.sentiment?.score || 50), 0) / data.length)
+    : 0;
+
+  container.innerHTML = `
+    <div class="stat-item">
+      <span class="stat-label">Clients</span>
+      <span class="stat-value">${s.clients || data.length || 0}</span>
+      <span class="stat-delta" style="color:var(--green)">↑ actifs</span>
+    </div>
+    <div class="stats-sep"></div>
+    <div class="stat-item">
+      <span class="stat-label">Privacy</span>
+      <span class="stat-value">${privacyAvg}%</span>
+      <span class="stat-delta" style="color:var(--green)">↑ conforme</span>
+    </div>
+    <div class="stats-sep"></div>
+    <div class="stat-item">
+      <span class="stat-label">NBA</span>
+      <span class="stat-value">${s.nba || 0}</span>
+      <span class="stat-delta" style="color:var(--text-muted)">→ générés</span>
+    </div>
+    <div class="stats-sep"></div>
+    <div class="stat-item">
+      <span class="stat-label">Sentiment</span>
+      <span class="stat-value">${sentimentAvg}%</span>
+      <span class="stat-delta" style="color:${sentimentAvg > 60 ? 'var(--green)' : 'var(--amber)'}">
+        ${sentimentAvg > 60 ? '↑ positif' : '→ neutre'}
+      </span>
+    </div>
+    <div class="stats-sep"></div>
+    <div style="flex:1">
+      <div class="stat-label" style="margin-bottom:4px">Activité 8 sem.</div>
+      <div class="sparkline">${bars}</div>
+    </div>
+  `;
 }
 
 // ===== UPLIFT SCORING ALGORITHM =====
