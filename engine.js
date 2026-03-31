@@ -59,219 +59,294 @@ function lastNDays(map, n) {
 
 // ===== RENDER: DASHBOARD (Manager - COCKPIT) =====
 function renderDashboard() {
+    // Calculs réels
+    var totalClients = DATA.length;
+    var totalTags = DATA.reduce(function(s,r){ return s+(r.tags||[]).length; },0);
+    var totalNBA = DATA.reduce(function(s,r){ return s+(r.nba||[]).length; },0);
+    var privacyAvg = Math.round(STATS.privacyAvg || 0);
 
-    // 1. Mini KPIs (Sparklines) — données réelles
-    renderSparkline('spark1', lastNDays(groupByDate(DATA), 10), '#10b981'); // Clients par jour
-    renderSparkline('spark3', lastNDays(groupByDate(DATA, function(row) { return (row.tags || []).length; }), 10), '#ef4444'); // Tags par jour
-    renderSparkline('spark4', lastNDays(groupByDate(DATA, function(row) { return (row.nba || []).length; }), 10), '#aaa');    // NBA par jour
+    // TOP BAR
+    var setEl = function(id, val) { var el = document.getElementById(id); if(el) el.textContent = val; };
+    setEl('ck-tb-clients', totalClients.toLocaleString('fr-FR'));
+    setEl('ck-tb-tags', totalTags.toLocaleString('fr-FR'));
+    setEl('ck-tb-privacy', privacyAvg);
+    setEl('ck-tb-nba', totalNBA.toLocaleString('fr-FR'));
+    setEl('ck-tb-date', new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
 
-    // 2. Main Graph
+    // HERO
+    setEl('ck-hero-num', totalClients.toLocaleString('fr-FR'));
+    setEl('ck-hs-privacy', privacyAvg + '%');
+    setEl('ck-hs-tags', totalTags > 999 ? (totalTags/1000).toFixed(1)+'k' : totalTags);
+    setEl('ck-hs-nba', totalNBA);
+
+    // KPI CARDS
+    setEl('ck-kval-1', totalClients.toLocaleString('fr-FR'));
+    setEl('ck-kval-2', totalTags > 999 ? (totalTags/1000).toFixed(1)+'k' : totalTags);
+    setEl('ck-kval-3', totalNBA);
+    setEl('ck-kval-4', privacyAvg + '%');
+
+    // Privacy bar
+    var bar = document.getElementById('ck-privacy-bar');
+    if(bar) {
+        bar.style.width = privacyAvg + '%';
+        bar.style.background = privacyAvg >= 90 ? '#059669' : privacyAvg >= 75 ? '#2563EB' : privacyAvg >= 60 ? '#D97706' : '#DC2626';
+    }
+
+    // Sparklines
+    renderSparkline('spark1', lastNDays(groupByDate(DATA), 10), '#B8965A');
+    renderSparkline('spark3', lastNDays(groupByDate(DATA, function(r){ return (r.tags||[]).length; }), 10), '#B8965A');
+    renderSparkline('spark4', lastNDays(groupByDate(DATA, function(r){ return (r.nba||[]).length; }), 10), '#B8965A');
+
+    // Charts
     renderCockpitMain();
-
-    // 3. Calendar
-    renderCalendar();
-
-    // 4. Donuts & Radar
     renderPrivacyDonut();
     renderRadar();
-    renderTagsCockpit();
+    renderCalendar();
+    renderCockpitTags();
 
-    // 5. Wire Buttons
-    const settingsBtn = document.querySelector('.settings-btn');
-    if (settingsBtn) settingsBtn.onclick = () => alert('Paramètres du cockpit');
+    // Date
+    var calMonth = document.getElementById('ck-cal-month');
+    if(calMonth) calMonth.textContent = new Date().toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
 }
 
 // --- COCKPIT WIDGETS ---
 
 function renderSparkline(id, data, color) {
-    const el = document.getElementById(id);
+    var el = document.getElementById(id);
     if (!el) return;
-    const width = 100;
-    const height = 40; // Slightly taller for area
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const range = max - min || 1;
+    var W = 200, H = 40;
+    var max = Math.max.apply(null, data), min = Math.min.apply(null, data);
+    var range = max - min || 1;
+    var PAD = 4;
 
-    // Points for the line
-    const points = data.map((val, i) => {
-        const x = (i / (data.length - 1)) * width;
-        const y = height - ((val - min) / range) * (height * 0.8); // Leave some headroom
-        return `${x},${y}`;
-    });
+    function px(i) { return PAD + (i / (data.length - 1)) * (W - PAD*2); }
+    function py(v) { return H - PAD - ((v - min) / range) * (H - PAD*2); }
 
-    // Close the loop for area (bottom-right, bottom-left)
-    const areaPoints = [
-        ...points,
-        `${width},${height}`,
-        `0,${height}`
-    ].join(' ');
+    var path = data.map(function(v, i) {
+        if (i === 0) return 'M ' + px(i) + ' ' + py(v);
+        var cx = (px(i-1) + px(i)) / 2;
+        return 'C ' + cx + ' ' + py(data[i-1]) + ' ' + cx + ' ' + py(v) + ' ' + px(i) + ' ' + py(v);
+    }).join(' ');
 
-    const linePoints = points.join(' ');
+    var lastX = px(data.length - 1), lastY = py(data[data.length-1]);
+    var area = path + ' L ' + (W - PAD) + ' ' + H + ' L ' + PAD + ' ' + H + ' Z';
+    var gid = 'spk_' + id + '_g';
 
-    // Create unique ID for gradient
-    const gradId = `grad_${id}`;
-
-    el.innerHTML = `
-        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible">
-            <defs>
-                <linearGradient id="${gradId}" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stop-color="${color}" stop-opacity="0.4"/>
-                    <stop offset="100%" stop-color="${color}" stop-opacity="0.0"/>
-                </linearGradient>
-            </defs>
-            <!-- Area Fill -->
-            <polygon points="${areaPoints}" fill="url(#${gradId})" stroke="none"/>
-            <!-- Top Line (thicker) -->
-            <polyline points="${linePoints}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-    `;
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
+        + '<defs><linearGradient id="' + gid + '" x1="0" x2="0" y1="0" y2="1">'
+        + '<stop offset="0%" stop-color="' + color + '" stop-opacity="0.35"/>'
+        + '<stop offset="100%" stop-color="' + color + '" stop-opacity="0"/>'
+        + '</linearGradient></defs>'
+        + '<path d="' + area + '" fill="url(#' + gid + ')" stroke="none"/>'
+        + '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '<circle cx="' + lastX + '" cy="' + lastY + '" r="3" fill="' + color + '" stroke="#0A0A0C" stroke-width="1.5"/>'
+        + '</svg>';
 }
 
 function renderCockpitMain() {
-    const el = document.getElementById('cockpitMainChart');
+    var el = document.getElementById('cockpitMainChart');
     if (!el) return;
 
-    // Données réelles : notes et tags sur les 7 derniers jours
-    const dayMapNotes = groupByDate(DATA);
-    const dayMapTags = groupByDate(DATA, function(row) { return (row.tags || []).length; });
-    const allDays = Array.from(new Set(Object.keys(dayMapNotes).concat(Object.keys(dayMapTags)))).sort().slice(-7);
-    const dataA = allDays.length ? allDays.map(function(d) { return dayMapNotes[d] || 0; }) : [0,0,0,0,0,0,0];
-    const dataB = allDays.length ? allDays.map(function(d) { return dayMapTags[d] || 0; }) : [0,0,0,0,0,0,0];
-    const labels = allDays.length ? allDays.map(function(d) { var dt = new Date(d); return ['D','L','M','M','J','V','S'][dt.getDay()]; }) : ['L','M','M','J','V','S','D'];
-    const height = 150;
-    const width = 400; // viewBox width
+    var dayMapNotes = groupByDate(DATA);
+    var dayMapTags = groupByDate(DATA, function(r){ return (r.tags||[]).length; });
+    var allDays = Array.from(new Set(Object.keys(dayMapNotes).concat(Object.keys(dayMapTags)))).sort().slice(-14);
+    var dataA = allDays.length ? allDays.map(function(d){ return dayMapNotes[d]||0; }) : [0,0,0,0,0,0,0];
+    var dataB = allDays.length ? allDays.map(function(d){ return dayMapTags[d]||0; }) : [0,0,0,0,0,0,0];
+    var labels = allDays.length ? allDays.map(function(d){
+        var dt = new Date(d);
+        return dt.getDate() + '/' + (dt.getMonth()+1);
+    }) : ['1','2','3','4','5','6','7'];
 
-    // Generate paths — normalise sur le max réel pour éviter des courbes plates
-    const allValues = dataA.concat(dataB);
-    const maxVal = Math.max.apply(null, allValues) || 1;
-    const makePath = (data) => {
-        return data.map((val, i) => {
-            const x = (i / (data.length - 1)) * width;
-            const y = height - (val / maxVal) * height * 0.9;
-            return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+    var W = 600, H = 180, PL = 32, PR = 16, PT = 16, PB = 28;
+    var W2 = W - PL - PR, H2 = H - PT - PB;
+    var allVals = dataA.concat(dataB);
+    var maxVal = Math.max.apply(null, allVals) || 1;
+
+    function cx(i, len) { return PL + (i / (len-1)) * W2; }
+    function cy(v) { return PT + H2 - (v / maxVal) * H2; }
+
+    function smoothPath(data) {
+        return data.map(function(v, i) {
+            if (i === 0) return 'M ' + cx(i, data.length) + ' ' + cy(v);
+            var cpx = (cx(i-1, data.length) + cx(i, data.length)) / 2;
+            return 'C ' + cpx + ' ' + cy(data[i-1]) + ' ' + cpx + ' ' + cy(v) + ' ' + cx(i, data.length) + ' ' + cy(v);
         }).join(' ');
-    };
+    }
 
-    el.innerHTML = `
-        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible">
-            <!-- Grid lines -->
-            <line x1="0" y1="0" x2="${width}" y2="0" stroke="#333" stroke-width="1" stroke-dasharray="4"/>
-            <line x1="0" y1="${height / 2}" x2="${width}" y2="${height / 2}" stroke="#333" stroke-width="1" stroke-dasharray="4"/>
-            <line x1="0" y1="${height}" x2="${width}" y2="${height}" stroke="#333" stroke-width="1"/>
-            
-            <!-- Areas/Lines -->
-            <path d="${makePath(dataA)}" fill="none" stroke="#D4AF37" stroke-width="2" />
-            <path d="${makePath(dataA)} L ${width} ${height} L 0 ${height} Z" fill="rgba(212, 175, 55, 0.1)" stroke="none" />
-            
-            <path d="${makePath(dataB)}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4"/>
-            
-            <!-- Labels -->
-            ${labels.map((l, i) => `<text x="${(i / (labels.length - 1)) * width}" y="${height + 15}" fill="#666" font-size="10" text-anchor="middle">${l}</text>`).join('')}
-        </svg>
-    `;
+    function areaPath(data) {
+        var last = data.length - 1;
+        return smoothPath(data) + ' L ' + cx(last, data.length) + ' ' + (PT+H2) + ' L ' + PL + ' ' + (PT+H2) + ' Z';
+    }
+
+    // Grid
+    var grids = '';
+    for (var gi = 0; gi <= 4; gi++) {
+        var gy = PT + (gi / 4) * H2;
+        var gVal = Math.round(maxVal - (gi/4) * maxVal);
+        grids += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W-PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>';
+        grids += '<text x="' + (PL-4) + '" y="' + (gy+4) + '" fill="rgba(255,255,255,0.25)" font-size="8" text-anchor="end" font-family="DM Sans,sans-serif">' + gVal + '</text>';
+    }
+
+    // X Labels
+    var step = Math.ceil(labels.length / 7);
+    var xlabels = labels.map(function(l, i) {
+        if (i % step !== 0 && i !== labels.length - 1) return '';
+        return '<text x="' + cx(i, labels.length) + '" y="' + (H-4) + '" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="middle" font-family="DM Sans,sans-serif">' + l + '</text>';
+    }).join('');
+
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
+        + '<defs>'
+        + '<linearGradient id="gradMain_A" x1="0" x2="0" y1="0" y2="1">'
+        + '<stop offset="0%" stop-color="#B8965A" stop-opacity="0.4"/>'
+        + '<stop offset="100%" stop-color="#B8965A" stop-opacity="0"/>'
+        + '</linearGradient>'
+        + '<linearGradient id="gradMain_B" x1="0" x2="0" y1="0" y2="1">'
+        + '<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2"/>'
+        + '<stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>'
+        + '</linearGradient>'
+        + '</defs>'
+        + grids
+        + '<path d="' + areaPath(dataA) + '" fill="url(#gradMain_A)"/>'
+        + '<path d="' + smoothPath(dataA) + '" fill="none" stroke="#B8965A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '<path d="' + areaPath(dataB) + '" fill="url(#gradMain_B)"/>'
+        + '<path d="' + smoothPath(dataB) + '" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>'
+        + xlabels
+        + '</svg>';
 }
 
 function renderCalendar() {
-    const el = document.getElementById('cockpitCalendar');
+    var el = document.getElementById('cockpitCalendar');
     if (!el) return;
+    var now = new Date();
+    var year = now.getFullYear(), month = now.getMonth();
+    var firstDay = new Date(year, month, 1).getDay();
+    var daysInMonth = new Date(year, month+1, 0).getDate();
+    var today = now.getDate();
 
-    let html = '';
-    // Week headers
-    const week = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-    week.forEach(d => html += `<div class="cal-day" style="color:#888">${d}</div>`);
+    // Event dates from DATA
+    var eventDays = {};
+    DATA.forEach(function(row){
+        if(!row.date) return;
+        var d = new Date(row.date);
+        if(d.getFullYear()===year && d.getMonth()===month) eventDays[d.getDate()] = true;
+    });
 
-    // Days
-    for (let i = 1; i <= 35; i++) {
-        const d = i - 2; // Offset
-        let cls = 'cal-day';
-        if (d === 17) cls += ' today'; // Today
-        if (d === 20 || d === 25) cls += ' active'; // Event days
+    var dayNames = ['L','M','M','J','V','S','D'];
+    var html = dayNames.map(function(d){ return '<div class="ck-cal-head">'+d+'</div>'; }).join('');
 
-        let content = d > 0 && d <= 28 ? d : '';
-        html += `<div class="${cls}">${content}</div>`;
+    // Offset (lundi=0)
+    var offset = firstDay === 0 ? 6 : firstDay - 1;
+    for(var o = 0; o < offset; o++) html += '<div class="ck-cal-day empty"></div>';
+
+    for(var day = 1; day <= daysInMonth; day++) {
+        var cls = 'ck-cal-day';
+        if(day === today) cls += ' today';
+        if(eventDays[day]) cls += ' has-event';
+        html += '<div class="'+cls+'">'+day+'</div>';
     }
+
     el.innerHTML = html;
 }
 
 function renderRadar() {
-    const el = document.getElementById('cockpitRadar');
+    var el = document.getElementById('cockpitRadar');
     if (!el) return;
-    // Simple 5-axis radar
-    // Center 50,50 radius 45
-    const axes = 5;
-    const radius = 45;
-    const center = 50;
-    const cats = ['profil', 'interet', 'voyage', 'contexte', 'service'];
-    const totalTags = DATA.reduce(function(s, r) { return s + (r.tags || []).length; }, 0);
-    const data = cats.map(function(cat) {
-        if (!totalTags) return 0;
-        const count = DATA.reduce(function(s, r) { return s + (r.tags || []).filter(function(tg) { return tg.c === cat; }).length; }, 0);
-        return Math.min(count / totalTags * cats.length, 1);
-    }); // value 0-1, normalisé sur les vraies proportions
-
-    const getPoint = (val, i) => {
-        const angle = (Math.PI * 2 * i) / axes - Math.PI / 2;
-        const r = val * radius;
-        return [center + r * Math.cos(angle), center + r * Math.sin(angle)];
-    };
-
-    const points = data.map((v, i) => getPoint(v, i).join(',')).join(' ');
-
-    // Background web
-    let web = '';
-    [0.5, 1].forEach(scale => {
-        const webPoints = Array.from({ length: axes }).map((_, i) => getPoint(scale, i).join(',')).join(' ');
-        web += `<polygon points="${webPoints}" fill="none" stroke="#333" stroke-width="1"/>`;
+    var axes = 5, r = 36, cx2 = 50, cy2 = 50;
+    var cats = ['profil','interet','voyage','contexte','service'];
+    var catLabels = ['Profil','Intérêts','Voyage','Contexte','Service'];
+    var totalTags = DATA.reduce(function(s,row){ return s+(row.tags||[]).length; },0);
+    var data = cats.map(function(cat){
+        if(!totalTags) return 0.15;
+        var count = DATA.reduce(function(s,row){ return s+(row.tags||[]).filter(function(t){ return t.c===cat; }).length; },0);
+        return Math.min(count/totalTags*cats.length, 1);
     });
 
-    el.innerHTML = `
-        <svg viewBox="0 0 100 100" style="width:80%;height:80%">
-            ${web}
-            <polygon points="${points}" fill="rgba(212, 175, 55, 0.4)" stroke="#D4AF37" stroke-width="2"/>
-        </svg>
-    `;
+    function pt(val, i) {
+        var angle = (Math.PI*2*i/axes) - Math.PI/2;
+        return [cx2 + val*r*Math.cos(angle), cy2 + val*r*Math.sin(angle)];
+    }
+    function ptStr(val, i) { var p = pt(val,i); return p[0]+','+p[1]; }
+
+    var webs = '';
+    [0.25,0.5,0.75,1].forEach(function(sc){
+        webs += '<polygon points="'+Array.from({length:axes}).map(function(_,i){ return ptStr(sc,i); }).join(' ')+'" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>';
+    });
+    var axLines = Array.from({length:axes}).map(function(_,i){
+        var p = pt(1,i); return '<line x1="'+cx2+'" y1="'+cy2+'" x2="'+p[0]+'" y2="'+p[1]+'" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>';
+    }).join('');
+
+    var polygon = '<polygon points="'+data.map(function(v,i){ return ptStr(v,i); }).join(' ')+'" fill="rgba(184,150,90,0.2)" stroke="#B8965A" stroke-width="1.5"/>';
+
+    var lbls = catLabels.map(function(l,i){
+        var p = pt(1.35, i);
+        return '<text x="'+p[0]+'" y="'+(p[1]+3)+'" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="6" font-family="DM Sans,sans-serif">'+l+'</text>';
+    }).join('');
+
+    el.innerHTML = '<svg viewBox="0 0 100 100" class="ck-radar-svg">'
+        + webs + axLines + polygon + lbls + '</svg>';
 }
 
 function renderPrivacyDonut() {
-    const el = document.getElementById('cockpitPrivacyDonut');
+    var el = document.getElementById('cockpitPrivacyDonut');
     if (!el) return;
-    const val = Math.round(STATS.privacyAvg || 0);
-    const donutColor = val >= 90 ? '#22c55e' : val >= 75 ? '#3b82f6' : val >= 60 ? '#f59e0b' : '#ef4444';
-    const r = 40;
-    const c = 2 * Math.PI * r;
-    const off = c - (val / 100) * c;
+    var val = Math.round(STATS.privacyAvg || 0);
+    var col = val >= 90 ? '#059669' : val >= 75 ? '#2563EB' : val >= 60 ? '#D97706' : '#DC2626';
+    var label = val >= 90 ? 'Excellent' : val >= 75 ? 'Bon' : val >= 60 ? 'Moyen' : 'Critique';
+    var r = 42, circ = 2 * Math.PI * r;
+    var offset = circ - (val / 100) * circ;
 
-    el.innerHTML = `
-        <svg viewBox="0 0 100 100" style="width:80%;height:80%">
-            <circle cx="50" cy="50" r="${r}" fill="none" stroke="#222" stroke-width="10"/>
-            <circle cx="50" cy="50" r="${r}" fill="none" stroke="${donutColor}" stroke-width="10"
-                stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 50 50)" stroke-linecap="round"/>
-            <text x="50" y="55" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold">${val}%</text>
-        </svg>
-    `;
+    el.innerHTML = '<div class="ck-donut-inner">'
+        + '<svg viewBox="0 0 100 100" class="ck-donut-svg">'
+        + '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>'
+        + '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="10"'
+        + ' stroke-dasharray="' + circ + '" stroke-dashoffset="' + offset + '"'
+        + ' transform="rotate(-90 50 50)" stroke-linecap="round"/>'
+        + '</svg>'
+        + '<div class="ck-donut-center">'
+        + '<div class="ck-donut-val">' + val + '</div>'
+        + '<div class="ck-donut-pct">/ 100</div>'
+        + '</div>'
+        + '</div>'
+        + '<div class="ck-donut-label" style="color:' + col + '">' + label + '</div>'
+        + '<div class="ck-donut-sub">Score RGPD moyen</div>';
 }
 
 function renderTagsCockpit() {
-    // Reusing tag logic but generating simpler HTML
-    const el = document.getElementById('cockpitTags');
+    renderCockpitTags();
+}
+
+function renderCockpitTags() {
+    var el = document.getElementById('cockpitTags');
     if (!el) return;
+    var cats = ['profil','interet','voyage','contexte','service','marque','crm'];
+    var catNames = {'profil':'Profil','interet':'Intérêts','voyage':'Voyage','contexte':'Contexte','service':'Service','marque':'Marque','crm':'CRM'};
+    var catColors = {'profil':'#60a5fa','interet':'#B8965A','voyage':'#34d399','contexte':'#c084fc','service':'#f472b6','marque':'#fb923c','crm':'#facc15'};
 
-    const tagCounts = {};
-    if (typeof DATA !== 'undefined') {
-        DATA.forEach(c => c.tags.forEach(t => tagCounts[t.t] = (tagCounts[t.t] || 0) + 1));
-    }
-    const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    var totals = {};
+    var grand = 0;
+    DATA.forEach(function(row){
+        (row.tags||[]).forEach(function(t){
+            totals[t.c] = (totals[t.c]||0) + 1;
+            grand++;
+        });
+    });
 
-    // Mock if empty
-    const displayList = sorted.length ? sorted : [['Maroquinerie', 120], ['Souliers', 95], ['Parfums', 80], ['Voyage', 60]];
+    if(!grand) { el.innerHTML = '<div style="color:rgba(255,255,255,0.3);font-size:13px;padding:16px 0">Aucune donnée</div>'; return; }
 
-    el.innerHTML = displayList.map(([tag, count]) => `
-       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;font-size:0.75rem;color:#aaa;">
-         <span>${tag}</span>
-         <span style="color:#fff">${count}</span>
-       </div>
-       <div style="height:4px;background:#222;border-radius:2px;width:100%"><div style="height:100%;width:${Math.min(100, Math.max(20, count))}%;background:#666;border-radius:2px"></div></div>
-    `).join('');
+    var sorted = cats.filter(function(c){ return totals[c]; }).sort(function(a,b){ return (totals[b]||0)-(totals[a]||0); });
+    var maxV = totals[sorted[0]] || 1;
+
+    el.innerHTML = sorted.map(function(cat){
+        var count = totals[cat] || 0;
+        var pct = Math.round(count/grand*100);
+        var w = Math.round(count/maxV*100);
+        var col = catColors[cat] || '#B8965A';
+        return '<div class="ck-tag-bar-row">'
+            + '<div class="ck-tag-bar-label">'+catNames[cat]+'</div>'
+            + '<div class="ck-tag-bar-track"><div class="ck-tag-bar-fill" style="width:'+w+'%;background:'+col+'"></div></div>'
+            + '<div class="ck-tag-bar-val">'+pct+'%</div>'
+            + '</div>';
+    }).join('');
 }
 
 // ===== RENDER: CLIENTS (shared) =====
