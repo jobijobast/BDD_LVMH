@@ -1199,86 +1199,194 @@ function renderPulse() {
     if (signalsEl) signalsEl.innerHTML = '';
 }
 
-// ===== RENDER: FOLLOW-UP =====
-// State du mode follow-up : 'classic' | 'ai'
-let sfMode = 'classic';
+// ===== RENDER: SMART FOLLOW-UP v2 =====
+async function renderSmartFollowup(client) {
+    const container = $('followup-container');
+    if (!container) return;
 
-function renderFollowup() {
-    const grid = $('followupGrid');
-    const house = $('followupHouse') ? $('followupHouse').value : 'Louis Vuitton';
-    const channel = $('followupChannel') ? $('followupChannel').value : 'email';
-    if (!grid) return;
+    // Loading state
+    container.innerHTML = `
+        <div class="followup-loading">
+            <div class="followup-loading__spinner"></div>
+            <p>Génération en cours via Mistral AI…</p>
+        </div>`;
 
-    // Injecter la barre de toggle si elle n'existe pas encore
-    const pageContent = grid.closest('.page-content');
-    if (pageContent && !pageContent.querySelector('.sf-toggle-bar')) {
-        const toggleBar = document.createElement('div');
-        toggleBar.className = 'sf-toggle-bar';
-        toggleBar.innerHTML = `
-            <button class="sf-toggle-btn ${sfMode === 'classic' ? 'active' : ''}" data-mode="classic">Mode classique</button>
-            <button class="sf-toggle-btn ${sfMode === 'ai' ? 'active' : ''}" data-mode="ai">Mode IA</button>
-        `;
-        toggleBar.addEventListener('click', e => {
-            const btn = e.target.closest('.sf-toggle-btn');
-            if (!btn) return;
-            sfMode = btn.dataset.mode;
-            toggleBar.querySelectorAll('.sf-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === sfMode));
-            renderFollowup();
-        });
-        const controls = pageContent.querySelector('.followup-controls');
-        if (controls) {
-            controls.insertAdjacentElement('afterend', toggleBar);
-        } else {
-            pageContent.insertBefore(toggleBar, grid);
-        }
-    } else if (pageContent) {
-        // Mettre à jour l'état actif du toggle existant
-        pageContent.querySelectorAll('.sf-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === sfMode));
+    // Top 3 products via Product Matcher
+    let topProducts = [];
+    try {
+        const matched = matchProductsToClient(client.tags, client.clean || '');
+        topProducts = (matched || []).slice(0, 3).map(m => ({
+            name:     m.product.title || '',
+            price:    m.product.price || '',
+            category: m.product.category1_code || m.product.category || '',
+            image:    m.product.imageurl || '',
+            link:     m.product.itemurl || ''
+        }));
+    } catch (e) {
+        console.warn('[smart-followup] matchProductsToClient failed:', e);
     }
 
-    grid.innerHTML = '';
+    let currentChannel = 'email';
+
+    async function callAndRender(channel) {
+        currentChannel = channel;
+
+        container.querySelectorAll('.channel-btn').forEach(btn =>
+            btn.classList.toggle('active', btn.dataset.channel === channel)
+        );
+
+        const msgBody    = container.querySelector('.followup-message__body');
+        const msgSubject = container.querySelector('.followup-message__subject');
+        const badgeAI    = container.querySelector('.badge-ai');
+
+        if (msgBody) msgBody.innerHTML = '<div class="followup-loading__spinner followup-loading__spinner--small"></div>';
+
+        const house = $('followupHouse')?.value || 'Louis Vuitton';
+
+        let result;
+        try {
+            const resp = await fetch(`${API_BASE}/api/smart-followup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    client_id:   client.id,
+                    client_name: client.ca || '',
+                    tags:        client.tags || [],
+                    clean_text:  (client.clean || '').substring(0, 400),
+                    products:    topProducts,
+                    channel:     channel,
+                    house:       house,
+                    language:    client.lang || 'FR'
+                })
+            });
+            result = await resp.json();
+        } catch (e) {
+            console.error('[smart-followup] fetch error:', e);
+            result = { error: 'network' };
+        }
+
+        // Fallback on timeout or network error
+        if (result.error || result.fallback) {
+            result = generateFollowupLocal(client, house, channel);
+            if (badgeAI) badgeAI.textContent = '↺ Généré localement';
+        } else {
+            if (badgeAI) badgeAI.textContent = '✦ Généré par Mistral';
+        }
+
+        if (msgSubject) {
+            msgSubject.style.display = (channel === 'email' && result.subject) ? 'block' : 'none';
+            msgSubject.textContent   = result.subject || '';
+        }
+        if (msgBody) {
+            msgBody.innerHTML = (result.body || '').replace(/\n/g, '<br>');
+        }
+
+        container._currentResult  = result;
+        container._currentChannel = channel;
+    }
+
+    // Render layout
+    container.innerHTML = `
+        <div class="followup-v2">
+            <div class="followup-channels">
+                <button class="channel-btn active" data-channel="email">Email</button>
+                <button class="channel-btn" data-channel="whatsapp">WhatsApp</button>
+                <button class="channel-btn" data-channel="sms">SMS</button>
+            </div>
+            <div class="followup-split">
+                <div class="followup-message">
+                    <div class="followup-message__header">
+                        <span class="badge-ai">✦ Généré par Mistral</span>
+                        <div class="followup-message__actions">
+                            <button class="btn-followup-copy">Copier</button>
+                            <button class="btn-followup-regen">↺ Régénérer</button>
+                        </div>
+                    </div>
+                    <div class="followup-message__subject" style="display:none"></div>
+                    <div class="followup-message__body">
+                        <div class="followup-loading__spinner followup-loading__spinner--small"></div>
+                    </div>
+                </div>
+                <div class="followup-products">
+                    <h4 class="followup-products__title">Produits recommandés</h4>
+                    <div class="followup-products__grid">
+                        ${topProducts.length > 0
+                            ? topProducts.map(p => `
+                                <div class="followup-product-card">
+                                    ${p.image
+                                        ? `<img class="followup-product-card__img" src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'">`
+                                        : '<div class="followup-product-card__img-placeholder"></div>'}
+                                    <div class="followup-product-card__info">
+                                        <div class="followup-product-card__name">${p.name}</div>
+                                        <div class="followup-product-card__cat">${(p.category || '').replace(/_/g, ' ')}</div>
+                                    </div>
+                                </div>`).join('')
+                            : '<p class="followup-products__empty">Aucun produit matché</p>'}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    // Event listeners
+    container.querySelectorAll('.channel-btn').forEach(btn =>
+        btn.addEventListener('click', () => callAndRender(btn.dataset.channel))
+    );
+
+    container.querySelector('.btn-followup-copy').addEventListener('click', function () {
+        const r    = container._currentResult || {};
+        const text = (container._currentChannel === 'email' && r.subject)
+            ? r.subject + '\n\n' + r.body
+            : r.body || '';
+        navigator.clipboard.writeText(text).then(() => {
+            this.textContent = '✓ Copié';
+            setTimeout(() => { this.textContent = 'Copier'; }, 2000);
+        });
+    });
+
+    container.querySelector('.btn-followup-regen').addEventListener('click', () => {
+        callAndRender(container._currentChannel || 'email');
+    });
+
+    await callAndRender('email');
+}
+
+// ===== RENDER: FOLLOW-UP PAGE (entry point) =====
+function renderFollowup() {
+    const grid      = $('followupGrid');
+    const container = $('followup-container');
+    if (!grid) return;
+
+    // Channel is now handled by v2 inline buttons — hide legacy select
+    const channelSel = $('followupChannel');
+    if (channelSel) channelSel.style.display = 'none';
 
     const withTags = DATA.filter(p => p.tags.length > 0);
+
+    grid.innerHTML = '';
+    if (container) container.innerHTML = '';
+
     if (withTags.length === 0) {
-        grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client avec tags pour générer un follow-up.</p>';
+        grid.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem;padding:12px 0">Aucun client avec tags pour générer un follow-up.</p>';
         return;
     }
 
-    if (sfMode === 'classic') {
-        withTags.forEach(p => {
-            const msg = generateFollowupLocal(p, house, channel);
-            const card = document.createElement('div');
-            card.className = 'followup-card';
-            card.innerHTML = `
-                <div class="followup-card-header"><span class="followup-client-id">${p.ca || p.id}</span><span class="followup-channel ${channel}">${channel==='email'?'📧 Email':'💬 WhatsApp'}</span></div>
-                <div class="followup-subject">${msg.subject}</div>
-                <div class="followup-body">${msg.body}</div>
-                <div class="followup-actions"><button class="followup-btn copy" onclick="copyFollowup(this)">📋 Copier</button></div>
-            `;
-            grid.appendChild(card);
-        });
-    } else {
-        withTags.forEach(p => {
-            const card = document.createElement('div');
-            card.className = 'followup-card sf-ai-card';
-            card.dataset.clientId = p.id;
-            const tagsSummary = p.tags.slice(0, 4).map(t => `<span class="sf-tag-chip">${t.t.replace(/_/g,' ')}</span>`).join('');
-            card.innerHTML = `
-                <div class="followup-card-header">
-                    <span class="followup-client-id">${p.ca || p.id}</span>
-                    <span class="followup-channel ${channel}">${channel==='email'?'📧 Email':'💬 WhatsApp'}</span>
-                </div>
-                <div class="sf-tags-row">${tagsSummary}</div>
-                <div class="sf-generate-zone">
-                    <button class="sf-btn-generate" data-id="${p.id}">Générer avec IA</button>
-                </div>
-            `;
-            card.querySelector('.sf-btn-generate').addEventListener('click', () => {
-                triggerSmartFollowup(card, p, channel, house);
-            });
-            grid.appendChild(card);
-        });
+    grid.innerHTML = `
+        <div class="followup-selector-row">
+            <span class="followup-selector-label">Client</span>
+            <select class="select-input" id="followupClientSelect">
+                ${withTags.map(p => `<option value="${p.id}">${p.ca || p.id}</option>`).join('')}
+            </select>
+        </div>`;
+
+    const clientSelect = grid.querySelector('#followupClientSelect');
+
+    function onClientChange() {
+        const selected = withTags.find(p => p.id === clientSelect.value) || withTags[0];
+        if (selected) renderSmartFollowup(selected);
     }
+
+    clientSelect.addEventListener('change', onClientChange);
+    onClientChange();
 }
 
 async function triggerSmartFollowup(card, client, channel, house) {
@@ -1432,236 +1540,181 @@ window.copyFollowup = function(btn) {
 // Cache pour éviter de recalculer les mêmes correspondances
 const _matchCache = new Map();
 
+// Maps each client tag to real LV product categories with weights
+const TAG_TO_CATEGORIES = {
+    // === PROFIL ===
+    'Femme':             [{ cat1: 'FEMME', w: 35 }, { cat1: 'JOAILLERIE', w: 20 }, { cat1: 'PARFUMS', w: 15 }],
+    'Homme':             [{ cat1: 'HOMME', w: 35 }, { cat1: 'MONTRES', w: 20 }],
+    'Executive_Leadership': [{ cat1: 'HOMME', cat2: 'NEW FORMAL', w: 30 }, { cat1: 'HOMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 25 }, { cat1: 'HOMME', cat2: 'VOYAGE', w: 20 }],
+    'Entrepreneur':      [{ cat1: 'HOMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 25 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'NOUVEAUTES', w: 10 }],
+    'Expertise_Médicale':[{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'FEMME', cat2: 'ACCESSOIRES', w: 20 }],
+    'Marchés_Financiers':[{ cat1: 'HOMME', cat2: 'NEW FORMAL', w: 25 }, { cat1: 'MONTRES', w: 20 }],
+
+    // === INTÉRÊTS ===
+    'Golf':              [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 45 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 15 }],
+    'Tennis':            [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 15 }],
+    'Sports_Raquette':   [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }],
+    'Nautisme_Yachting': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'SACS', cat2: 'VOYAGE', w: 30 }],
+    'Sports_Endurance':  [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }, { cat1: 'NOUVEAUTES', cat2: 'LV SKI', w: 20 }],
+    'Wellness_Yoga':     [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 35 }, { cat1: 'PARFUMS', w: 15 }],
+    'Automobile_Collection': [{ cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 30 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }],
+    'Motorsport_Experience': [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 35 }],
+    'Art_Contemporain':  [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 25 }],
+    'Art_Classique':     [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 20 }],
+    'Opéra_Musique_Symphonique': [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 25 }, { cat1: 'JOAILLERIE', w: 25 }, { cat1: 'PARFUMS', w: 15 }],
+    'Jazz_Contemporary': [{ cat1: 'NOUVEAUTES', w: 20 }, { cat1: 'FEMME', cat2: 'ACCESSOIRES', w: 20 }],
+    'Horlogerie_Vintage':[{ cat1: 'MONTRES', cat2: 'MONTRES TRADITIONNELLES', w: 55 }, { cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 15 }],
+    'Haute_Horlogerie':  [{ cat1: 'MONTRES', cat2: 'MONTRES TRADITIONNELLES', w: 55 }, { cat1: 'MONTRES', cat2: 'MONTRES CONNECTEES', w: 20 }],
+    'Livres_Rares':      [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 55 }],
+    'Vins_Spiritueux_Prestige': [{ cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 20 }],
+    'Gastronomie_Fine_Dining': [{ cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 30 }, { cat1: 'CADEAUX', w: 15 }],
+
+    // === CONTEXTE / OCCASION ===
+    'Anniversaire':      [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'JOAILLERIE', w: 25 }, { cat1: 'PARFUMS', w: 20 }],
+    'Union':             [{ cat1: 'JOAILLERIE', w: 45 }, { cat1: 'CADEAUX', w: 25 }, { cat1: 'PARFUMS', w: 15 }],
+    'Naissance':         [{ cat1: 'CADEAUX', cat2: 'CADEAUX DE NAISSANCE', w: 55 }],
+    'Cadeau_Proche':     [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'PARFUMS', w: 25 }, { cat1: 'FEMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 20 }],
+    'Cadeau_Famille':    [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'PARFUMS', w: 20 }],
+    'Cadeau_Professionnel': [{ cat1: 'CADEAUX', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 20 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 15 }],
+    'Cadeau_Lui':        [{ cat1: 'CADEAUX', cat2: 'CADEAUX POUR LUI', w: 55 }],
+    'Cadeau_Elle':       [{ cat1: 'CADEAUX', cat2: 'CADEAUX POUR ELLE', w: 55 }],
+    'Intemporel':        [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 30 }, { cat1: 'SACS', w: 25 }],
+    'Quiet_Luxury':      [{ cat1: 'FEMME', cat2: 'PRET A PORTER', w: 25 }, { cat1: 'HOMME', cat2: 'PRET A PORTER', w: 25 }, { cat1: 'JOAILLERIE', w: 15 }],
+    'Signature_Logo':    [{ cat1: 'SACS', w: 30 }, { cat1: 'FEMME', cat2: 'SACS A MAIN', w: 25 }, { cat1: 'NOUVEAUTES', w: 15 }],
+    'Design_Minimaliste':[{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 25 }, { cat1: 'FEMME', cat2: 'ACCESSOIRES', w: 25 }],
+    'Contemporain':      [{ cat1: 'NOUVEAUTES', w: 30 }, { cat1: 'FEMME', cat2: 'PRET A PORTER', w: 20 }],
+    'Tendance':          [{ cat1: 'NOUVEAUTES', w: 40 }],
+    'Promotion':         [{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'MONTRES', w: 20 }, { cat1: 'CADEAUX', w: 15 }],
+    'Réussite_Business': [{ cat1: 'MONTRES', w: 30 }, { cat1: 'HOMME', cat2: 'NEW FORMAL', w: 25 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 20 }],
+
+    // === VOYAGE ===
+    'Business_Travel':   [{ cat1: 'HOMME', cat2: 'VOYAGE', w: 45 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'SACS', cat2: 'VOYAGE', w: 30 }, { cat1: 'HOMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 15 }],
+    'Loisir_Premium':    [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'FEMME', cat2: 'SACS A MAIN', w: 20 }, { cat1: 'SACS', w: 20 }],
+    'Expédition_Nature': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 25 }],
+    'Itinérance_Culturelle': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 30 }, { cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 20 }],
+    'APAC':              [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 20 }, { cat1: 'JOAILLERIE', w: 20 }],
+    'Americas':          [{ cat1: 'NOUVEAUTES', w: 20 }, { cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 15 }],
+    'Europe':            [{ cat1: 'JOAILLERIE', w: 15 }, { cat1: 'PARFUMS', w: 15 }],
+
+    // === MARQUE ===
+    'Lignes_Iconiques':  [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 35 }, { cat1: 'SACS', w: 30 }],
+    'Art_de_Vivre_Malles': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 55 }],
+    'Cuirs_Exotiques':   [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 40 }, { cat1: 'FEMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 25 }],
+    'Client_Historique': [{ cat1: 'SACS', w: 30 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 30 }],
+    'Lignes_Animation':  [{ cat1: 'NOUVEAUTES', w: 45 }],
+};
+
+// Human-readable labels for product categories
+const CATEGORY_LABELS = {
+    'SACS A MAIN': 'Maroquinerie',
+    'PORTEFEUILLES ET PETITE MAROQUINERIE': 'Petite Maroquinerie',
+    'VOYAGE': 'Voyage',
+    'MALLES ET VOYAGE': 'Malles & Voyage',
+    'SPORT ET LIFESTYLE': 'Sport & Lifestyle',
+    'LIVRES ET PAPETERIE': 'Livres & Papeterie',
+    'MAISON': 'Art de Vivre',
+    'PRET A PORTER': 'Prêt-à-Porter',
+    'ACCESSOIRES': 'Accessoires',
+    'SOULIERS': 'Souliers',
+    'BIJOUX': 'Bijoux',
+    'NEW FORMAL': 'Formal',
+    'MONTRES TRADITIONNELLES': 'Horlogerie',
+    'MONTRES CONNECTEES': 'Montres Connect.',
+    'COLLECTIONS': 'Joaillerie',
+    'CADEAUX DE NAISSANCE': 'Naissance',
+    'CADEAUX POUR LUI': 'Cadeau Homme',
+    'CADEAUX POUR ELLE': 'Cadeau Femme',
+    'LV SKI': 'LV Ski',
+};
+
+function getCategoryLabel(cat1, cat2) {
+    if (cat2 && CATEGORY_LABELS[cat2]) return CATEGORY_LABELS[cat2];
+    return cat1.charAt(0) + cat1.slice(1).toLowerCase();
+}
+
 function matchProductsToClient(clientTags, clientText) {
     if (!PRODUCTS_LOADED || LV_PRODUCTS.length === 0) return [];
-    
+
+    // Quick return if no tags
+    if (!Array.isArray(clientTags) || clientTags.length === 0) return [];
+
     // Check cache
     const cacheKey = clientTags.map(t => t.t).sort().join('|');
     if (_matchCache.has(cacheKey)) {
         return _matchCache.get(cacheKey);
     }
-    
+
     const matches = [];
-    const clientTextLower = (clientText || '').toLowerCase();
-    
-    // Quick return if no tags
-    if (!Array.isArray(clientTags) || clientTags.length === 0) {
-        return [];
-    }
-    
+
     // Limit products to process (first 500 for speed)
     const productsToProcess = LV_PRODUCTS.slice(0, 500);
-    
-    // Extract relevant info from tags (optimized with early filtering)
-    const profil = clientTags.filter(t => t.c === 'profil').map(t => t.t);
-    const interet = clientTags.filter(t => t.c === 'interet').map(t => t.t);
-    const contexte = clientTags.filter(t => t.c === 'contexte').map(t => t.t);
-    const voyage = clientTags.filter(t => t.c === 'voyage').map(t => t.t);
-    const marque = clientTags.filter(t => t.c === 'marque').map(t => t.t);
-    
-    // Expanded matching rules - semantic understanding
-    const matchingRules = {
-        // Interest-based matching (sports & activities)
-        'Golf': ['golf', 'golfeur', 'green', 'parcours', 'club', 'sport'],
-        'Tennis': ['tennis', 'raquette', 'court', 'sport'],
-        'Sports_Raquette': ['tennis', 'raquette', 'squash', 'padel', 'sport'],
-        'Nautisme_Yachting': ['yacht', 'bateau', 'nautique', 'mer', 'sailing', 'voyage', 'weekend'],
-        'Sports_Endurance': ['running', 'marathon', 'sport', 'course', 'jogging', 'fitness', 'training'],
-        'Wellness_Yoga': ['yoga', 'wellness', 'bien-être', 'zen', 'meditation', 'sport', 'relaxation'],
-        'Automobile_Collection': ['voiture', 'automobile', 'car', 'driving', 'voyage', 'weekend'],
-        'Motorsport_Experience': ['course', 'circuit', 'formula', 'racing', 'sport', 'weekend'],
-        
-        // Arts & Culture
-        'Art_Contemporain': ['art', 'galerie', 'exposition', 'museum', 'culture', 'élégant', 'raffiné'],
-        'Art_Classique': ['art', 'classique', 'peinture', 'sculpture', 'culture', 'élégant'],
-        'Opéra_Musique_Symphonique': ['opéra', 'musique', 'concert', 'symphonie', 'culture', 'soirée', 'élégant'],
-        'Jazz_Contemporary': ['jazz', 'musique', 'concert', 'culture', 'soirée'],
-        
-        // Lifestyle & Collections
-        'Horlogerie_Vintage': ['montre', 'horlogerie', 'watch', 'time', 'vintage', 'collection', 'accessoire'],
-        'Haute_Horlogerie': ['montre', 'horlogerie', 'watch', 'complications', 'luxe', 'accessoire'],
-        'Livres_Rares': ['livre', 'lecture', 'collection', 'culture', 'bibliothèque'],
-        'Vins_Spiritueux_Prestige': ['vin', 'spiritueux', 'collection', 'cave', 'dégustation'],
-        'Gastronomie_Fine_Dining': ['gastronomie', 'restaurant', 'cuisine', 'dining', 'chef', 'dégustation'],
-        
-        // Occasion-based matching
-        'Anniversaire': ['anniversaire', 'birthday', 'celebration', 'cadeau', 'fête', 'personnel'],
-        'Union': ['mariage', 'wedding', 'union', 'noces', 'cérémonie', 'élégant'],
-        'Naissance': ['naissance', 'bébé', 'baby', 'birth', 'cadeau', 'famille'],
-        'Cadeau_Proche': ['cadeau', 'gift', 'offrir', 'proche', 'ami', 'personnel'],
-        'Cadeau_Famille': ['cadeau', 'famille', 'family', 'gift', 'enfant', 'parent'],
-        'Cadeau_Professionnel': ['cadeau', 'professionnel', 'business', 'corporate', 'client', 'partenaire'],
-        'Promotion': ['promotion', 'succès', 'réussite', 'professionnel', 'carrière'],
-        'Réussite_Business': ['business', 'succès', 'deal', 'transaction', 'professionnel'],
-        
-        // Style preferences
-        'Intemporel': ['classique', 'intemporel', 'timeless', 'classic', 'élégant', 'sobre', 'raffiné'],
-        'Contemporain': ['moderne', 'contemporain', 'modern', 'contemporary', 'actuel', 'tendance'],
-        'Tendance': ['tendance', 'trendy', 'fashion', 'mode', 'nouveau', 'actuel'],
-        'Quiet_Luxury': ['discret', 'quiet', 'subtle', 'understated', 'sobre', 'élégant', 'raffiné'],
-        'Signature_Logo': ['logo', 'monogram', 'signature', 'branded', 'iconique'],
-        'Design_Minimaliste': ['minimaliste', 'minimal', 'épuré', 'simple', 'sobre', 'discret'],
-        
-        // Travel & Professional
-        'Business_Travel': ['voyage', 'travel', 'business', 'déplacement', 'bagage', 'valise', 'cabine', 'professionnel', 'week-end'],
-        'Loisir_Premium': ['voyage', 'vacances', 'holiday', 'leisure', 'weekend', 'détente', 'bagage'],
-        'Expédition_Nature': ['voyage', 'aventure', 'nature', 'outdoor', 'exploration', 'weekend'],
-        'Itinérance_Culturelle': ['voyage', 'culture', 'découverte', 'city', 'urbain', 'bagage'],
-        
-        // Professional profiles
-        'Executive_Leadership': ['professionnel', 'business', 'élégant', 'sobre', 'raffiné', 'luxe'],
-        'Entrepreneur': ['professionnel', 'business', 'moderne', 'dynamique', 'pratique'],
-        'Expertise_Médicale': ['professionnel', 'élégant', 'sobre', 'pratique'],
-        'Marchés_Financiers': ['professionnel', 'business', 'élégant', 'luxe', 'sobre'],
-        
-        // LV Product lines
-        'Lignes_Iconiques': ['speedy', 'neverfull', 'alma', 'keepall', 'noé', 'iconique', 'classique'],
-        'Art_de_Vivre_Malles': ['malle', 'trunk', 'boîte', 'coffret', 'voyage'],
-        'Cuirs_Exotiques': ['crocodile', 'python', 'alligator', 'exotique', 'luxe', 'rare'],
-        'Client_Historique': ['iconique', 'classique', 'heritage', 'tradition'],
-        'Lignes_Animation': ['nouveau', 'collection', 'édition', 'limité', 'tendance'],
-    };
-    
-    // Score each product (optimized - process limited set)
-    productsToProcess.forEach(product => {
-        let score = 0;
-        let matchReasons = [];
-        
-        // Build comprehensive product text from Hugging Face dataset structure
-        const productName = (product.title || '').toLowerCase();
-        const productCategory = (product.category1_code || '').toLowerCase();
-        const productSubcategory = ((product.category2_code || '') + ' ' + (product.category3_code || '')).toLowerCase();
-        
-        // Complete product text for matching
-        const productText = `${productName} ${productCategory} ${productSubcategory}`;
-        
-        // 1. SEMANTIC MATCHING - Use ALL product information
-        clientTags.forEach(tag => {
-            const tagLabel = tag.t;
-            const keywords = matchingRules[tagLabel] || [];
-            
-            // Match keywords in product text
-            for (const keyword of keywords) {
-                if (productText.includes(keyword)) {
-                    score += 12;
-                    if (!matchReasons.includes(tagLabel)) {
-                        matchReasons.push(tagLabel);
-                    }
-                }
-            }
 
-            // Direct tag matching in product text
-            const tagWords = tagLabel.toLowerCase().replace(/_/g, ' ').split(' ');
-            tagWords.forEach(word => {
-                if (word.length > 3 && productText.includes(word)) {
-                    score += 8;
-                    if (!matchReasons.includes(tagLabel)) {
-                        matchReasons.push(tagLabel);
-                    }
+    productsToProcess.forEach(product => {
+        const cat1 = (product.category1_code || '').toUpperCase().trim();
+        const cat2 = (product.category2_code || '').toUpperCase().trim();
+        const productName = (product.title || '').toLowerCase();
+
+        let rawScore = 0;
+        const matchedLabels = new Set();
+        let hasCategoryMatch = false;
+
+        // 1. CATEGORY SCORING — tag → category rules
+        clientTags.forEach(tag => {
+            const rules = TAG_TO_CATEGORIES[tag.t];
+            if (!rules) return;
+
+            rules.forEach(rule => {
+                const rulecat1 = rule.cat1.toUpperCase().trim();
+                const rulecat2 = rule.cat2 ? rule.cat2.toUpperCase().trim() : null;
+
+                // cat1 must match; if cat2 is specified it must also match
+                if (cat1 === rulecat1 && (!rulecat2 || cat2 === rulecat2)) {
+                    rawScore += rule.w;
+                    hasCategoryMatch = true;
+                    matchedLabels.add(getCategoryLabel(rulecat1, rulecat2));
                 }
             });
         });
-        
-        // 2. CONTEXT-BASED SCORING
-        
-        // Travel context - prioritize bags, luggage
-        if (voyage.length > 0 || interet.some(i => i.includes('Travel'))) {
-            if (productCategory.includes('bagage') || productName.includes('valise') || 
-                productName.includes('keepall') || productName.includes('horizon') ||
-                productName.includes('cabas') || productName.includes('sac')) {
-                score += 20;
-                matchReasons.push('Voyage');
+
+        const categoryScore = Math.min(100, rawScore);
+
+        // 2. NAME BONUS — iconic products and new collection interest (0–20)
+        let nameBonus = 0;
+        const tagValues = clientTags.map(t => t.t);
+
+        if (tagValues.includes('Lignes_Iconiques')) {
+            if (/speedy|neverfull|alma|keepall/.test(productName)) {
+                nameBonus += 15;
             }
         }
-        
-        // Sports/Active lifestyle - practical bags
-        if (interet.some(i => i.includes('Sport') || i.includes('Golf') || i.includes('Tennis'))) {
-            if (productName.includes('sac') || productName.includes('cabas') || 
-                productName.includes('backpack') || productName.includes('messenger')) {
-                score += 15;
-                matchReasons.push('Sport/Actif');
-            }
-        }
-        
-        // Professional context - elegant, practical items
-        if (profil.some(p => p.includes('Executive') || p.includes('Entrepreneur') || p.includes('Leadership'))) {
-            if (productName.includes('attaché') || productName.includes('porte-documents') ||
-                productName.includes('organiseur') || productName.includes('portefeuille')) {
-                score += 18;
-                matchReasons.push('Professionnel');
-            }
-        }
-        
-        // Gift context - appropriate price range and style
-        if (contexte.some(c => c.includes('Cadeau') || c.includes('Anniversaire'))) {
-            if (productCategory.includes('accessoires') || productCategory.includes('petite maroquinerie') ||
-                productName.includes('portefeuille') || productName.includes('pochette') ||
-                productName.includes('foulard') || productName.includes('ceinture')) {
-                score += 15;
-                matchReasons.push('Cadeau');
-            }
-        }
-        
-        // Style matching
-        if (contexte.includes('Intemporel') || contexte.includes('Quiet_Luxury')) {
-            if (productName.includes('monogram')) {
-                score += 12;
-                matchReasons.push('Style Classique');
-            }
+        if (tagValues.includes('Lignes_Animation') && cat1 === 'NOUVEAUTES') {
+            nameBonus += 10;
         }
 
-        // 3. CLIENT TEXT SEMANTIC MATCHING
-        const clientWords = clientTextLower.split(/\s+/).filter(w => w.length > 4);
-        clientWords.forEach(word => {
-            if (productName.includes(word)) score += 8;
-        });
-        
-        // 4. GENDER PREFERENCE (lower weight - not the main criteria)
-        if (profil.includes('Femme') && productCategory.includes('femme')) {
-            score += 10;
-            matchReasons.push('Femme');
-        }
-        if (profil.includes('Homme') && productCategory.includes('homme')) {
-            score += 10;
-            matchReasons.push('Homme');
-        }
-        
-        // 5. BONUS FOR ICONIC PRODUCTS
-        if (marque.includes('Lignes_Iconiques') || marque.includes('Client_Historique')) {
-            if (productName.includes('speedy') || productName.includes('neverfull') ||
-                productName.includes('alma') || productName.includes('keepall')) {
-                score += 10;
-                matchReasons.push('Iconique');
-            }
-        }
-        
-        // Only include products with meaningful matches (optimized threshold)
-        if (score >= 15 && matchReasons.length > 0) {
+        const totalScore = categoryScore + nameBonus;
+
+        // 3. THRESHOLD — score >= 25 AND at least one category match
+        if (totalScore >= 25 && hasCategoryMatch) {
             matches.push({
                 product,
-                score,
-                matchReasons: [...new Set(matchReasons)].slice(0, 3)
+                score: totalScore,
+                matchReasons: [...matchedLabels].slice(0, 3),
             });
         }
-        
-        // Early exit if we have enough high-quality matches
-        if (matches.length >= 20 && matches.some(m => m.score > 50)) {
-            return matches.sort((a, b) => b.score - a.score).slice(0, 10);
-        }
     });
-    
-    // Sort by score and return top matches
+
+    // Sort by score descending
     const sortedMatches = matches.sort((a, b) => b.score - a.score);
-    
+
     // Cache result
     _matchCache.set(cacheKey, sortedMatches);
-    
-    // Limit cache size
+
+    // Limit cache size to 50 entries
     if (_matchCache.size > 50) {
         const firstKey = _matchCache.keys().next().value;
         _matchCache.delete(firstKey);
     }
-    
+
     return sortedMatches;
 }
 
@@ -1750,14 +1803,18 @@ async function renderProducts() {
             const productCategory = [prod.category1_code, prod.category2_code, prod.category3_code].filter(c => c).join(' · ');
             const productUrl = prod.itemurl;
             
-            // Calculate similarity percentage (normalize against max score)
-            const similarityPercent = Math.min(100, Math.round((match.score / 100) * 100));
+            // Qualitative relevance label
+            const relevanceBadge = match.score >= 60
+                ? '<div class="product-relevance-badge best">Idéal</div>'
+                : match.score >= 35
+                    ? '<div class="product-relevance-badge good">Recommandé</div>'
+                    : '<div class="product-relevance-badge ok">Suggéré</div>';
 
             return `
                         <div class="product-item">
                             <div class="product-item-img" style="background-image:url('${imageUrl}');background-size:cover;background-position:center;width:100px;height:100px;border-radius:8px;flex-shrink:0;${imageUrl ? '' : 'background-color:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:2rem'}">
                                 ${imageUrl ? '' : '🛍️'}
-                                <div class="product-similarity-badge">${similarityPercent}%</div>
+                                ${relevanceBadge}
                             </div>
                             <div class="product-item-info">
                                 <div class="product-item-name">${productName}</div>

@@ -296,9 +296,7 @@ function renderPage(navId) {
             case 'followup':
                 renderFollowup();
                 const houseSelect = $('followupHouse');
-                const channelSelect = $('followupChannel');
                 if (houseSelect) houseSelect.onchange = () => renderFollowup();
-                if (channelSelect) channelSelect.onchange = () => renderFollowup();
                 break;
             case 'm-dashboard':
                 renderDashboard();

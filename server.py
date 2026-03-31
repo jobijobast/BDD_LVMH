@@ -991,115 +991,141 @@ def api_admin_clear_all():
 # ───────────────────────────────────────────
 # SMART FOLLOW-UP
 # ───────────────────────────────────────────
-SMART_FOLLOWUP_SYSTEM = """Tu es un Client Advisor expert Louis Vuitton qui rédige des messages de suivi client.
+SMART_FOLLOWUP_PROMPT = """Tu es un expert en clienteling luxe pour {house}.
+Rédige un message de suivi personnalisé pour le client {client_name} via {channel}.
 
-RÈGLES ABSOLUES :
-1. Utilise la note du client (clean_text) comme base principale — c'est le contexte réel de la visite
-2. Les tags sont des signaux complémentaires, NE LES LISTE PAS et ne les reformule pas mécaniquement
-3. Intègre les produits recommandés de façon naturelle, en lien avec le contexte de la note
-4. Adapte le ton : email = élégant et personnalisé, whatsapp = chaleureux et concis (3-4 lignes max)
-5. Ne mentionne jamais les prix
-6. Écris comme un humain, pas comme un système CRM — utilise "vous" et le prénom si disponible
-7. Le message doit sembler écrit spécifiquement pour CE client, pas généré automatiquement"""
+Contexte client (note du Client Advisor) :
+{clean_text}
+
+Tags détectés : {tags_formatted}
+
+Produits recommandés à mentionner naturellement :
+{products_formatted}
+
+Consignes :
+- Ton chaleureux, élégant, jamais commercial ou insistant
+- Mentionne les produits de façon naturelle et contextuelle (pas de liste)
+- Adapte la longueur au canal : email (3-4 paragraphes), whatsapp (2-3 phrases), sms (1 phrase)
+- Langue : {language}
+- Ne mentionne JAMAIS de prix directement dans le message
+
+RÉPONDS UNIQUEMENT EN JSON :
+{{"subject": "...", "body": "...", "products_mentioned": ["..."]}}"""
 
 
-def _build_followup_fallback(tags: list, products: list, channel: str, house: str) -> dict:
+def _build_followup_fallback(client_name: str, tags: list, products: list, channel: str, house: str) -> dict:
     """Message template basique si Mistral échoue."""
-    tag_labels = ", ".join(t.get("t", "") for t in tags if t.get("t")) or "votre profil"
-    product_names = [p.get("name", "") for p in products if p.get("name")]
-    products_used = product_names[:3]
+    from datetime import datetime, timezone
+    product_names = [p.get("name", "") for p in products if p.get("name")][:3]
+    name_part = client_name if client_name and client_name.strip() else "client(e)"
 
     if channel == "whatsapp":
-        subject = f"Un message de {house}"
-        body_lines = [
-            f"Bonjour,",
-            f"",
-            f"Je pense à vous et souhaitais partager une sélection qui correspond à vos centres d'intérêt ({tag_labels}).",
-        ]
-        if products_used:
-            body_lines.append(f"")
-            body_lines.append("Je pense notamment à : " + ", ".join(products_used) + ".")
-        body_lines += ["", "N'hésitez pas à me contacter si vous souhaitez en savoir plus.", "", f"Bien à vous,", f"Votre Client Advisor {house}"]
+        subject = ""
+        body = f"Bonjour {name_part}, je voulais vous faire part de quelques pièces qui m'ont fait penser à vous."
+        if product_names:
+            body += " Notamment " + " et ".join(product_names) + "."
+        body += f" N'hésitez pas à me contacter. Bien à vous, votre CA {house}."
+    elif channel == "sms":
+        subject = ""
+        body = f"Bonjour {name_part}, {house} — une sélection spécialement pour vous. Contactez-nous."
     else:
         subject = f"Une sélection personnalisée pour vous — {house}"
-        body_lines = [
-            f"Cher(e) client(e),",
-            f"",
-            f"Je me permets de vous contacter afin de vous présenter une sélection réalisée spécialement pour vous, en accord avec vos centres d'intérêt ({tag_labels}).",
-        ]
-        if products_used:
-            body_lines.append(f"")
-            body_lines.append("Je souhaitais particulièrement attirer votre attention sur : " + ", ".join(products_used) + ".")
-        body_lines += ["", "Je reste à votre entière disposition pour organiser une présentation en boutique.", "", f"Avec mes cordiales salutations,", f"Votre Client Advisor {house}"]
+        lines = [f"Cher(e) {name_part},", ""]
+        lines.append("Je me permets de vous contacter afin de vous présenter une sélection réalisée spécialement pour vous.")
+        if product_names:
+            lines += ["", "Je souhaitais particulièrement attirer votre attention sur : " + ", ".join(product_names) + "."]
+        lines += ["", "Je reste à votre entière disposition pour organiser une présentation en boutique.", "", f"Bien cordialement,", f"Votre Client Advisor {house}"]
+        body = "\n".join(lines)
 
-    return {"subject": subject, "body": "\n".join(body_lines), "products_used": products_used}
+    return {
+        "subject": subject,
+        "body": body,
+        "products_mentioned": product_names,
+        "channel": channel,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.route("/api/smart-followup", methods=["POST"])
 def api_smart_followup():
     """Génère un message de follow-up personnalisé via Mistral, avec produits LV intégrés."""
+    from datetime import datetime, timezone
+
     body = request.get_json(silent=True)
     if not body:
         return jsonify({"error": "No JSON body provided"}), 400
 
-    tags = body.get("tags", [])
-    clean_text = (body.get("clean_text") or "").strip()
-    products = body.get("products", [])
-    channel = (body.get("channel") or "email").lower()
-    house = (body.get("house") or "Louis Vuitton").strip()
+    # ── Input extraction ──────────────────────────────────────────
+    tags        = body.get("tags", [])
+    clean_text  = (body.get("clean_text") or "").strip()
+    products    = body.get("products", [])[:3]
+    channel     = (body.get("channel") or "email").lower()
+    house       = (body.get("house") or "Louis Vuitton").strip()
+    client_name = (body.get("client_name") or "").strip()
+    language    = (body.get("language") or "FR").upper()
 
-    # Formatage des tags : sépare les catégories pour donner plus de sens
+    # ── Input validation ──────────────────────────────────────────
+    if channel not in ("email", "whatsapp", "sms"):
+        return jsonify({"error": f"Canal invalide '{channel}'. Valeurs acceptées : email, whatsapp, sms"}), 400
+    if not clean_text and not tags:
+        return jsonify({"error": "Au moins 'clean_text' ou 'tags' doit être fourni"}), 400
+
+    # ── Format tags grouped by category ──────────────────────────
     tag_by_cat: dict = {}
     for t in tags:
         cat = t.get("c", "autre")
         tag_by_cat.setdefault(cat, []).append(t.get("t", ""))
-    tags_context = "; ".join(
+    tags_formatted = "; ".join(
         f"{cat}: {', '.join(vals)}" for cat, vals in tag_by_cat.items() if vals
     ) or "Aucun signal disponible"
 
-    # Formatage des produits pour le prompt
-    products_str = "\n".join(
-        f"- {p.get('name', 'N/A')} ({p.get('category', 'N/A')})" for p in products[:3]
-    ) or "Aucun produit disponible"
+    # ── Format products ───────────────────────────────────────────
+    products_formatted = "\n".join(
+        f"- {p.get('name', 'N/A')} ({p.get('category', 'N/A')})"
+        for p in products if p.get("name")
+    ) or "Aucun produit spécifique — ne pas inventer de références produit, rester sur le contexte de la visite"
 
-    user_prompt = (
-        f"Canal : {channel}\n"
-        f"Maison : {house}\n\n"
-        f"NOTE DE VISITE (contexte principal à utiliser) :\n\"{clean_text[:300]}\"\n\n"
-        f"Signaux complémentaires (ne pas lister, utiliser pour enrichir) : {tags_context}\n\n"
-        f"Produits à intégrer naturellement :\n{products_str}\n\n"
-        f"Génère un message qui reprend le contexte de la note (ex: la recherche de cadeau, "
-        f"l'occasion mentionnée, le projet du client) et propose les produits en lien direct "
-        f"avec ce contexte.\n\n"
-        f"RÉPONSE JSON UNIQUEMENT (sans markdown) :\n"
-        f'{{\"subject\": \"...\", \"body\": \"...\", \"products_used\": [\"nom1\", \"nom2\"]}}'
+    # ── Build prompt ──────────────────────────────────────────────
+    prompt = SMART_FOLLOWUP_PROMPT.format(
+        house=house,
+        client_name=client_name or "le client",
+        channel=channel,
+        clean_text=clean_text[:400],
+        tags_formatted=tags_formatted,
+        products_formatted=products_formatted,
+        language=language,
     )
 
-    full_prompt = SMART_FOLLOWUP_SYSTEM + "\n\n" + user_prompt
-
+    # ── Call Mistral with 10s timeout ─────────────────────────────
     async def _call():
-        async with httpx.AsyncClient() as client:
-            return await call_mistral(client, full_prompt, max_tokens=700)
+        async with httpx.AsyncClient() as http:
+            return await asyncio.wait_for(
+                call_mistral(http, prompt, max_tokens=700),
+                timeout=10.0,
+            )
 
     try:
         raw = asyncio.run(_call())
         json_match = re.search(r'\{[\s\S]*\}', raw)
-        if json_match:
-            parsed = json.loads(json_match.group(0))
-            return jsonify({
-                "subject": parsed.get("subject", ""),
-                "body": parsed.get("body", ""),
-                "products_used": parsed.get("products_used", []),
-            })
-        # JSON non parsable → fallback
-        fallback = _build_followup_fallback(tags, products, channel, house)
+        if not json_match:
+            raise ValueError("No JSON found in Mistral response")
+        parsed = json.loads(json_match.group(0))
+        return jsonify({
+            "subject":            parsed.get("subject", ""),
+            "body":               parsed.get("body", ""),
+            "products_mentioned": parsed.get("products_mentioned", []),
+            "channel":            channel,
+            "generated_at":       datetime.now(timezone.utc).isoformat(),
+        })
+
+    except asyncio.TimeoutError:
+        app.logger.error("[smart-followup] Mistral timeout after 10s")
+        return jsonify({"error": "timeout", "fallback": True})
+
+    except Exception as e:
+        app.logger.error(f"[smart-followup] Error: {e}")
+        fallback = _build_followup_fallback(client_name, tags, products, channel, house)
         return jsonify(fallback)
-    except Exception:
-        try:
-            fallback = _build_followup_fallback(tags, products, channel, house)
-            return jsonify(fallback)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
 
 
 # ───────────────────────────────────────────
