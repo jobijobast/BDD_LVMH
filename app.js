@@ -56,6 +56,7 @@ const VENDEUR_NAV = [
 
 const MANAGER_NAV = [
     { id: 'm-dashboard', icon: ICONS.chart, label: 'Dashboard', page: 'page-m-dashboard', title: 'Dashboard' },
+    { id: 'v-home', icon: ICONS.mic, label: 'Dictée vocale', page: 'page-v-home', title: 'Dictée vocale' },
     { id: 'clients', icon: ICONS.users, label: 'Tous les Clients', page: 'page-clients', title: 'Tous les Clients' },
     { id: 'nba', icon: ICONS.target, label: 'NBA', page: 'page-nba', title: 'Next Best Action' },
     { id: 'products', icon: ICONS.bag, label: 'Produits', page: 'page-products', title: 'Product Matcher' },
@@ -141,9 +142,9 @@ function logout() {
     SENTIMENT_DATA = [];
     STATS = { clients: 0, tags: 0, ai: 0, rgpd: 0, nba: 0, privacyAvg: 0, atRisk: 0 };
     localStorage.removeItem('lvmh_session');
-    $('loginPage').classList.remove('hidden');
-    $('appShell').classList.add('hidden');
-    $('mobileNav').classList.add('hidden');
+    $('loginPage')?.classList.remove('hidden');
+    $('appShell')?.classList.add('hidden');
+    $('mobileNav')?.classList.add('hidden');
     $('loginFirstName').value = '';
     $('loginLastName').value = '';
     $('loginCode').value = '';
@@ -1283,10 +1284,20 @@ function _updatePageMeta(navId) {
     const config = configKey ? PAGE_CONFIG[configKey] : null;
     if (!config) return;
 
-    // 1. Page Title
+    // 1. Page Title (preserve #page-badge child)
     const titleEl = document.getElementById('pageTitle');
     if (titleEl) {
+        // Set only the text node, keep the badge span
+        const badgeEl = document.getElementById('page-badge');
         titleEl.textContent = config.title;
+        // Re-inject badge if it existed
+        if (badgeEl) titleEl.appendChild(badgeEl);
+        if (badgeEl && config.badge) {
+            badgeEl.textContent = config.badge;
+            badgeEl.style.display = 'inline-flex';
+        } else if (badgeEl) {
+            badgeEl.style.display = 'none';
+        }
     }
 
     // 2. Subtitle (Boutique + Clients count)
@@ -1376,6 +1387,35 @@ function onNavTab(navId, tab) {
             });
         }
         if (typeof renderClients === 'function') renderClients(filtered);
+    } else if (navId === 'nba') {
+        // Map top-nav tabs → internal NBA segment filter buttons
+        const segMap = {
+            'Toutes': 'all',
+            'Conversion': 'persuadables',
+            'Engagement': 'valeurs-sures',
+            'Nurture': 'chiens-dormants'
+        };
+        const segKey = segMap[tab] || 'all';
+        const btn = document.querySelector(`.nba-seg-btn[data-filter="${segKey}"]`);
+        if (btn) btn.click();
+    } else if (navId === 'products') {
+        // Filter product cards by category
+        const catMap = {
+            'Tous': '',
+            'Maroquinerie': 'maroquinerie',
+            'Prêt-à-porter': 'prêt-à-porter',
+            'Accessoires': 'accessoires'
+        };
+        const cat = catMap[tab] ?? '';
+        const cards = document.querySelectorAll('.product-match-card');
+        cards.forEach(card => {
+            if (!cat) {
+                card.style.display = '';
+            } else {
+                const cardCats = card.dataset.categories || '';
+                card.style.display = cardCats.toLowerCase().includes(cat) ? '' : 'none';
+            }
+        });
     }
 }
 

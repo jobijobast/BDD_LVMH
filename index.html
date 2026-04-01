@@ -483,12 +483,36 @@
             padding: 20px 24px;
         }
 
+        @media (max-width: 768px) {
+            .page-canvas {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-canvas {
+                padding: 12px;
+            }
+        }
+
         /* Layout grids */
         .kanban-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: var(--space-md, 16px);
             min-height: 0;
+        }
+
+        @media (max-width: 1100px) {
+            .kanban-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .kanban-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .kanban-col {
@@ -662,6 +686,38 @@
             }
         }
 
+        /* ══ Header responsive ══ */
+        @media (max-width: 768px) {
+            .page-header {
+                padding: 0 16px;
+                gap: 12px;
+                flex-wrap: wrap;
+                min-height: auto;
+                padding-top: 12px;
+                padding-bottom: 0;
+            }
+            .page-header-left {
+                min-width: 0;
+                flex-shrink: 1;
+            }
+            .page-header .page-title {
+                font-size: 16px;
+            }
+            .top-nav {
+                order: 3;
+                width: 100%;
+                justify-content: flex-start;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                border-top: 1px solid rgba(0,0,0,0.04);
+            }
+            .top-nav::-webkit-scrollbar { display: none; }
+            #page-header-actions {
+                flex-shrink: 0;
+            }
+        }
+
         /* ══ Sidebar responsive — collapse on smaller screens ═══ */
         @media (max-width: 1024px) {
             .icon-rail {
@@ -692,6 +748,32 @@
             .icon-rail .rail-toggle {
                 justify-content: center;
                 padding: 0 10px 12px;
+            }
+        }
+
+        /* ══ Mobile: sidebar en overlay, contenu pleine largeur ═ */
+        @media (max-width: 480px) {
+            .icon-rail {
+                width: 44px;
+            }
+            .app-body {
+                margin-left: 44px;
+            }
+            .icon-rail .rail-icon {
+                padding: 0 6px;
+                height: 38px;
+            }
+            .icon-rail .rail-icon-svg svg {
+                width: 15px;
+                height: 15px;
+            }
+            .rail-toggle {
+                display: none;
+            }
+            .rail-logo {
+                margin: 0 8px 12px;
+                width: 28px;
+                font-size: 9px;
             }
         }
 

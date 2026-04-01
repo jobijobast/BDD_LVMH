@@ -280,7 +280,7 @@ p {
     padding: 2px 8px;
     background: var(--bg-active);
     border: 1px solid var(--border);
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-sm);
     font-size: 0.65rem;
     font-weight: 600;
     color: var(--text-secondary);
@@ -1318,6 +1318,25 @@ p {
     padding-bottom: 36px;
 }
 
+@media (max-width: 480px) {
+    .v-quick-stats {
+        grid-template-columns: 1fr;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+    }
+    .qs-card {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 12px 16px;
+    }
+    .qs-card:last-child {
+        border-bottom: none;
+    }
+    .qs-value {
+        font-size: 2.2rem;
+    }
+}
+
 .qs-card {
     background: transparent;
     border: none;
@@ -1886,13 +1905,33 @@ p {
 .record-card {
     background: var(--surface);
     border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius);
     padding: 48px 52px;
     margin-bottom: 40px;
     text-align: center;
     box-shadow: var(--shadow-card);
     position: relative;
     overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .record-card {
+        padding: 32px 24px;
+        margin-bottom: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .record-card {
+        padding: 24px 16px;
+        margin-bottom: 16px;
+    }
+    .record-card h3 {
+        font-size: 1.2rem;
+    }
+    .record-card .form-input {
+        max-width: 100%;
+    }
 }
 
 .record-card::before {
@@ -2041,6 +2080,16 @@ p {
     display: block;
     font-weight: 300;
     box-shadow: var(--shadow-sm);
+    box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+    .transcript-area {
+        padding: 12px;
+        max-width: 100%;
+        font-size: 0.85rem;
+        margin: 16px auto;
+    }
 }
 
 .transcript-area:focus {
@@ -2083,7 +2132,7 @@ p {
 .recent-card {
     background: var(--surface);
     border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius);
     padding: 22px 24px;
     transition: var(--transition);
     box-shadow: var(--shadow-card);
@@ -2395,9 +2444,16 @@ p {
     width: 100%;
 }
 
+@media (max-width: 900px) {
+    .nba-cards-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 500px) {
     .nba-cards-grid {
         grid-template-columns: 1fr;
+        gap: 16px;
     }
 }
 
@@ -2728,6 +2784,77 @@ p {
     background: #3B82F6;
 }
 
+/* ── NBA Action Meta Row (icon + category + badge) ── */
+.nba-action-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.nba-action-icon {
+    display: flex;
+    align-items: center;
+    color: #9A9890;
+    flex-shrink: 0;
+}
+
+.nba-action-cat {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9A9890;
+}
+
+/* ── NBA Card Footer ── */
+.nba-card-footer {
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.nba-followup-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-size: 0.7rem;
+    font-family: var(--font-body);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}
+
+.nba-followup-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(184,150,90,0.04);
+}
+
+/* ── NBA Card head: avatar + identity ── */
+.nba-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.nba-card-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
 /* ─── 14. PRODUITS (Product Matcher) ───────────────────────── */
 .product-grid {
     display: grid;
@@ -2834,11 +2961,90 @@ p {
     color: var(--text-secondary);
 }
 
+.pm-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.pm-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pm-filter-btn {
+    padding: 6px 14px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: var(--font-body);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.pm-filter-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.pm-filter-btn.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #fff;
+}
+
+.pm-sort {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.pm-sort-btn {
+    padding: 6px 12px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 2px;
+    font-size: 0.7rem;
+    font-family: var(--font-body);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.pm-sort-btn:hover {
+    border-color: var(--gold);
+    color: var(--text-primary);
+}
+
+.pm-sort-btn.active {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.04);
+}
+
 .product-matcher-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
     gap: 20px;
     width: 100%;
+}
+
+@media (max-width: 960px) {
+    .product-matcher-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .product-match-card {
@@ -3321,7 +3527,14 @@ p {
     min-height: 180px;
 }
 
-/* Products panel */
+/* Products panel wrapper */
+.followup-products {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+}
+
 .followup-products__title {
     font-family: var(--font-display);
     font-size: 16px;

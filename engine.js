@@ -602,12 +602,48 @@ function renderKanbanCol(containerId, clients) {
             openDetailPanel(client);
         });
 
+        const checkBtn = card.querySelector('[data-action="check"]');
+        const calBtn = card.querySelector('[data-action="calendar"]');
+
+        if (checkBtn) {
+            checkBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                client._checked = !client._checked;
+                checkBtn.classList.toggle('done', client._checked);
+                showToast(
+                    client._checked ? `${client.ca} — marqué comme traité` : `${client.ca} — remis en attente`,
+                    client._checked ? 'success' : 'info'
+                );
+            });
+        }
+
+        if (calBtn) {
+            calBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window._selectedClient = client;
+                if (typeof navigateTo === 'function') navigateTo('followup');
+                showToast(`Follow-up ouvert pour ${client.ca}`, 'info');
+            });
+        }
+
         container.appendChild(card);
     });
+
+    if (clients.length > 6) {
+        const more = document.createElement('div');
+        more.className = 'kanban-more';
+        more.style.cssText = 'font-size:11px;color:var(--text-secondary);text-align:center;padding:6px 4px;letter-spacing:0.04em;cursor:pointer;';
+        more.textContent = `+ ${clients.length - 6} autre${clients.length - 6 > 1 ? 's' : ''}`;
+        container.appendChild(more);
+    }
 
     const addBtn = document.createElement('div');
     addBtn.className = 'add-card';
     addBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg> Ajouter`;
+    addBtn.addEventListener('click', () => {
+        if (typeof navigateTo === 'function') navigateTo('v-home');
+        showToast('Dictez une note pour ajouter un client', 'info');
+    });
     container.appendChild(addBtn);
 }
 
@@ -849,6 +885,36 @@ function getUpliftSegment(upliftScore, sentimentLevel) {
     }
 }
 
+// ===== NBA ACTION HELPERS =====
+function getActionIcon(actionText) {
+    const t = (actionText || '').toLowerCase();
+    if (/appel|téléphon|call|rappel/.test(t))
+        return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.63 1.2 2 2 0 012.62 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.1 6.1l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>`;
+    if (/email|mail|envoyer|message|sms|whatsapp/.test(t))
+        return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`;
+    if (/invit|événement|event|preview|vip|soirée/.test(t))
+        return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    if (/produit|recommand|suggér|sac|montre|bijou|maroquin/.test(t))
+        return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>`;
+    if (/visite|rendez-vous|rdv|passage|boutique/.test(t))
+        return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    if (/cadeau|offrir|gift/.test(t))
+        return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>`;
+    return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+}
+
+function getActionCategory(actionText) {
+    const t = (actionText || '').toLowerCase();
+    if (/appel|téléphon|call|rappel/.test(t)) return 'Appel';
+    if (/whatsapp|sms/.test(t)) return 'Message';
+    if (/email|mail/.test(t)) return 'Email';
+    if (/invit|événement|preview|vip|soirée/.test(t)) return 'Événement';
+    if (/produit|recommand|sac|montre|bijou|maroquin/.test(t)) return 'Produit';
+    if (/visite|rendez-vous|rdv|boutique/.test(t)) return 'Visite';
+    if (/cadeau|offrir/.test(t)) return 'Cadeau';
+    return 'Action';
+}
+
 // ===== RENDER: NBA WITH UPLIFT =====
 function renderNBA() {
     const grid = $('nbaGrid');
@@ -858,7 +924,7 @@ function renderNBA() {
     const withNBA = DATA.filter(p => p.nba && Array.isArray(p.nba) && p.nba.length > 0);
 
     if (withNBA.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><p>Aucune action NBA disponible.</p></div>';
+        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><p>Aucune action NBA disponible.<br>Ajoutez des clients via la dictée vocale.</p></div>';
         return;
     }
 
@@ -876,7 +942,6 @@ function renderNBA() {
         'cas-perdus': clientsWithUplift.filter(c => c.segment.segment === 'cas-perdus').length
     };
 
-    // Segment cards = filters (combined, no duplication)
     const segments = [
         { key: 'all', label: 'Tous', desc: `${clientsWithUplift.length} clients`, color: '#B8965A', icon: '◈' },
         { key: 'persuadables', label: 'Persuadables', desc: 'ROI élevé', color: '#10b981', icon: '↑' },
@@ -921,6 +986,8 @@ function renderNBA() {
         const upliftSign = p.upliftScore >= 0 ? '+' : '-';
         const roiLabel = p.upliftScore > 0.3 ? 'Élevé' : p.upliftScore > 0 ? 'Moyen' : 'Faible';
         const sentScore = (p.sentiment && p.sentiment.score) ? p.sentiment.score : 50;
+        const av = getAvatarPalette(p.ca);
+        const initials = getInitials(p.ca);
 
         const card = document.createElement('div');
         card.className = `nba-card segment-${p.segment.segment}`;
@@ -929,12 +996,13 @@ function renderNBA() {
             <div class="nba-card-stripe" style="background:${p.segment.color}"></div>
             <div class="nba-card-body">
                 <div class="nba-card-head">
+                    <div class="nba-client-av" style="background:${av.bg};color:${av.color};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;font-family:var(--font-display);flex-shrink:0">${initials}</div>
                     <div class="nba-card-identity">
                         <span class="nba-client-name">${p.ca || p.id}</span>
+                        <span class="nba-seg-pill" style="color:${p.segment.color};border-color:${p.segment.color}20;background:${p.segment.color}10">${p.segment.label}</span>
                     </div>
                 </div>
 
-                <!-- NEW: Centered Info Core (KPIs + Tags) -->
                 <div class="nba-info-core">
                     <div class="nba-kpis">
                         <div class="nba-kpi">
@@ -953,38 +1021,52 @@ function renderNBA() {
 
                     ${tags.length > 0 ? `
                     <div class="nba-tag-strip">
-                        <span class="nba-seg-pill" style="color:${p.segment.color};border-color:${p.segment.color}20;background:${p.segment.color}10">${p.segment.label}</span>
                         ${tags.slice(0, 5).map(t => `<span class="nba-tag-pill">${t.t}</span>`).join('')}
                         ${tags.length > 5 ? `<span class="nba-tag-more">+${tags.length - 5}</span>` : ''}
                     </div>
-                    ` : `
-                    <div class="nba-tag-strip">
-                        <span class="nba-seg-pill" style="color:${p.segment.color};border-color:${p.segment.color}20;background:${p.segment.color}10">${p.segment.label}</span>
-                    </div>
-                    `}
+                    ` : ''}
                 </div>
 
                 <div class="nba-actions-list">
                     ${nbaList.map((a, i) => {
             const cls = typeClasses[a.type] || 'shortterm';
+            const icon = getActionIcon(a.action);
+            const cat = getActionCategory(a.action);
             return `<div class="nba-action-row">
                             <span class="nba-action-num">${i + 1}</span>
                             <div class="nba-action-content">
+                                <div class="nba-action-meta">
+                                    <span class="nba-action-icon">${icon}</span>
+                                    <span class="nba-action-cat">${cat}</span>
+                                    <span class="nba-action-badge ${cls}">${typeLabels[a.type] || a.type}</span>
+                                </div>
                                 <span class="nba-action-text">${a.action}</span>
-                                <span class="nba-action-badge ${cls}">${typeLabels[a.type] || a.type}</span>
                             </div>
                         </div>`;
         }).join('')}
                 </div>
+
+                <div class="nba-card-footer">
+                    <button class="nba-followup-btn" data-client-id="${p.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        Générer Follow-up
+                    </button>
+                </div>
             </div>
         `;
+
+        card.querySelector('.nba-followup-btn').addEventListener('click', () => {
+            window._selectedClient = p;
+            if (typeof navigateTo === 'function') navigateTo('followup');
+            showToast(`Follow-up ouvert pour ${p.ca}`, 'info');
+        });
+
         gridEl.appendChild(card);
     });
 
     container.appendChild(gridEl);
     grid.appendChild(container);
 
-    // Segment buttons = filters
     container.querySelectorAll('.nba-seg-btn').forEach(btn => {
         btn.onclick = () => {
             container.querySelectorAll('.nba-seg-btn').forEach(b => b.classList.remove('active'));
@@ -2184,6 +2266,27 @@ async function renderProducts() {
 
     const totalMatches = allClientMatches.reduce((sum, cm) => sum + cm.matches.length, 0);
 
+    // Collect unique category codes from the top 3 matches of each client
+    const allCats = new Set();
+    allClientMatches.forEach(cm => {
+        cm.matches.slice(0, 3).forEach(m => {
+            const c = (m.product.category1_code || '').toUpperCase().trim();
+            if (c) allCats.add(c);
+        });
+    });
+    const CAT_LABELS = {
+        'FEMME': 'Femme', 'HOMME': 'Homme', 'SACS': 'Sacs',
+        'JOAILLERIE': 'Joaillerie', 'MONTRES': 'Montres', 'PARFUMS': 'Parfums',
+        'ART DE VIVRE': 'Art de Vivre', 'NOUVEAUTES': 'Nouveautés', 'CADEAUX': 'Cadeaux'
+    };
+    const CAT_ORDER = ['FEMME','HOMME','SACS','JOAILLERIE','MONTRES','PARFUMS','ART DE VIVRE','NOUVEAUTES','CADEAUX'];
+    const sortedCats = CAT_ORDER.filter(c => allCats.has(c));
+    const remainingCats = [...allCats].filter(c => !CAT_ORDER.includes(c)).sort();
+    const allCategories = [...sortedCats, ...remainingCats];
+    const filterBtnsHTML = ['all', ...allCategories].map((c, i) =>
+        `<button class="pm-filter-btn${i === 0 ? ' active' : ''}" data-filter="${c}">${i === 0 ? 'Tous' : (CAT_LABELS[c] || c)}</button>`
+    ).join('');
+
     // Create header with search and counter
     const header = document.createElement('div');
     header.className = 'product-matcher-header';
@@ -2200,6 +2303,16 @@ async function renderProducts() {
             <div class="pm-stat">
                 <div class="pm-stat-value">${LV_PRODUCTS.length}</div>
                 <div class="pm-stat-label">Produits catalogue</div>
+            </div>
+        </div>
+        <div class="pm-toolbar">
+            <div class="pm-filters">
+                ${filterBtnsHTML}
+            </div>
+            <div class="pm-sort">
+                <button class="pm-sort-btn active" data-sort="score">↓ Meilleur match</button>
+                <button class="pm-sort-btn" data-sort="products">Nb produits</button>
+                <button class="pm-sort-btn" data-sort="name">A → Z</button>
             </div>
         </div>
         <div class="product-matcher-search">
@@ -2221,6 +2334,11 @@ async function renderProducts() {
         card.className = 'product-match-card';
         card.setAttribute('data-client', (client.ca || client.id).toLowerCase());
         card.setAttribute('data-tags', client.tags.map(t => t.t.toLowerCase()).join(' '));
+        const cardCats = [...new Set(top3.map(m => (m.product.category1_code || '').toUpperCase().trim()))].join('|');
+        card.setAttribute('data-categories', cardCats);
+        card.setAttribute('data-score', matches[0]?.score || 0);
+        card.setAttribute('data-matches-count', matches.length);
+        card.setAttribute('data-name', (client.ca || client.id || '').toLowerCase());
 
         card.innerHTML = `
             <div class="product-match-header">
@@ -2275,21 +2393,54 @@ async function renderProducts() {
     grid.innerHTML = '';
     grid.appendChild(container);
 
+    function applyFiltersAndSort() {
+        const activeFilter = container.querySelector('.pm-filter-btn.active')?.dataset.filter || 'all';
+        const activeSort = container.querySelector('.pm-sort-btn.active')?.dataset.sort || 'score';
+        const searchQuery = (document.getElementById('pmSearch')?.value || '').toLowerCase();
+
+        const cards = [...gridEl.querySelectorAll('.product-match-card')];
+
+        cards.forEach(card => {
+            const cats = card.getAttribute('data-categories') || '';
+            const clientName = card.getAttribute('data-client') || '';
+            const tags = card.getAttribute('data-tags') || '';
+            const matchesFilter = activeFilter === 'all' || cats.includes(activeFilter);
+            const matchesSearch = !searchQuery || clientName.includes(searchQuery) || tags.includes(searchQuery);
+            card.style.display = (matchesFilter && matchesSearch) ? '' : 'none';
+        });
+
+        const visibleCards = cards.filter(c => c.style.display !== 'none');
+        visibleCards.sort((a, b) => {
+            if (activeSort === 'score') return Number(b.dataset.score) - Number(a.dataset.score);
+            if (activeSort === 'products') return Number(b.dataset.matchesCount) - Number(a.dataset.matchesCount);
+            if (activeSort === 'name') return (a.dataset.name || '').localeCompare(b.dataset.name || '');
+            return 0;
+        });
+        visibleCards.forEach(card => gridEl.appendChild(card));
+    }
+
+    // Wire filter buttons
+    container.querySelectorAll('.pm-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            container.querySelectorAll('.pm-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFiltersAndSort();
+        });
+    });
+
+    // Wire sort buttons
+    container.querySelectorAll('.pm-sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            container.querySelectorAll('.pm-sort-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFiltersAndSort();
+        });
+    });
+
     // Wire search
     const searchInput = document.getElementById('pmSearch');
     if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            document.querySelectorAll('.product-match-card').forEach(card => {
-                const clientName = card.getAttribute('data-client');
-                const tags = card.getAttribute('data-tags');
-                if (clientName.includes(query) || tags.includes(query)) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        });
+        searchInput.addEventListener('input', () => applyFiltersAndSort());
     }
 }
 
