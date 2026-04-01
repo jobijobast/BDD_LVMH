@@ -11,11 +11,11 @@ let PRODUCTS_LOADED = false;
 // Load LV products from JSON file
 async function loadLVProducts() {
     if (PRODUCTS_LOADED) return;
-    
+
     try {
         const response = await fetch('louis_vuitton_products.json');
         if (!response.ok) throw new Error('Failed to load product database');
-        
+
         LV_PRODUCTS = await response.json();
         PRODUCTS_LOADED = true;
     } catch (error) {
@@ -30,65 +30,65 @@ if (typeof window !== 'undefined') {
 }
 
 // ===== HELPERS =====
-const CAT_NAMES = { profil:'Profil', interet:'Intérêt', voyage:'Voyage', contexte:'Contexte', service:'Service', marque:'Marque', crm:'CRM' };
-const legendColors = { profil:'#60a5fa', interet:'#d4af37', voyage:'#34d399', contexte:'#c084fc', service:'#f472b6', marque:'#fb923c', crm:'#facc15' };
+const CAT_NAMES = { profil: 'Profil', interet: 'Intérêt', voyage: 'Voyage', contexte: 'Contexte', service: 'Service', marque: 'Marque', crm: 'CRM' };
+const legendColors = { profil: '#60a5fa', interet: '#d4af37', voyage: '#34d399', contexte: '#c084fc', service: '#f472b6', marque: '#fb923c', crm: '#facc15' };
 
 // ── Design System Helpers ─────────────────────────────────────────
 const TAG_CLASSES = {
-  voyage: 'tag-voyage', marque: 'tag-marque', interet: 'tag-interet',
-  profil: 'tag-profil', contexte: 'tag-contexte', service: 'tag-service', crm: 'tag-crm'
+    voyage: 'tag-voyage', marque: 'tag-marque', interet: 'tag-interet',
+    profil: 'tag-profil', contexte: 'tag-contexte', service: 'tag-service', crm: 'tag-crm'
 };
 
 function getTagClass(category) {
-  return TAG_CLASSES[category?.toLowerCase()] || 'tag-crm';
+    return TAG_CLASSES[category?.toLowerCase()] || 'tag-crm';
 }
 
 function getScoreClass(score) {
-  if (score >= 80) return 'score-high';
-  if (score >= 60) return 'score-mid';
-  return 'score-low';
+    if (score >= 80) return 'score-high';
+    if (score >= 60) return 'score-mid';
+    return 'score-low';
 }
 
 function getProgressClass(score) {
-  if (score >= 80) return 'progress-green';
-  if (score >= 60) return 'progress-amber';
-  return 'progress-red';
+    if (score >= 80) return 'progress-green';
+    if (score >= 60) return 'progress-amber';
+    return 'progress-red';
 }
 
 function getInitials(name) {
-  if (!name) return '??';
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    if (!name) return '??';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
 const AVATAR_PALETTES = [
-  { bg: '#F0E8D0', color: '#8A6020' },
-  { bg: '#E8EEF5', color: '#3A5A8A' },
-  { bg: '#EBF5EB', color: '#2A6A2A' },
-  { bg: '#F0EBF5', color: '#6A3A8A' },
-  { bg: '#F5EBE8', color: '#8A3A2A' },
-  { bg: '#E8F0F5', color: '#2A5A7A' },
-  { bg: '#F5F0E8', color: '#7A6020' },
+    { bg: '#F0E8D0', color: '#8A6020' },
+    { bg: '#E8EEF5', color: '#3A5A8A' },
+    { bg: '#EBF5EB', color: '#2A6A2A' },
+    { bg: '#F0EBF5', color: '#6A3A8A' },
+    { bg: '#F5EBE8', color: '#8A3A2A' },
+    { bg: '#E8F0F5', color: '#2A5A7A' },
+    { bg: '#F5F0E8', color: '#7A6020' },
 ];
 function getAvatarPalette(name) {
-  const idx = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_PALETTES.length;
-  return AVATAR_PALETTES[idx];
+    const idx = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_PALETTES.length;
+    return AVATAR_PALETTES[idx];
 }
 
 function buildTag(tagObj) {
-  const cls = getTagClass(tagObj.c);
-  return `<span class="tag ${cls}">${tagObj.t}</span>`;
+    const cls = getTagClass(tagObj.c);
+    return `<span class="tag ${cls}">${tagObj.t}</span>`;
 }
 
 function buildClientAvatar(name, size = 30) {
-  const p = getAvatarPalette(name);
-  const initials = getInitials(name);
-  return `<div class="client-av" style="width:${size}px;height:${size}px;background:${p.bg};color:${p.color}">${initials}</div>`;
+    const p = getAvatarPalette(name);
+    const initials = getInitials(name);
+    return `<div class="client-av" style="width:${size}px;height:${size}px;background:${p.bg};color:${p.color}">${initials}</div>`;
 }
 
 // ===== DASHBOARD HELPERS =====
 function groupByDate(arr, valueFn) {
     const map = {};
-    (arr || []).forEach(function(row) {
+    (arr || []).forEach(function (row) {
         const d = (row.date || '').substring(0, 10);
         if (!d) return;
         map[d] = (map[d] || 0) + (valueFn ? valueFn(row) : 1);
@@ -108,81 +108,81 @@ function lastNDays(map, n) {
 
 // ===== DASHBOARD DATA HELPERS =====
 function calcWeeklyActivity(data) {
-  const weeks = Array(8).fill(0);
-  (data || []).forEach(c => {
-    const date = new Date(c.date || c.created_at);
-    const w = Math.floor((Date.now() - date) / (7 * 86400000));
-    if (w >= 0 && w < 8) weeks[7 - w]++;
-  });
-  return weeks;
+    const weeks = Array(8).fill(0);
+    (data || []).forEach(c => {
+        const date = new Date(c.date || c.created_at);
+        const w = Math.floor((Date.now() - date) / (7 * 86400000));
+        if (w >= 0 && w < 8) weeks[7 - w]++;
+    });
+    return weeks;
 }
 
 function calcPrivacyScore(stats, data) {
-  if (stats?.privacyAvg) return stats.privacyAvg;
-  const violations = (data || []).filter(c => c.sensitiveCount > 0).length;
-  return data?.length ? Math.round((1 - violations / data.length) * 100) : 0;
+    if (stats?.privacyAvg) return stats.privacyAvg;
+    const violations = (data || []).filter(c => c.sensitiveCount > 0).length;
+    return data?.length ? Math.round((1 - violations / data.length) * 100) : 0;
 }
 
 function calcTagDensityByCategory(data) {
-  const cats = { profil: 0, interet: 0, voyage: 0, contexte: 0, service: 0, marque: 0, crm: 0 };
-  (data || []).forEach(c => {
-    (c.tags || []).forEach(t => {
-      const cat = t.c?.toLowerCase();
-      if (cats.hasOwnProperty(cat)) cats[cat]++;
+    const cats = { profil: 0, interet: 0, voyage: 0, contexte: 0, service: 0, marque: 0, crm: 0 };
+    (data || []).forEach(c => {
+        (c.tags || []).forEach(t => {
+            const cat = t.c?.toLowerCase();
+            if (cats.hasOwnProperty(cat)) cats[cat]++;
+        });
     });
-  });
-  const max = Math.max(...Object.values(cats), 1);
-  return Object.fromEntries(Object.entries(cats).map(([k, v]) => [k, v / max]));
+    const max = Math.max(...Object.values(cats), 1);
+    return Object.fromEntries(Object.entries(cats).map(([k, v]) => [k, v / max]));
 }
 
 function calcPrivacyTrend(data) {
-  if (!data || data.length < 2) return 0;
-  const mid = Math.floor(data.length / 2);
-  const first = data.slice(0, mid);
-  const second = data.slice(mid);
-  const avgScore = arr => arr.reduce((a, c) => a + (c.sensitiveCount > 0 ? 0 : 100), 0) / arr.length;
-  return Math.round(avgScore(second) - avgScore(first));
+    if (!data || data.length < 2) return 0;
+    const mid = Math.floor(data.length / 2);
+    const first = data.slice(0, mid);
+    const second = data.slice(mid);
+    const avgScore = arr => arr.reduce((a, c) => a + (c.sensitiveCount > 0 ? 0 : 100), 0) / arr.length;
+    return Math.round(avgScore(second) - avgScore(first));
 }
 
 // ===== RENDER: DASHBOARD (Manager - COCKPIT) =====
 function renderDashboard() {
     // Calculs réels
     var totalClients = DATA.length;
-    var totalTags = DATA.reduce(function(s,r){ return s+(r.tags||[]).length; },0);
-    var totalNBA = DATA.reduce(function(s,r){ return s+(r.nba||[]).length; },0);
+    var totalTags = DATA.reduce(function (s, r) { return s + (r.tags || []).length; }, 0);
+    var totalNBA = DATA.reduce(function (s, r) { return s + (r.nba || []).length; }, 0);
     var privacyAvg = Math.round(STATS.privacyAvg || 0);
 
     // TOP BAR
-    var setEl = function(id, val) { var el = document.getElementById(id); if(el) el.textContent = val; };
+    var setEl = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
     setEl('ck-tb-clients', totalClients.toLocaleString('fr-FR'));
     setEl('ck-tb-tags', totalTags.toLocaleString('fr-FR'));
     setEl('ck-tb-privacy', privacyAvg);
     setEl('ck-tb-nba', totalNBA.toLocaleString('fr-FR'));
-    setEl('ck-tb-date', new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'}));
+    setEl('ck-tb-date', new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
 
     // HERO
     setEl('ck-hero-num', totalClients.toLocaleString('fr-FR'));
     setEl('ck-hs-privacy', privacyAvg + '%');
-    setEl('ck-hs-tags', totalTags > 999 ? (totalTags/1000).toFixed(1)+'k' : totalTags);
+    setEl('ck-hs-tags', totalTags > 999 ? (totalTags / 1000).toFixed(1) + 'k' : totalTags);
     setEl('ck-hs-nba', totalNBA);
 
     // KPI CARDS
     setEl('ck-kval-1', totalClients.toLocaleString('fr-FR'));
-    setEl('ck-kval-2', totalTags > 999 ? (totalTags/1000).toFixed(1)+'k' : totalTags);
+    setEl('ck-kval-2', totalTags > 999 ? (totalTags / 1000).toFixed(1) + 'k' : totalTags);
     setEl('ck-kval-3', totalNBA);
     setEl('ck-kval-4', privacyAvg + '%');
 
     // Privacy bar
     var bar = document.getElementById('ck-privacy-bar');
-    if(bar) {
+    if (bar) {
         bar.style.width = privacyAvg + '%';
         bar.style.background = privacyAvg >= 90 ? '#059669' : privacyAvg >= 75 ? '#2563EB' : privacyAvg >= 60 ? '#D97706' : '#DC2626';
     }
 
     // Sparklines
     renderSparkline('spark1', lastNDays(groupByDate(DATA), 10), '#B8965A');
-    renderSparkline('spark3', lastNDays(groupByDate(DATA, function(r){ return (r.tags||[]).length; }), 10), '#B8965A');
-    renderSparkline('spark4', lastNDays(groupByDate(DATA, function(r){ return (r.nba||[]).length; }), 10), '#B8965A');
+    renderSparkline('spark3', lastNDays(groupByDate(DATA, function (r) { return (r.tags || []).length; }), 10), '#B8965A');
+    renderSparkline('spark4', lastNDays(groupByDate(DATA, function (r) { return (r.nba || []).length; }), 10), '#B8965A');
 
     // Charts
     renderCockpitMain();
@@ -193,7 +193,7 @@ function renderDashboard() {
 
     // Date
     var calMonth = document.getElementById('ck-cal-month');
-    if(calMonth) calMonth.textContent = new Date().toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+    if (calMonth) calMonth.textContent = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 }
 
 // --- COCKPIT WIDGETS ---
@@ -206,16 +206,16 @@ function renderSparkline(id, data, color) {
     var range = max - min || 1;
     var PAD = 4;
 
-    function px(i) { return PAD + (i / (data.length - 1)) * (W - PAD*2); }
-    function py(v) { return H - PAD - ((v - min) / range) * (H - PAD*2); }
+    function px(i) { return PAD + (i / (data.length - 1)) * (W - PAD * 2); }
+    function py(v) { return H - PAD - ((v - min) / range) * (H - PAD * 2); }
 
-    var path = data.map(function(v, i) {
+    var path = data.map(function (v, i) {
         if (i === 0) return 'M ' + px(i) + ' ' + py(v);
-        var cx = (px(i-1) + px(i)) / 2;
-        return 'C ' + cx + ' ' + py(data[i-1]) + ' ' + cx + ' ' + py(v) + ' ' + px(i) + ' ' + py(v);
+        var cx = (px(i - 1) + px(i)) / 2;
+        return 'C ' + cx + ' ' + py(data[i - 1]) + ' ' + cx + ' ' + py(v) + ' ' + px(i) + ' ' + py(v);
     }).join(' ');
 
-    var lastX = px(data.length - 1), lastY = py(data[data.length-1]);
+    var lastX = px(data.length - 1), lastY = py(data[data.length - 1]);
     var area = path + ' L ' + (W - PAD) + ' ' + H + ' L ' + PAD + ' ' + H + ' Z';
     var gid = 'spk_' + id + '_g';
 
@@ -235,50 +235,50 @@ function renderCockpitMain() {
     if (!el) return;
 
     var dayMapNotes = groupByDate(DATA);
-    var dayMapTags = groupByDate(DATA, function(r){ return (r.tags||[]).length; });
+    var dayMapTags = groupByDate(DATA, function (r) { return (r.tags || []).length; });
     var allDays = Array.from(new Set(Object.keys(dayMapNotes).concat(Object.keys(dayMapTags)))).sort().slice(-14);
-    var dataA = allDays.length ? allDays.map(function(d){ return dayMapNotes[d]||0; }) : [0,0,0,0,0,0,0];
-    var dataB = allDays.length ? allDays.map(function(d){ return dayMapTags[d]||0; }) : [0,0,0,0,0,0,0];
-    var labels = allDays.length ? allDays.map(function(d){
+    var dataA = allDays.length ? allDays.map(function (d) { return dayMapNotes[d] || 0; }) : [0, 0, 0, 0, 0, 0, 0];
+    var dataB = allDays.length ? allDays.map(function (d) { return dayMapTags[d] || 0; }) : [0, 0, 0, 0, 0, 0, 0];
+    var labels = allDays.length ? allDays.map(function (d) {
         var dt = new Date(d);
-        return dt.getDate() + '/' + (dt.getMonth()+1);
-    }) : ['1','2','3','4','5','6','7'];
+        return dt.getDate() + '/' + (dt.getMonth() + 1);
+    }) : ['1', '2', '3', '4', '5', '6', '7'];
 
     var W = 600, H = 180, PL = 32, PR = 16, PT = 16, PB = 28;
     var W2 = W - PL - PR, H2 = H - PT - PB;
     var allVals = dataA.concat(dataB);
     var maxVal = Math.max.apply(null, allVals) || 1;
 
-    function cx(i, len) { return PL + (i / (len-1)) * W2; }
+    function cx(i, len) { return PL + (i / (len - 1)) * W2; }
     function cy(v) { return PT + H2 - (v / maxVal) * H2; }
 
     function smoothPath(data) {
-        return data.map(function(v, i) {
+        return data.map(function (v, i) {
             if (i === 0) return 'M ' + cx(i, data.length) + ' ' + cy(v);
-            var cpx = (cx(i-1, data.length) + cx(i, data.length)) / 2;
-            return 'C ' + cpx + ' ' + cy(data[i-1]) + ' ' + cpx + ' ' + cy(v) + ' ' + cx(i, data.length) + ' ' + cy(v);
+            var cpx = (cx(i - 1, data.length) + cx(i, data.length)) / 2;
+            return 'C ' + cpx + ' ' + cy(data[i - 1]) + ' ' + cpx + ' ' + cy(v) + ' ' + cx(i, data.length) + ' ' + cy(v);
         }).join(' ');
     }
 
     function areaPath(data) {
         var last = data.length - 1;
-        return smoothPath(data) + ' L ' + cx(last, data.length) + ' ' + (PT+H2) + ' L ' + PL + ' ' + (PT+H2) + ' Z';
+        return smoothPath(data) + ' L ' + cx(last, data.length) + ' ' + (PT + H2) + ' L ' + PL + ' ' + (PT + H2) + ' Z';
     }
 
     // Grid
     var grids = '';
     for (var gi = 0; gi <= 4; gi++) {
         var gy = PT + (gi / 4) * H2;
-        var gVal = Math.round(maxVal - (gi/4) * maxVal);
-        grids += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W-PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>';
-        grids += '<text x="' + (PL-4) + '" y="' + (gy+4) + '" fill="rgba(255,255,255,0.25)" font-size="8" text-anchor="end" font-family="DM Sans,sans-serif">' + gVal + '</text>';
+        var gVal = Math.round(maxVal - (gi / 4) * maxVal);
+        grids += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>';
+        grids += '<text x="' + (PL - 4) + '" y="' + (gy + 4) + '" fill="rgba(255,255,255,0.25)" font-size="8" text-anchor="end" font-family="DM Sans,sans-serif">' + gVal + '</text>';
     }
 
     // X Labels
     var step = Math.ceil(labels.length / 7);
-    var xlabels = labels.map(function(l, i) {
+    var xlabels = labels.map(function (l, i) {
         if (i % step !== 0 && i !== labels.length - 1) return '';
-        return '<text x="' + cx(i, labels.length) + '" y="' + (H-4) + '" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="middle" font-family="DM Sans,sans-serif">' + l + '</text>';
+        return '<text x="' + cx(i, labels.length) + '" y="' + (H - 4) + '" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="middle" font-family="DM Sans,sans-serif">' + l + '</text>';
     }).join('');
 
     el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
@@ -307,29 +307,29 @@ function renderCalendar() {
     var now = new Date();
     var year = now.getFullYear(), month = now.getMonth();
     var firstDay = new Date(year, month, 1).getDay();
-    var daysInMonth = new Date(year, month+1, 0).getDate();
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
     var today = now.getDate();
 
     // Event dates from DATA
     var eventDays = {};
-    DATA.forEach(function(row){
-        if(!row.date) return;
+    DATA.forEach(function (row) {
+        if (!row.date) return;
         var d = new Date(row.date);
-        if(d.getFullYear()===year && d.getMonth()===month) eventDays[d.getDate()] = true;
+        if (d.getFullYear() === year && d.getMonth() === month) eventDays[d.getDate()] = true;
     });
 
-    var dayNames = ['L','M','M','J','V','S','D'];
-    var html = dayNames.map(function(d){ return '<div class="ck-cal-head">'+d+'</div>'; }).join('');
+    var dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    var html = dayNames.map(function (d) { return '<div class="ck-cal-head">' + d + '</div>'; }).join('');
 
     // Offset (lundi=0)
     var offset = firstDay === 0 ? 6 : firstDay - 1;
-    for(var o = 0; o < offset; o++) html += '<div class="ck-cal-day empty"></div>';
+    for (var o = 0; o < offset; o++) html += '<div class="ck-cal-day empty"></div>';
 
-    for(var day = 1; day <= daysInMonth; day++) {
+    for (var day = 1; day <= daysInMonth; day++) {
         var cls = 'ck-cal-day';
-        if(day === today) cls += ' today';
-        if(eventDays[day]) cls += ' has-event';
-        html += '<div class="'+cls+'">'+day+'</div>';
+        if (day === today) cls += ' today';
+        if (eventDays[day]) cls += ' has-event';
+        html += '<div class="' + cls + '">' + day + '</div>';
     }
 
     el.innerHTML = html;
@@ -339,34 +339,34 @@ function renderRadar() {
     var el = document.getElementById('cockpitRadar');
     if (!el) return;
     var axes = 5, r = 36, cx2 = 50, cy2 = 50;
-    var cats = ['profil','interet','voyage','contexte','service'];
-    var catLabels = ['Profil','Intérêts','Voyage','Contexte','Service'];
-    var totalTags = DATA.reduce(function(s,row){ return s+(row.tags||[]).length; },0);
-    var data = cats.map(function(cat){
-        if(!totalTags) return 0.15;
-        var count = DATA.reduce(function(s,row){ return s+(row.tags||[]).filter(function(t){ return t.c===cat; }).length; },0);
-        return Math.min(count/totalTags*cats.length, 1);
+    var cats = ['profil', 'interet', 'voyage', 'contexte', 'service'];
+    var catLabels = ['Profil', 'Intérêts', 'Voyage', 'Contexte', 'Service'];
+    var totalTags = DATA.reduce(function (s, row) { return s + (row.tags || []).length; }, 0);
+    var data = cats.map(function (cat) {
+        if (!totalTags) return 0.15;
+        var count = DATA.reduce(function (s, row) { return s + (row.tags || []).filter(function (t) { return t.c === cat; }).length; }, 0);
+        return Math.min(count / totalTags * cats.length, 1);
     });
 
     function pt(val, i) {
-        var angle = (Math.PI*2*i/axes) - Math.PI/2;
-        return [cx2 + val*r*Math.cos(angle), cy2 + val*r*Math.sin(angle)];
+        var angle = (Math.PI * 2 * i / axes) - Math.PI / 2;
+        return [cx2 + val * r * Math.cos(angle), cy2 + val * r * Math.sin(angle)];
     }
-    function ptStr(val, i) { var p = pt(val,i); return p[0]+','+p[1]; }
+    function ptStr(val, i) { var p = pt(val, i); return p[0] + ',' + p[1]; }
 
     var webs = '';
-    [0.25,0.5,0.75,1].forEach(function(sc){
-        webs += '<polygon points="'+Array.from({length:axes}).map(function(_,i){ return ptStr(sc,i); }).join(' ')+'" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>';
+    [0.25, 0.5, 0.75, 1].forEach(function (sc) {
+        webs += '<polygon points="' + Array.from({ length: axes }).map(function (_, i) { return ptStr(sc, i); }).join(' ') + '" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>';
     });
-    var axLines = Array.from({length:axes}).map(function(_,i){
-        var p = pt(1,i); return '<line x1="'+cx2+'" y1="'+cy2+'" x2="'+p[0]+'" y2="'+p[1]+'" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>';
+    var axLines = Array.from({ length: axes }).map(function (_, i) {
+        var p = pt(1, i); return '<line x1="' + cx2 + '" y1="' + cy2 + '" x2="' + p[0] + '" y2="' + p[1] + '" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>';
     }).join('');
 
-    var polygon = '<polygon points="'+data.map(function(v,i){ return ptStr(v,i); }).join(' ')+'" fill="rgba(184,150,90,0.2)" stroke="#B8965A" stroke-width="1.5"/>';
+    var polygon = '<polygon points="' + data.map(function (v, i) { return ptStr(v, i); }).join(' ') + '" fill="rgba(184,150,90,0.2)" stroke="#B8965A" stroke-width="1.5"/>';
 
-    var lbls = catLabels.map(function(l,i){
+    var lbls = catLabels.map(function (l, i) {
         var p = pt(1.35, i);
-        return '<text x="'+p[0]+'" y="'+(p[1]+3)+'" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="6" font-family="DM Sans,sans-serif">'+l+'</text>';
+        return '<text x="' + p[0] + '" y="' + (p[1] + 3) + '" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="6" font-family="DM Sans,sans-serif">' + l + '</text>';
     }).join('');
 
     el.innerHTML = '<svg viewBox="0 0 100 100" class="ck-radar-svg">'
@@ -405,33 +405,33 @@ function renderTagsCockpit() {
 function renderCockpitTags() {
     var el = document.getElementById('cockpitTags');
     if (!el) return;
-    var cats = ['profil','interet','voyage','contexte','service','marque','crm'];
-    var catNames = {'profil':'Profil','interet':'Intérêts','voyage':'Voyage','contexte':'Contexte','service':'Service','marque':'Marque','crm':'CRM'};
-    var catColors = {'profil':'#60a5fa','interet':'#B8965A','voyage':'#34d399','contexte':'#c084fc','service':'#f472b6','marque':'#fb923c','crm':'#facc15'};
+    var cats = ['profil', 'interet', 'voyage', 'contexte', 'service', 'marque', 'crm'];
+    var catNames = { 'profil': 'Profil', 'interet': 'Intérêts', 'voyage': 'Voyage', 'contexte': 'Contexte', 'service': 'Service', 'marque': 'Marque', 'crm': 'CRM' };
+    var catColors = { 'profil': '#60a5fa', 'interet': '#B8965A', 'voyage': '#34d399', 'contexte': '#c084fc', 'service': '#f472b6', 'marque': '#fb923c', 'crm': '#facc15' };
 
     var totals = {};
     var grand = 0;
-    DATA.forEach(function(row){
-        (row.tags||[]).forEach(function(t){
-            totals[t.c] = (totals[t.c]||0) + 1;
+    DATA.forEach(function (row) {
+        (row.tags || []).forEach(function (t) {
+            totals[t.c] = (totals[t.c] || 0) + 1;
             grand++;
         });
     });
 
-    if(!grand) { el.innerHTML = '<div style="color:rgba(255,255,255,0.3);font-size:13px;padding:16px 0">Aucune donnée</div>'; return; }
+    if (!grand) { el.innerHTML = '<div style="color:rgba(255,255,255,0.3);font-size:13px;padding:16px 0">Aucune donnée</div>'; return; }
 
-    var sorted = cats.filter(function(c){ return totals[c]; }).sort(function(a,b){ return (totals[b]||0)-(totals[a]||0); });
+    var sorted = cats.filter(function (c) { return totals[c]; }).sort(function (a, b) { return (totals[b] || 0) - (totals[a] || 0); });
     var maxV = totals[sorted[0]] || 1;
 
-    el.innerHTML = sorted.map(function(cat){
+    el.innerHTML = sorted.map(function (cat) {
         var count = totals[cat] || 0;
-        var pct = Math.round(count/grand*100);
-        var w = Math.round(count/maxV*100);
+        var pct = Math.round(count / grand * 100);
+        var w = Math.round(count / maxV * 100);
         var col = catColors[cat] || '#B8965A';
         return '<div class="ck-tag-bar-row">'
-            + '<div class="ck-tag-bar-label">'+catNames[cat]+'</div>'
-            + '<div class="ck-tag-bar-track"><div class="ck-tag-bar-fill" style="width:'+w+'%;background:'+col+'"></div></div>'
-            + '<div class="ck-tag-bar-val">'+pct+'%</div>'
+            + '<div class="ck-tag-bar-label">' + catNames[cat] + '</div>'
+            + '<div class="ck-tag-bar-track"><div class="ck-tag-bar-fill" style="width:' + w + '%;background:' + col + '"></div></div>'
+            + '<div class="ck-tag-bar-val">' + pct + '%</div>'
             + '</div>';
     }).join('');
 }
@@ -444,7 +444,7 @@ function renderClients(filteredData) {
     const legend = $('tagLegend');
     if (legend) {
         legend.innerHTML = Object.entries(CAT_NAMES).map(([k, v]) =>
-            `<div class="legend-item"><span class="legend-dot" style="background:${legendColors[k]||'#888'}"></span>${v}</div>`
+            `<div class="legend-item"><span class="legend-dot" style="background:${legendColors[k] || '#888'}"></span>${v}</div>`
         ).join('');
     }
 
@@ -471,9 +471,9 @@ function renderClients(filteredData) {
             const base = filteredData || DATA;
             const result = base.filter(p =>
                 !q ||
-                (p.ca||'').toLowerCase().includes(q) ||
+                (p.ca || '').toLowerCase().includes(q) ||
                 p.tags.some(t => t.t.toLowerCase().includes(q)) ||
-                (p.clean||'').toLowerCase().includes(q)
+                (p.clean || '').toLowerCase().includes(q)
             );
             if (typeof renderKanban === 'function') renderKanban(result);
             renderGrid(q, base);
@@ -491,7 +491,7 @@ function renderGrid(filter, sourceData) {
     g.innerHTML = '';
     const f = filter.toLowerCase();
     const base = sourceData || DATA;
-    const filtered = base.filter(p => !f || (p.ca||'').toLowerCase().includes(f) || p.tags.some(t => t.t.toLowerCase().includes(f)) || (p.clean||'').toLowerCase().includes(f));
+    const filtered = base.filter(p => !f || (p.ca || '').toLowerCase().includes(f) || p.tags.some(t => t.t.toLowerCase().includes(f)) || (p.clean || '').toLowerCase().includes(f));
 
     if (filtered.length === 0) {
         g.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client trouve.</p>';
@@ -507,7 +507,7 @@ function renderGrid(filter, sourceData) {
         if (Object.keys(cats).length === 0) html += '<div class="no-tags">Aucun tag détecté</div>';
         else {
             Object.entries(cats).forEach(([c, tags]) => {
-                html += `<div class="tag-section"><div class="tag-section-title">${CAT_NAMES[c]||c}</div><div class="tag-row">${tags.map(t => `<span class="tag ${c}">${t}</span>`).join('')}</div></div>`;
+                html += `<div class="tag-section"><div class="tag-section-title">${CAT_NAMES[c] || c}</div><div class="tag-row">${tags.map(t => `<span class="tag ${c}">${t}</span>`).join('')}</div></div>`;
             });
         }
 
@@ -524,55 +524,55 @@ function renderGrid(filter, sourceData) {
 
 // ===== RENDER: KANBAN CLIENTS =====
 function renderKanban(data) {
-  if (!data || !data.length) return;
+    if (!data || !data.length) return;
 
-  const cols = { nouveaux: [], suivi: [], nbaDone: [], prioritaires: [] };
+    const cols = { nouveaux: [], suivi: [], nbaDone: [], prioritaires: [] };
 
-  data.forEach(client => {
-    const score = client.sentiment?.score || 50;
-    const hasNba = client.nba && client.nba.length > 0;
-    const isChurnRisk = score < 50;
+    data.forEach(client => {
+        const score = client.sentiment?.score || 50;
+        const hasNba = client.nba && client.nba.length > 0;
+        const isChurnRisk = score < 50;
 
-    if (isChurnRisk) {
-      cols.prioritaires.push(client);
-    } else if (hasNba) {
-      cols.nbaDone.push(client);
-    } else {
-      const daysSince = Math.floor((Date.now() - new Date(client.date || Date.now())) / 86400000);
-      if (daysSince <= 3) cols.nouveaux.push(client);
-      else cols.suivi.push(client);
-    }
-  });
+        if (isChurnRisk) {
+            cols.prioritaires.push(client);
+        } else if (hasNba) {
+            cols.nbaDone.push(client);
+        } else {
+            const daysSince = Math.floor((Date.now() - new Date(client.date || Date.now())) / 86400000);
+            if (daysSince <= 3) cols.nouveaux.push(client);
+            else cols.suivi.push(client);
+        }
+    });
 
-  const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
-  setCount('count-nouveaux', cols.nouveaux.length);
-  setCount('count-suivi', cols.suivi.length);
-  setCount('count-nba', cols.nbaDone.length);
-  setCount('count-prioritaires', cols.prioritaires.length);
+    const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+    setCount('count-nouveaux', cols.nouveaux.length);
+    setCount('count-suivi', cols.suivi.length);
+    setCount('count-nba', cols.nbaDone.length);
+    setCount('count-prioritaires', cols.prioritaires.length);
 
-  renderKanbanCol('col-nouveaux', cols.nouveaux);
-  renderKanbanCol('col-suivi', cols.suivi);
-  renderKanbanCol('col-nba-done', cols.nbaDone);
-  renderKanbanCol('col-prioritaires', cols.prioritaires);
+    renderKanbanCol('col-nouveaux', cols.nouveaux);
+    renderKanbanCol('col-suivi', cols.suivi);
+    renderKanbanCol('col-nba-done', cols.nbaDone);
+    renderKanbanCol('col-prioritaires', cols.prioritaires);
 }
 
 function renderKanbanCol(containerId, clients) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = '';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
 
-  clients.slice(0, 6).forEach((client, i) => {
-    const score = client.sentiment?.score || 50;
-    const scoreClass = getScoreClass(score);
-    const progressClass = getProgressClass(score);
-    const top3tags = (client.tags || []).slice(0, 3);
-    const p = getAvatarPalette(client.ca);
-    const initials = getInitials(client.ca);
+    clients.slice(0, 6).forEach((client, i) => {
+        const score = client.sentiment?.score || 50;
+        const scoreClass = getScoreClass(score);
+        const progressClass = getProgressClass(score);
+        const top3tags = (client.tags || []).slice(0, 3);
+        const p = getAvatarPalette(client.ca);
+        const initials = getInitials(client.ca);
 
-    const card = document.createElement('div');
-    card.className = 'client-card';
-    card.style.animationDelay = `${i * 40}ms`;
-    card.innerHTML = `
+        const card = document.createElement('div');
+        card.className = 'client-card';
+        card.style.animationDelay = `${i * 40}ms`;
+        card.innerHTML = `
       <div class="card-top">
         <div class="client-av" style="width:30px;height:30px;background:${p.bg};color:${p.color}">${initials}</div>
         <div class="card-info">
@@ -595,42 +595,42 @@ function renderKanbanCol(containerId, clients) {
       </div>
     `;
 
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('[data-action]')) return;
-      document.querySelectorAll('.client-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      openDetailPanel(client);
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('[data-action]')) return;
+            document.querySelectorAll('.client-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            openDetailPanel(client);
+        });
+
+        container.appendChild(card);
     });
 
-    container.appendChild(card);
-  });
-
-  const addBtn = document.createElement('div');
-  addBtn.className = 'add-card';
-  addBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg> Ajouter`;
-  container.appendChild(addBtn);
+    const addBtn = document.createElement('div');
+    addBtn.className = 'add-card';
+    addBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg> Ajouter`;
+    container.appendChild(addBtn);
 }
 
 // ===== DETAIL PANEL =====
 function openDetailPanel(client) {
-  const wrap = document.getElementById('col-detail-wrap');
-  if (!wrap) return;
+    const wrap = document.getElementById('col-detail-wrap');
+    if (!wrap) return;
 
-  const p = getAvatarPalette(client.ca);
-  const initials = getInitials(client.ca);
-  const score = client.sentiment?.score || 50;
-  const scoreClass = getScoreClass(score);
-  const tags = (client.tags || []).slice(0, 8);
-  const nbaItems = (client.nba || []).slice(0, 3);
-  const nbaBgColors = ['#1A1A1A', '#2A4A8A', '#2A5A2A'];
+    const p = getAvatarPalette(client.ca);
+    const initials = getInitials(client.ca);
+    const score = client.sentiment?.score || 50;
+    const scoreClass = getScoreClass(score);
+    const tags = (client.tags || []).slice(0, 8);
+    const nbaItems = (client.nba || []).slice(0, 3);
+    const nbaBgColors = ['#1A1A1A', '#2A4A8A', '#2A5A2A'];
 
-  const sentLevel = client.sentiment?.level || 'neutral';
-  const sentScore = client.sentiment?.score || 50;
-  const sentPos = sentLevel === 'positive' ? sentScore : Math.max(10, 100 - sentScore - 20);
-  const sentNeg = sentLevel === 'negative' ? sentScore : Math.max(0, sentScore - 70);
-  const sentNeu = Math.max(0, 100 - sentPos - sentNeg);
+    const sentLevel = client.sentiment?.level || 'neutral';
+    const sentScore = client.sentiment?.score || 50;
+    const sentPos = sentLevel === 'positive' ? sentScore : Math.max(10, 100 - sentScore - 20);
+    const sentNeg = sentLevel === 'negative' ? sentScore : Math.max(0, sentScore - 70);
+    const sentNeu = Math.max(0, 100 - sentPos - sentNeg);
 
-  wrap.innerHTML = `
+    wrap.innerHTML = `
     <div class="col-header">
       ${client.ca}
       <span class="col-count" style="background:#1A1A1A;color:#fff">actif</span>
@@ -662,7 +662,7 @@ function openDetailPanel(client) {
           <div>
             ${nbaItems.length ? nbaItems.map((nba, i) => `
               <div class="nba-item">
-                <div class="nba-num" style="background:${nbaBgColors[i] || '#1A1A1A'}">${i+1}</div>
+                <div class="nba-num" style="background:${nbaBgColors[i] || '#1A1A1A'}">${i + 1}</div>
                 <div class="nba-text">${nba.action || nba}</div>
               </div>
             `).join('') : '<span style="font-size:11px;color:var(--text-muted)">Aucune NBA générée</span>'}
@@ -696,30 +696,30 @@ function openDetailPanel(client) {
     </div>
   `;
 
-  window._selectedClient = client;
+    window._selectedClient = client;
 }
 
 function closeDetailPanel() {
-  const wrap = document.getElementById('col-detail-wrap');
-  if (!wrap) return;
-  renderKanban(window.DATA || []);
+    const wrap = document.getElementById('col-detail-wrap');
+    if (!wrap) return;
+    renderKanban(window.DATA || []);
 }
 
 // ===== AVATAR STRIP =====
 function renderAvatarStrip(data) {
-  const container = document.getElementById('clients-avatar-strip');
-  if (!container || !data) return;
+    const container = document.getElementById('clients-avatar-strip');
+    if (!container || !data) return;
 
-  const recent = data.slice(0, 8);
-  container.innerHTML = recent.map(client => {
-    const p = getAvatarPalette(client.ca);
-    const initials = getInitials(client.ca);
-    const hasAlert = (client.sentiment?.score || 50) < 50;
-    const hasNba = client.nba && client.nba.length > 0;
-    const badgeClass = hasAlert ? 'urgent' : hasNba ? 'info' : '';
-    const badgeCount = hasAlert ? '!' : hasNba ? client.nba.length : '';
+    const recent = data.slice(0, 10); // Slightly more avatars for better strip fill
+    const stripHTML = recent.map(client => {
+        const p = getAvatarPalette(client.ca);
+        const initials = getInitials(client.ca);
+        const hasAlert = (client.sentiment?.score || 50) < 50;
+        const hasNba = client.nba && client.nba.length > 0;
+        const badgeClass = hasAlert ? 'urgent' : hasNba ? 'info' : '';
+        const badgeCount = hasAlert ? '!' : hasNba ? client.nba.length : '';
 
-    return `
+        return `
       <div class="av-strip-item" onclick="selectClientFromStrip('${client.id}')">
         <div class="av-circle" style="background:${p.bg};color:${p.color}">
           ${initials}
@@ -728,71 +728,91 @@ function renderAvatarStrip(data) {
         <span class="av-strip-name">${(client.ca || '').split(' ')[1] || client.ca}</span>
       </div>
     `;
-  }).join('');
+    }).join('');
+
+    container.innerHTML = `
+    <button class="avatar-strip-arrow left" onclick="scrollAvatarStrip(-120)">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 12l-4-4 4-4"/></svg>
+    </button>
+    <div class="av-strip-inner" id="av-strip-inner" style="display:flex;gap:16px;overflow:hidden;padding:4px">
+        ${stripHTML}
+    </div>
+    <button class="avatar-strip-arrow right" onclick="scrollAvatarStrip(120)">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12l4-4-4-4"/></svg>
+    </button>
+  `;
+}
+
+// Global scroll function for avatar strip
+window.scrollAvatarStrip = function (dist) {
+    const el = document.getElementById('av-strip-inner');
+    if (el) el.scrollBy({ left: dist, behavior: 'smooth' });
 }
 
 function selectClientFromStrip(clientId) {
-  const client = (window.DATA || []).find(c => c.id === clientId);
-  if (client) openDetailPanel(client);
+    const client = (window.DATA || []).find(c => c.id === clientId);
+    if (client) openDetailPanel(client);
 }
 
 // ===== STATS BAR =====
 function renderStatsBar(stats) {
-  const container = document.getElementById('clients-stats-bar');
-  if (!container) return;
+    const container = document.getElementById('clients-stats-bar');
+    if (!container) return;
 
-  const s = stats || window.STATS || {};
-  const data = window.DATA || [];
+    const s = stats || window.STATS || {};
+    const data = window.DATA || [];
 
-  const last8weeks = Array(8).fill(0);
-  data.forEach(client => {
-    const date = new Date(client.date || client.created_at);
-    const weeksAgo = Math.floor((Date.now() - date) / (7 * 86400000));
-    if (weeksAgo >= 0 && weeksAgo < 8) last8weeks[7 - weeksAgo]++;
-  });
-  const maxBar = Math.max(...last8weeks, 1);
+    const last8weeks = Array(8).fill(0);
+    data.forEach(client => {
+        const date = new Date(client.date || client.created_at);
+        const weeksAgo = Math.floor((Date.now() - date) / (7 * 86400000));
+        if (weeksAgo >= 0 && weeksAgo < 8) last8weeks[7 - weeksAgo]++;
+    });
+    const maxBar = Math.max(...last8weeks, 1);
 
-  const bars = last8weeks.map((v, i) => {
-    const h = Math.max(4, Math.round((v / maxBar) * 24));
-    const isCurrent = i === 7;
-    return `<div class="spark-bar ${isCurrent ? 'current' : ''}" style="height:${h}px"></div>`;
-  }).join('');
+    const bars = last8weeks.map((v, i) => {
+        const h = Math.max(4, Math.round((v / maxBar) * 24));
+        const isCurrent = i === 7;
+        return `<div class="spark-bar ${isCurrent ? 'current' : ''}" style="height:${h}px"></div>`;
+    }).join('');
 
-  const privacyAvg = s.privacyAvg || (s.rgpd ? Math.round((1 - s.rgpd / Math.max(s.clients, 1)) * 100) : 88);
-  const sentimentAvg = data.length
-    ? Math.round(data.reduce((acc, c) => acc + (c.sentiment?.score || 50), 0) / data.length)
-    : 0;
+    const privacyAvg = s.privacyAvg || (s.rgpd ? Math.round((1 - s.rgpd / Math.max(s.clients, 1)) * 100) : 88);
+    const sentimentAvg = data.length
+        ? Math.round(data.reduce((acc, c) => acc + (c.sentiment?.score || 50), 0) / data.length)
+        : 0;
 
-  container.innerHTML = `
-    <div class="stat-item">
-      <span class="stat-label">Clients</span>
-      <span class="stat-value">${s.clients || data.length || 0}</span>
-      <span class="stat-delta" style="color:var(--green)">↑ actifs</span>
-    </div>
-    <div class="stats-sep"></div>
-    <div class="stat-item">
-      <span class="stat-label">Privacy</span>
-      <span class="stat-value">${privacyAvg}%</span>
-      <span class="stat-delta" style="color:var(--green)">↑ conforme</span>
-    </div>
-    <div class="stats-sep"></div>
-    <div class="stat-item">
-      <span class="stat-label">NBA</span>
-      <span class="stat-value">${s.nba || 0}</span>
-      <span class="stat-delta" style="color:var(--text-muted)">→ générés</span>
-    </div>
-    <div class="stats-sep"></div>
-    <div class="stat-item">
-      <span class="stat-label">Sentiment</span>
-      <span class="stat-value">${sentimentAvg}%</span>
-      <span class="stat-delta" style="color:${sentimentAvg > 60 ? 'var(--green)' : 'var(--amber)'}">
-        ${sentimentAvg > 60 ? '↑ positif' : '→ neutre'}
-      </span>
-    </div>
-    <div class="stats-sep"></div>
-    <div style="flex:1">
-      <div class="stat-label" style="margin-bottom:4px">Activité 8 sem.</div>
-      <div class="sparkline">${bars}</div>
+    container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;gap:32px;width:100%;max-width:1200px;margin:0 auto">
+        <div class="stat-item">
+          <span class="stat-label">Clients</span>
+          <span class="stat-value">${s.clients || data.length || 0}</span>
+          <span class="stat-delta" style="color:var(--green)">↑ actifs</span>
+        </div>
+        <div class="stats-sep"></div>
+        <div class="stat-item">
+          <span class="stat-label">Privacy</span>
+          <span class="stat-value">${privacyAvg}%</span>
+          <span class="stat-delta" style="color:var(--green)">↑ conforme</span>
+        </div>
+        <div class="stats-sep"></div>
+        <div class="stat-item">
+          <span class="stat-label">NBA</span>
+          <span class="stat-value">${s.nba || 0}</span>
+          <span class="stat-delta" style="color:var(--text-muted)">→ générés</span>
+        </div>
+        <div class="stats-sep"></div>
+        <div class="stat-item">
+          <span class="stat-label">Sentiment</span>
+          <span class="stat-value">${sentimentAvg}%</span>
+          <span class="stat-delta" style="color:${sentimentAvg > 60 ? 'var(--green)' : 'var(--amber)'}">
+            ${sentimentAvg > 60 ? '↑ positif' : '→ neutre'}
+          </span>
+        </div>
+        <div class="stats-sep"></div>
+        <div class="stat-item" style="flex:none">
+          <div class="stat-label" style="margin-bottom:4px">Activité 8 sem.</div>
+          <div class="sparkline">${bars}</div>
+        </div>
     </div>
   `;
 }
@@ -801,18 +821,18 @@ function renderStatsBar(stats) {
 function calculateUpliftScore(client) {
     // Formule : P(Achat|Action) - P(Achat|Pas d'Action)
     // Simplifie : (sentiment/100) * tagDensity * eventBoost - baseline
-    
+
     // Extract sentiment safely
     let sentimentScore = 50;
     if (client.sentiment && typeof client.sentiment === 'object') {
         sentimentScore = client.sentiment.score || 50;
     }
-    
+
     const tagDensity = Math.min(1, (Array.isArray(client.tags) ? client.tags.length : 0) / 10);
     const contextTags = Array.isArray(client.tags) ? client.tags.filter(t => t.c === 'contexte') : [];
     const eventBoost = contextTags.length > 0 ? 1.5 : 1.0;
     const baseline = 0.3; // 30% achètent sans intervention
-    
+
     const upliftScore = (sentimentScore / 100) * tagDensity * eventBoost - baseline;
     return Math.max(-1, Math.min(1, upliftScore));
 }
@@ -858,11 +878,11 @@ function renderNBA() {
 
     // Segment cards = filters (combined, no duplication)
     const segments = [
-        { key: 'all',            label: 'Tous',           desc: `${clientsWithUplift.length} clients`, color: '#B8965A', icon: '◈' },
-        { key: 'persuadables',   label: 'Persuadables',   desc: 'ROI élevé',                          color: '#10b981', icon: '↑' },
-        { key: 'valeurs-sures',  label: 'Valeurs Sûres',  desc: 'Achètent naturellement',             color: '#3b82f6', icon: '✓' },
-        { key: 'chiens-dormants',label: 'À Réveiller',    desc: 'Approche douce requise',             color: '#fb923c', icon: '◎' },
-        { key: 'cas-perdus',     label: 'Cas Perdus',     desc: 'Ne pas solliciter',                  color: '#ef4444', icon: '↓' }
+        { key: 'all', label: 'Tous', desc: `${clientsWithUplift.length} clients`, color: '#B8965A', icon: '◈' },
+        { key: 'persuadables', label: 'Persuadables', desc: 'ROI élevé', color: '#10b981', icon: '↑' },
+        { key: 'valeurs-sures', label: 'Valeurs Sûres', desc: 'Achètent naturellement', color: '#3b82f6', icon: '✓' },
+        { key: 'chiens-dormants', label: 'À Réveiller', desc: 'Approche douce requise', color: '#fb923c', icon: '◎' },
+        { key: 'cas-perdus', label: 'Cas Perdus', desc: 'Ne pas solliciter', color: '#ef4444', icon: '↓' }
     ];
 
     const header = document.createElement('div');
@@ -931,15 +951,15 @@ function renderNBA() {
                 ${tags.length > 0 ? `<div class="nba-tag-strip">${tags.slice(0, 5).map(t => `<span class="nba-tag-pill">${t.t}</span>`).join('')}${tags.length > 5 ? `<span class="nba-tag-more">+${tags.length - 5}</span>` : ''}</div>` : ''}
                 <div class="nba-actions-list">
                     ${nbaList.map((a, i) => {
-                        const cls = typeClasses[a.type] || 'shortterm';
-                        return `<div class="nba-action-row">
+            const cls = typeClasses[a.type] || 'shortterm';
+            return `<div class="nba-action-row">
                             <span class="nba-action-num">${i + 1}</span>
                             <div class="nba-action-content">
                                 <span class="nba-action-text">${a.action}</span>
                                 <span class="nba-action-badge ${cls}">${typeLabels[a.type] || a.type}</span>
                             </div>
                         </div>`;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
@@ -966,7 +986,7 @@ function renderNBA() {
 function getEnhancedCoaching(violations, level) {
     const coaching = [];
     const microLearning = [];
-    
+
     if (violations.orientation > 0) {
         coaching.push({
             priority: 'critical',
@@ -980,7 +1000,7 @@ function getEnhancedCoaching(violations, level) {
             url: '#module-orientation'
         });
     }
-    
+
     if (violations.politics > 0) {
         coaching.push({
             priority: 'critical',
@@ -994,7 +1014,7 @@ function getEnhancedCoaching(violations, level) {
             url: '#module-politics'
         });
     }
-    
+
     if (violations.religion > 0) {
         coaching.push({
             priority: 'critical',
@@ -1008,7 +1028,7 @@ function getEnhancedCoaching(violations, level) {
             url: '#module-religion'
         });
     }
-    
+
     if (violations.health > 0) {
         coaching.push({
             priority: 'high',
@@ -1022,7 +1042,7 @@ function getEnhancedCoaching(violations, level) {
             url: '#module-health'
         });
     }
-    
+
     if (level === 'critical') {
         coaching.push({
             priority: 'critical',
@@ -1036,7 +1056,7 @@ function getEnhancedCoaching(violations, level) {
             action: 'Révision du protocole de prise de notes recommandée.'
         });
     }
-    
+
     return { coaching, microLearning };
 }
 
@@ -1053,30 +1073,30 @@ function renderPrivacy() {
         health: 0,
         other: 0
     };
-    
+
     PRIVACY_SCORES.forEach(p => {
         violationsByType.orientation += p.violations_detail?.orientation || 0;
         violationsByType.politics += p.violations_detail?.politics || 0;
         violationsByType.religion += p.violations_detail?.religion || 0;
         violationsByType.health += p.violations_detail?.health || 0;
-        violationsByType.other += Math.max(0, p.violations - 
-            (p.violations_detail?.orientation || 0) - 
-            (p.violations_detail?.politics || 0) - 
-            (p.violations_detail?.religion || 0) - 
+        violationsByType.other += Math.max(0, p.violations -
+            (p.violations_detail?.orientation || 0) -
+            (p.violations_detail?.politics || 0) -
+            (p.violations_detail?.religion || 0) -
             (p.violations_detail?.health || 0));
     });
 
     const totalViolations = PRIVACY_SCORES.reduce((s, p) => s + p.violations, 0);
     const criticalCount = PRIVACY_SCORES.filter(p => p.level === 'critical').length;
     const avgLevel = STATS.privacyAvg >= 90 ? 'excellent' : STATS.privacyAvg >= 75 ? 'good' : STATS.privacyAvg >= 60 ? 'warning' : 'critical';
-    
+
     // Calculate trend — compare première moitié vs score actuel (sans Math.random)
     let previousAvg = STATS.privacyAvg;
     const scores = Object.values(PRIVACY_SCORES || {});
     if (scores.length >= 2) {
         const half = Math.floor(scores.length / 2);
         const firstHalf = scores.slice(0, half);
-        const firstHalfSum = firstHalf.reduce(function(s, v) { return s + (v.score || v || 0); }, 0);
+        const firstHalfSum = firstHalf.reduce(function (s, v) { return s + (v.score || v || 0); }, 0);
         previousAvg = firstHalf.length > 0 ? firstHalfSum / firstHalf.length : STATS.privacyAvg;
     }
     const trend = previousAvg ? Math.round(STATS.privacyAvg - previousAvg) : 0;
@@ -1102,11 +1122,11 @@ function renderPrivacy() {
                 <div class="privacy-chart-title">Répartition des violations</div>
                 <div class="privacy-violations-bars">
                     ${Object.entries(violationsByType).map(([type, count]) => {
-                        const labels = { orientation: 'Orientation', politics: 'Politique', religion: 'Religion', health: 'Santé', other: 'Autres' };
-                        const colors = { orientation: '#ef4444', politics: '#f97316', religion: '#fb923c', health: '#fbbf24', other: '#94a3b8' };
-                        const maxCount = Math.max(...Object.values(violationsByType), 1);
-                        const percent = (count / maxCount) * 100;
-                        return count > 0 ? `
+        const labels = { orientation: 'Orientation', politics: 'Politique', religion: 'Religion', health: 'Santé', other: 'Autres' };
+        const colors = { orientation: '#ef4444', politics: '#f97316', religion: '#fb923c', health: '#fbbf24', other: '#94a3b8' };
+        const maxCount = Math.max(...Object.values(violationsByType), 1);
+        const percent = (count / maxCount) * 100;
+        return count > 0 ? `
                             <div class="privacy-violation-bar-item">
                                 <div class="privacy-violation-bar-label">${labels[type]}</div>
                                 <div class="privacy-violation-bar-container">
@@ -1115,16 +1135,16 @@ function renderPrivacy() {
                                 </div>
                             </div>
                         ` : '';
-                    }).join('')}
+    }).join('')}
                 </div>
             </div>
             <div class="privacy-stats-cards">
                 <div class="privacy-stat-mini">
-                    <div class="privacy-stat-mini-value" style="color:${totalViolations>0?'#ef4444':'#10b981'}">${totalViolations}</div>
+                    <div class="privacy-stat-mini-value" style="color:${totalViolations > 0 ? '#ef4444' : '#10b981'}">${totalViolations}</div>
                     <div class="privacy-stat-mini-label">Violations totales</div>
                 </div>
                 <div class="privacy-stat-mini">
-                    <div class="privacy-stat-mini-value" style="color:${criticalCount>0?'#ef4444':'#10b981'}">${criticalCount}</div>
+                    <div class="privacy-stat-mini-value" style="color:${criticalCount > 0 ? '#ef4444' : '#10b981'}">${criticalCount}</div>
                     <div class="privacy-stat-mini-label">CA en alerte</div>
                 </div>
             </div>
@@ -1138,7 +1158,7 @@ function renderPrivacy() {
     PRIVACY_SCORES.forEach(p => {
         const badgeClass = p.level === 'critical' ? 'alert' : p.level === 'warning' ? 'warn' : 'ok';
         const barColor = p.level === 'critical' ? '#ef4444' : p.level === 'warning' ? '#fb923c' : p.level === 'good' ? '#3b82f6' : '#10b981';
-        
+
         const violations = p.violations_detail || { orientation: 0, politics: 0, religion: 0, health: 0 };
         const enhanced = getEnhancedCoaching(violations, p.level);
 
@@ -1148,9 +1168,9 @@ function renderPrivacy() {
                 <span class="privacy-badge ${badgeClass}">${p.score}% — ${p.level.toUpperCase()}</span>
             </div>
             <div class="privacy-bar"><div class="privacy-bar-fill" style="width:${p.score}%;background:${barColor}"></div></div>
-            <div class="privacy-detail">${p.total} notes · ${p.violations} violation${p.violations>1?'s':''}</div>
+            <div class="privacy-detail">${p.total} notes · ${p.violations} violation${p.violations > 1 ? 's' : ''}</div>
         `;
-        
+
         if (enhanced.coaching.length > 0) {
             html += '<div class="coaching-section"><div class="coaching-title">🎯 Actions prioritaires</div>';
             enhanced.coaching.forEach(c => {
@@ -1165,7 +1185,7 @@ function renderPrivacy() {
             });
             html += '</div>';
         }
-        
+
         if (enhanced.microLearning.length > 0) {
             html += '<div class="microlearning-section"><div class="microlearning-title">📚 Micro-learning recommandé</div>';
             enhanced.microLearning.forEach(ml => {
@@ -1196,37 +1216,37 @@ function calculateTrendVelocity() {
     if (DATA.length < 4) {
         return { velocities: new Map(), emerging: [] };
     }
-    
+
     // Split data into first half and second half
     const midPoint = Math.floor(DATA.length / 2);
     const firstHalf = DATA.slice(0, midPoint);
     const secondHalf = DATA.slice(midPoint);
-    
+
     // Count tag frequencies in each period
     const firstHalfFreq = new Map();
     const secondHalfFreq = new Map();
-    
+
     firstHalf.forEach(row => {
         row.tags.forEach(t => {
             firstHalfFreq.set(t.t, (firstHalfFreq.get(t.t) || 0) + 1);
         });
     });
-    
+
     secondHalf.forEach(row => {
         row.tags.forEach(t => {
             secondHalfFreq.set(t.t, (secondHalfFreq.get(t.t) || 0) + 1);
         });
     });
-    
+
     // Calculate velocity for each tag
     const velocities = new Map();
     const allTags = new Set([...firstHalfFreq.keys(), ...secondHalfFreq.keys()]);
-    
+
     allTags.forEach(tag => {
         const firstCount = firstHalfFreq.get(tag) || 0;
         const secondCount = secondHalfFreq.get(tag) || 0;
         const totalCount = firstCount + secondCount;
-        
+
         // Velocity = percentage change from first to second period
         let velocity = 0;
         if (firstCount === 0 && secondCount > 0) {
@@ -1234,7 +1254,7 @@ function calculateTrendVelocity() {
         } else if (firstCount > 0) {
             velocity = ((secondCount - firstCount) / firstCount) * 100;
         }
-        
+
         velocities.set(tag, {
             total: totalCount,
             velocity: Math.round(velocity),
@@ -1243,13 +1263,13 @@ function calculateTrendVelocity() {
             isEmerging: firstCount === 0 && secondCount > 0
         });
     });
-    
+
     // Identify emerging topics (new in second half)
     const emerging = Array.from(velocities.entries())
         .filter(([, data]) => data.isEmerging && data.secondCount >= 2)
         .sort((a, b) => b[1].secondCount - a[1].secondCount)
         .slice(0, 5);
-    
+
     return { velocities, emerging };
 }
 
@@ -1350,9 +1370,9 @@ function renderPulse() {
     });
 
     // ── Business metrics ──────────────────────────────────────────
-    const giftingClients  = DATA.filter(d => d.tags.some(t => t.c === 'contexte')).length;
-    const keyAccounts     = tagFreq.get('Key_Account') || 0;
-    const travelClients   = DATA.filter(d => d.tags.some(t => t.c === 'voyage')).length;
+    const giftingClients = DATA.filter(d => d.tags.some(t => t.c === 'contexte')).length;
+    const keyAccounts = tagFreq.get('Key_Account') || 0;
+    const travelClients = DATA.filter(d => d.tags.some(t => t.c === 'voyage')).length;
 
     const segments = DATA.map(d => {
         const u = calculateUpliftScore(d);
@@ -1360,11 +1380,11 @@ function renderPulse() {
         return getUpliftSegment(u, sl).segment;
     });
     const persuadables = segments.filter(s => s === 'persuadables').length;
-    const dormants     = segments.filter(s => s === 'chiens-dormants').length;
-    const atRisk       = segments.filter(s => s === 'cas-perdus').length;
+    const dormants = segments.filter(s => s === 'chiens-dormants').length;
+    const atRisk = segments.filter(s => s === 'cas-perdus').length;
 
     const roiMatrix = buildROIMatrix({ giftingClients, keyAccounts, travelClients, persuadables, dormants, atRisk });
-    const totalROI  = roiMatrix.reduce((s, r) => s + r.roi, 0);
+    const totalROI = roiMatrix.reduce((s, r) => s + r.roi, 0);
 
     const fmt = v => v >= 1000 ? `${(v / 1000).toFixed(0)}k€` : `${v}€`;
 
@@ -1431,7 +1451,7 @@ function renderPulse() {
             } else {
                 const prioConfig = {
                     urgent: { label: 'URGENT', bg: '#ef4444', color: '#fff' },
-                    high:   { label: 'HIGH',   bg: '#fb923c', color: '#fff' },
+                    high: { label: 'HIGH', bg: '#fb923c', color: '#fff' },
                     medium: { label: 'MEDIUM', bg: '#2563EB', color: '#fff' }
                 };
                 roiMatrix.forEach(row => {
@@ -1516,7 +1536,7 @@ function renderPulse() {
             let offset = 0;
             const slices = Array.from(catFreq.entries()).sort((a, b) => b[1] - a[1]).map(([cat, cnt]) => {
                 const dash = (cnt / catTotal) * circumference;
-                const gap  = circumference - dash;
+                const gap = circumference - dash;
                 const color = legendColors[cat] || '#888';
                 const sl = { cat, cnt, color, dash, gap, offset };
                 offset += dash;
@@ -1617,11 +1637,11 @@ async function renderSmartFollowup(client) {
     try {
         const matched = matchProductsToClient(client.tags, client.clean || '');
         topProducts = (matched || []).slice(0, 3).map(m => ({
-            name:     m.product.title || '',
-            price:    m.product.price || '',
+            name: m.product.title || '',
+            price: m.product.price || '',
             category: m.product.category1_code || m.product.category || '',
-            image:    m.product.imageurl || '',
-            link:     m.product.itemurl || ''
+            image: m.product.imageurl || '',
+            link: m.product.itemurl || ''
         }));
     } catch (e) {
         console.warn('[smart-followup] matchProductsToClient failed:', e);
@@ -1636,9 +1656,9 @@ async function renderSmartFollowup(client) {
             btn.classList.toggle('active', btn.dataset.channel === channel)
         );
 
-        const msgBody    = container.querySelector('.followup-message__body');
+        const msgBody = container.querySelector('.followup-message__body');
         const msgSubject = container.querySelector('.followup-message__subject');
-        const badgeAI    = container.querySelector('.badge-ai');
+        const badgeAI = container.querySelector('.badge-ai');
 
         if (msgBody) msgBody.innerHTML = '<div class="followup-loading__spinner followup-loading__spinner--small"></div>';
 
@@ -1650,14 +1670,14 @@ async function renderSmartFollowup(client) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    client_id:   client.id,
+                    client_id: client.id,
                     client_name: client.ca || '',
-                    tags:        client.tags || [],
-                    clean_text:  (client.clean || '').substring(0, 400),
-                    products:    topProducts,
-                    channel:     channel,
-                    house:       house,
-                    language:    client.lang || 'FR'
+                    tags: client.tags || [],
+                    clean_text: (client.clean || '').substring(0, 400),
+                    products: topProducts,
+                    channel: channel,
+                    house: house,
+                    language: client.lang || 'FR'
                 })
             });
             result = await resp.json();
@@ -1676,13 +1696,13 @@ async function renderSmartFollowup(client) {
 
         if (msgSubject) {
             msgSubject.style.display = (channel === 'email' && result.subject) ? 'block' : 'none';
-            msgSubject.textContent   = result.subject || '';
+            msgSubject.textContent = result.subject || '';
         }
         if (msgBody) {
             msgBody.innerHTML = (result.body || '').replace(/\n/g, '<br>');
         }
 
-        container._currentResult  = result;
+        container._currentResult = result;
         container._currentChannel = channel;
     }
 
@@ -1712,17 +1732,17 @@ async function renderSmartFollowup(client) {
                     <h4 class="followup-products__title">Produits recommandés</h4>
                     <div class="followup-products__grid">
                         ${topProducts.length > 0
-                            ? topProducts.map(p => `
+            ? topProducts.map(p => `
                                 <div class="followup-product-card">
                                     ${p.image
-                                        ? `<img class="followup-product-card__img" src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'">`
-                                        : '<div class="followup-product-card__img-placeholder"></div>'}
+                    ? `<img class="followup-product-card__img" src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'">`
+                    : '<div class="followup-product-card__img-placeholder"></div>'}
                                     <div class="followup-product-card__info">
                                         <div class="followup-product-card__name">${p.name}</div>
                                         <div class="followup-product-card__cat">${(p.category || '').replace(/_/g, ' ')}</div>
                                     </div>
                                 </div>`).join('')
-                            : '<p class="followup-products__empty">Aucun produit matché</p>'}
+            : '<p class="followup-products__empty">Aucun produit matché</p>'}
                     </div>
                 </div>
             </div>
@@ -1734,7 +1754,7 @@ async function renderSmartFollowup(client) {
     );
 
     container.querySelector('.btn-followup-copy').addEventListener('click', function () {
-        const r    = container._currentResult || {};
+        const r = container._currentResult || {};
         const text = (container._currentChannel === 'email' && r.subject)
             ? r.subject + '\n\n' + r.body
             : r.body || '';
@@ -1753,7 +1773,7 @@ async function renderSmartFollowup(client) {
 
 // ===== RENDER: FOLLOW-UP PAGE (entry point) =====
 function renderFollowup() {
-    const grid      = $('followupGrid');
+    const grid = $('followupGrid');
     const container = $('followup-container');
     if (!grid) return;
 
@@ -1887,7 +1907,7 @@ function renderSmartFollowupResult(card, zone, client, top3, data) {
         </div>
     `;
 
-    zone.querySelector('.sf-btn-copy').addEventListener('click', function() {
+    zone.querySelector('.sf-btn-copy').addEventListener('click', function () {
         const textToCopy = (subject ? subject + '\n\n' : '') + body;
         navigator.clipboard.writeText(textToCopy).then(() => {
             this.textContent = 'Copié';
@@ -1906,9 +1926,9 @@ function renderSmartFollowupResult(card, zone, client, top3, data) {
 function generateFollowupLocal(client, house, channel) {
     const tags = client.tags.map(t => t.t);
     const name = client.ca || client.id;
-    const occasions = tags.filter(t => ['Anniversaire','Union','Naissance','Événement_Vie','Promotion','Réussite_Business','Retraite'].includes(t));
-    const styles = tags.filter(t => ['Intemporel','Contemporain','Tendance','Quiet_Luxury','Signature_Logo'].includes(t));
-    const interests = tags.filter(t => ['Golf','Tennis','Nautisme_Yachting','Sports_Endurance','Wellness_Yoga','Art_Contemporain','Gastronomie_Fine_Dining'].includes(t));
+    const occasions = tags.filter(t => ['Anniversaire', 'Union', 'Naissance', 'Événement_Vie', 'Promotion', 'Réussite_Business', 'Retraite'].includes(t));
+    const styles = tags.filter(t => ['Intemporel', 'Contemporain', 'Tendance', 'Quiet_Luxury', 'Signature_Logo'].includes(t));
+    const interests = tags.filter(t => ['Golf', 'Tennis', 'Nautisme_Yachting', 'Sports_Endurance', 'Wellness_Yoga', 'Art_Contemporain', 'Gastronomie_Fine_Dining'].includes(t));
 
     let subject, body;
     if (channel === 'email') {
@@ -1929,7 +1949,7 @@ function generateFollowupLocal(client, house, channel) {
     return { subject, body };
 }
 
-window.copyFollowup = function(btn) {
+window.copyFollowup = function (btn) {
     const body = btn.closest('.followup-card').querySelector('.followup-body').textContent;
     navigator.clipboard.writeText(body).then(() => {
         btn.textContent = '✅ Copié !';
@@ -1944,65 +1964,65 @@ const _matchCache = new Map();
 // Maps each client tag to real LV product categories with weights
 const TAG_TO_CATEGORIES = {
     // === PROFIL ===
-    'Femme':             [{ cat1: 'FEMME', w: 35 }, { cat1: 'JOAILLERIE', w: 20 }, { cat1: 'PARFUMS', w: 15 }],
-    'Homme':             [{ cat1: 'HOMME', w: 35 }, { cat1: 'MONTRES', w: 20 }],
+    'Femme': [{ cat1: 'FEMME', w: 35 }, { cat1: 'JOAILLERIE', w: 20 }, { cat1: 'PARFUMS', w: 15 }],
+    'Homme': [{ cat1: 'HOMME', w: 35 }, { cat1: 'MONTRES', w: 20 }],
     'Executive_Leadership': [{ cat1: 'HOMME', cat2: 'NEW FORMAL', w: 30 }, { cat1: 'HOMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 25 }, { cat1: 'HOMME', cat2: 'VOYAGE', w: 20 }],
-    'Entrepreneur':      [{ cat1: 'HOMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 25 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'NOUVEAUTES', w: 10 }],
-    'Expertise_Médicale':[{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'FEMME', cat2: 'ACCESSOIRES', w: 20 }],
-    'Marchés_Financiers':[{ cat1: 'HOMME', cat2: 'NEW FORMAL', w: 25 }, { cat1: 'MONTRES', w: 20 }],
+    'Entrepreneur': [{ cat1: 'HOMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 25 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'NOUVEAUTES', w: 10 }],
+    'Expertise_Médicale': [{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'FEMME', cat2: 'ACCESSOIRES', w: 20 }],
+    'Marchés_Financiers': [{ cat1: 'HOMME', cat2: 'NEW FORMAL', w: 25 }, { cat1: 'MONTRES', w: 20 }],
 
     // === INTÉRÊTS ===
-    'Golf':              [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 45 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 15 }],
-    'Tennis':            [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 15 }],
-    'Sports_Raquette':   [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }],
+    'Golf': [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 45 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 15 }],
+    'Tennis': [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 15 }],
+    'Sports_Raquette': [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }],
     'Nautisme_Yachting': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'SACS', cat2: 'VOYAGE', w: 30 }],
-    'Sports_Endurance':  [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }, { cat1: 'NOUVEAUTES', cat2: 'LV SKI', w: 20 }],
-    'Wellness_Yoga':     [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 35 }, { cat1: 'PARFUMS', w: 15 }],
+    'Sports_Endurance': [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 40 }, { cat1: 'NOUVEAUTES', cat2: 'LV SKI', w: 20 }],
+    'Wellness_Yoga': [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 35 }, { cat1: 'PARFUMS', w: 15 }],
     'Automobile_Collection': [{ cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 30 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }],
     'Motorsport_Experience': [{ cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 35 }],
-    'Art_Contemporain':  [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 25 }],
-    'Art_Classique':     [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 20 }],
+    'Art_Contemporain': [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 25 }],
+    'Art_Classique': [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 20 }],
     'Opéra_Musique_Symphonique': [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 25 }, { cat1: 'JOAILLERIE', w: 25 }, { cat1: 'PARFUMS', w: 15 }],
     'Jazz_Contemporary': [{ cat1: 'NOUVEAUTES', w: 20 }, { cat1: 'FEMME', cat2: 'ACCESSOIRES', w: 20 }],
-    'Horlogerie_Vintage':[{ cat1: 'MONTRES', cat2: 'MONTRES TRADITIONNELLES', w: 55 }, { cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 15 }],
-    'Haute_Horlogerie':  [{ cat1: 'MONTRES', cat2: 'MONTRES TRADITIONNELLES', w: 55 }, { cat1: 'MONTRES', cat2: 'MONTRES CONNECTEES', w: 20 }],
-    'Livres_Rares':      [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 55 }],
+    'Horlogerie_Vintage': [{ cat1: 'MONTRES', cat2: 'MONTRES TRADITIONNELLES', w: 55 }, { cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 15 }],
+    'Haute_Horlogerie': [{ cat1: 'MONTRES', cat2: 'MONTRES TRADITIONNELLES', w: 55 }, { cat1: 'MONTRES', cat2: 'MONTRES CONNECTEES', w: 20 }],
+    'Livres_Rares': [{ cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 55 }],
     'Vins_Spiritueux_Prestige': [{ cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 20 }],
     'Gastronomie_Fine_Dining': [{ cat1: 'ART DE VIVRE', cat2: 'MAISON', w: 30 }, { cat1: 'CADEAUX', w: 15 }],
 
     // === CONTEXTE / OCCASION ===
-    'Anniversaire':      [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'JOAILLERIE', w: 25 }, { cat1: 'PARFUMS', w: 20 }],
-    'Union':             [{ cat1: 'JOAILLERIE', w: 45 }, { cat1: 'CADEAUX', w: 25 }, { cat1: 'PARFUMS', w: 15 }],
-    'Naissance':         [{ cat1: 'CADEAUX', cat2: 'CADEAUX DE NAISSANCE', w: 55 }],
-    'Cadeau_Proche':     [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'PARFUMS', w: 25 }, { cat1: 'FEMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 20 }],
-    'Cadeau_Famille':    [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'PARFUMS', w: 20 }],
+    'Anniversaire': [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'JOAILLERIE', w: 25 }, { cat1: 'PARFUMS', w: 20 }],
+    'Union': [{ cat1: 'JOAILLERIE', w: 45 }, { cat1: 'CADEAUX', w: 25 }, { cat1: 'PARFUMS', w: 15 }],
+    'Naissance': [{ cat1: 'CADEAUX', cat2: 'CADEAUX DE NAISSANCE', w: 55 }],
+    'Cadeau_Proche': [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'PARFUMS', w: 25 }, { cat1: 'FEMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 20 }],
+    'Cadeau_Famille': [{ cat1: 'CADEAUX', w: 40 }, { cat1: 'PARFUMS', w: 20 }],
     'Cadeau_Professionnel': [{ cat1: 'CADEAUX', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 20 }, { cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 15 }],
-    'Cadeau_Lui':        [{ cat1: 'CADEAUX', cat2: 'CADEAUX POUR LUI', w: 55 }],
-    'Cadeau_Elle':       [{ cat1: 'CADEAUX', cat2: 'CADEAUX POUR ELLE', w: 55 }],
-    'Intemporel':        [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 30 }, { cat1: 'SACS', w: 25 }],
-    'Quiet_Luxury':      [{ cat1: 'FEMME', cat2: 'PRET A PORTER', w: 25 }, { cat1: 'HOMME', cat2: 'PRET A PORTER', w: 25 }, { cat1: 'JOAILLERIE', w: 15 }],
-    'Signature_Logo':    [{ cat1: 'SACS', w: 30 }, { cat1: 'FEMME', cat2: 'SACS A MAIN', w: 25 }, { cat1: 'NOUVEAUTES', w: 15 }],
-    'Design_Minimaliste':[{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 25 }, { cat1: 'FEMME', cat2: 'ACCESSOIRES', w: 25 }],
-    'Contemporain':      [{ cat1: 'NOUVEAUTES', w: 30 }, { cat1: 'FEMME', cat2: 'PRET A PORTER', w: 20 }],
-    'Tendance':          [{ cat1: 'NOUVEAUTES', w: 40 }],
-    'Promotion':         [{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'MONTRES', w: 20 }, { cat1: 'CADEAUX', w: 15 }],
+    'Cadeau_Lui': [{ cat1: 'CADEAUX', cat2: 'CADEAUX POUR LUI', w: 55 }],
+    'Cadeau_Elle': [{ cat1: 'CADEAUX', cat2: 'CADEAUX POUR ELLE', w: 55 }],
+    'Intemporel': [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 30 }, { cat1: 'SACS', w: 25 }],
+    'Quiet_Luxury': [{ cat1: 'FEMME', cat2: 'PRET A PORTER', w: 25 }, { cat1: 'HOMME', cat2: 'PRET A PORTER', w: 25 }, { cat1: 'JOAILLERIE', w: 15 }],
+    'Signature_Logo': [{ cat1: 'SACS', w: 30 }, { cat1: 'FEMME', cat2: 'SACS A MAIN', w: 25 }, { cat1: 'NOUVEAUTES', w: 15 }],
+    'Design_Minimaliste': [{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 25 }, { cat1: 'FEMME', cat2: 'ACCESSOIRES', w: 25 }],
+    'Contemporain': [{ cat1: 'NOUVEAUTES', w: 30 }, { cat1: 'FEMME', cat2: 'PRET A PORTER', w: 20 }],
+    'Tendance': [{ cat1: 'NOUVEAUTES', w: 40 }],
+    'Promotion': [{ cat1: 'HOMME', cat2: 'ACCESSOIRES', w: 20 }, { cat1: 'MONTRES', w: 20 }, { cat1: 'CADEAUX', w: 15 }],
     'Réussite_Business': [{ cat1: 'MONTRES', w: 30 }, { cat1: 'HOMME', cat2: 'NEW FORMAL', w: 25 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 20 }],
 
     // === VOYAGE ===
-    'Business_Travel':   [{ cat1: 'HOMME', cat2: 'VOYAGE', w: 45 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'SACS', cat2: 'VOYAGE', w: 30 }, { cat1: 'HOMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 15 }],
-    'Loisir_Premium':    [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'FEMME', cat2: 'SACS A MAIN', w: 20 }, { cat1: 'SACS', w: 20 }],
+    'Business_Travel': [{ cat1: 'HOMME', cat2: 'VOYAGE', w: 45 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'SACS', cat2: 'VOYAGE', w: 30 }, { cat1: 'HOMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 15 }],
+    'Loisir_Premium': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'FEMME', cat2: 'SACS A MAIN', w: 20 }, { cat1: 'SACS', w: 20 }],
     'Expédition_Nature': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 35 }, { cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 25 }],
     'Itinérance_Culturelle': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 30 }, { cat1: 'ART DE VIVRE', cat2: 'LIVRES ET PAPETERIE', w: 20 }],
-    'APAC':              [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 20 }, { cat1: 'JOAILLERIE', w: 20 }],
-    'Americas':          [{ cat1: 'NOUVEAUTES', w: 20 }, { cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 15 }],
-    'Europe':            [{ cat1: 'JOAILLERIE', w: 15 }, { cat1: 'PARFUMS', w: 15 }],
+    'APAC': [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 20 }, { cat1: 'JOAILLERIE', w: 20 }],
+    'Americas': [{ cat1: 'NOUVEAUTES', w: 20 }, { cat1: 'ART DE VIVRE', cat2: 'SPORT ET LIFESTYLE', w: 15 }],
+    'Europe': [{ cat1: 'JOAILLERIE', w: 15 }, { cat1: 'PARFUMS', w: 15 }],
 
     // === MARQUE ===
-    'Lignes_Iconiques':  [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 35 }, { cat1: 'SACS', w: 30 }],
+    'Lignes_Iconiques': [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 35 }, { cat1: 'SACS', w: 30 }],
     'Art_de_Vivre_Malles': [{ cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 55 }],
-    'Cuirs_Exotiques':   [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 40 }, { cat1: 'FEMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 25 }],
+    'Cuirs_Exotiques': [{ cat1: 'FEMME', cat2: 'SACS A MAIN', w: 40 }, { cat1: 'FEMME', cat2: 'PORTEFEUILLES ET PETITE MAROQUINERIE', w: 25 }],
     'Client_Historique': [{ cat1: 'SACS', w: 30 }, { cat1: 'ART DE VIVRE', cat2: 'MALLES ET VOYAGE', w: 30 }],
-    'Lignes_Animation':  [{ cat1: 'NOUVEAUTES', w: 45 }],
+    'Lignes_Animation': [{ cat1: 'NOUVEAUTES', w: 45 }],
 };
 
 // Human-readable labels for product categories
@@ -2123,7 +2143,7 @@ function matchProductsToClient(clientTags, clientText) {
 async function renderProducts() {
     const grid = $('productGrid');
     if (!grid) return;
-    
+
     // Ensure products are loaded
     if (!PRODUCTS_LOADED) {
         grid.innerHTML = '<div style="text-align:center;padding:40px;color:#999"><div class="spinner" style="margin:0 auto 16px"></div><p>Chargement de la base de données produits Louis Vuitton...</p></div>';
@@ -2135,7 +2155,7 @@ async function renderProducts() {
         grid.innerHTML = '<p style="color:#999;font-size:.85rem;padding:20px">Aucun client avec tags pour le matching produit.</p>';
         return;
     }
-    
+
     if (LV_PRODUCTS.length === 0) {
         grid.innerHTML = '<p style="color:#ef4444;font-size:.85rem;padding:20px">⚠️ Erreur de chargement de la base de données produits. Vérifiez que le fichier JSON est accessible.</p>';
         return;
@@ -2186,13 +2206,13 @@ async function renderProducts() {
         card.className = 'product-match-card';
         card.setAttribute('data-client', (client.ca || client.id).toLowerCase());
         card.setAttribute('data-tags', client.tags.map(t => t.t.toLowerCase()).join(' '));
-        
+
         card.innerHTML = `
             <div class="product-match-header">
                 <span class="product-match-client">${client.ca || client.id}</span>
                 <span style="color:#666;font-size:.72rem">${matches.length} produit${matches.length > 1 ? 's' : ''} trouvé${matches.length > 1 ? 's' : ''}</span>
             </div>
-            <div class="product-match-tags">${client.tags.slice(0,6).map(t=>`<span class="tag ${t.c}">${t.t}</span>`).join('')}</div>
+            <div class="product-match-tags">${client.tags.slice(0, 6).map(t => `<span class="tag ${t.c}">${t.t}</span>`).join('')}</div>
             <div class="product-items">
                 ${top3.map(match => {
             const prod = match.product;
@@ -2203,7 +2223,7 @@ async function renderProducts() {
             const productName = prod.title || 'Produit Louis Vuitton';
             const productCategory = [prod.category1_code, prod.category2_code, prod.category3_code].filter(c => c).join(' · ');
             const productUrl = prod.itemurl;
-            
+
             // Qualitative relevance label
             const relevanceBadge = match.score >= 60
                 ? '<div class="product-relevance-badge best">Idéal</div>'
@@ -2230,7 +2250,7 @@ async function renderProducts() {
                             </div>
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
         `;
         gridEl.appendChild(card);
@@ -2262,7 +2282,7 @@ async function renderProducts() {
 function calculateChurnRisk(sentimentScore, sentimentLevel, visitFrequency = 1) {
     // visitFrequency: mocked as 1 (average) - in real system, would come from CRM
     let churnScore = 0;
-    
+
     // Sentiment impact (60% weight)
     if (sentimentLevel === 'negative') {
         churnScore += 60;
@@ -2271,13 +2291,13 @@ function calculateChurnRisk(sentimentScore, sentimentLevel, visitFrequency = 1) 
     } else {
         churnScore += Math.max(0, (100 - sentimentScore) * 0.4);
     }
-    
+
     // Visit frequency impact (40% weight)
     const frequencyScore = Math.max(0, (1 - visitFrequency) * 40);
     churnScore += frequencyScore;
-    
+
     churnScore = Math.min(100, Math.round(churnScore));
-    
+
     if (churnScore >= 70) {
         return { risk: 'critical', label: 'Critique', color: '#ef4444', icon: '🔴' };
     } else if (churnScore >= 50) {
@@ -2291,7 +2311,7 @@ function calculateChurnRisk(sentimentScore, sentimentLevel, visitFrequency = 1) 
 
 function getServiceRecoveryActions(churnRisk) {
     const actions = [];
-    
+
     if (churnRisk === 'critical') {
         actions.push({
             priority: 'critique',
@@ -2326,7 +2346,7 @@ function getServiceRecoveryActions(churnRisk) {
             color: '#fbbf24'
         });
     }
-    
+
     return actions;
 }
 
@@ -2335,17 +2355,17 @@ function renderSentiment() {
     const overview = $('sentimentOverview');
     if (!overview) return;
 
-    const posCount = SENTIMENT_DATA.filter(s => s.level==='positive').length;
-    const neuCount = SENTIMENT_DATA.filter(s => s.level==='neutral').length;
-    const negCount = SENTIMENT_DATA.filter(s => s.level==='negative').length;
-    const avgScore = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s,d)=>s+d.score,0)/SENTIMENT_DATA.length) : 0;
+    const posCount = SENTIMENT_DATA.filter(s => s.level === 'positive').length;
+    const neuCount = SENTIMENT_DATA.filter(s => s.level === 'neutral').length;
+    const negCount = SENTIMENT_DATA.filter(s => s.level === 'negative').length;
+    const avgScore = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s, d) => s + d.score, 0) / SENTIMENT_DATA.length) : 0;
 
     // Calculate churn stats
     const clientsWithChurn = SENTIMENT_DATA.map(s => ({
         ...s,
         churn: calculateChurnRisk(s.score, s.level, DATA.filter(d => d.ca === s.ca && s.ca).length || 1)
     }));
-    
+
     const criticalChurn = clientsWithChurn.filter(c => c.churn.risk === 'critical').length;
     const highChurn = clientsWithChurn.filter(c => c.churn.risk === 'high').length;
 
@@ -2395,22 +2415,22 @@ function renderSentiment() {
     const alerts = $('sentimentAlerts');
     if (alerts) {
         alerts.innerHTML = '';
-        
+
         const sortedByChurn = clientsWithChurn
             .filter(c => c.churn.risk === 'critical' || c.churn.risk === 'high')
             .sort((a, b) => {
                 const priority = { critical: 3, high: 2, medium: 1, low: 0 };
                 return priority[b.churn.risk] - priority[a.churn.risk];
             });
-        
+
         if (sortedByChurn.length > 0) {
             alerts.innerHTML = '<h3 style="margin-bottom:16px;font-size:1.1rem;color:#ef4444">🚨 Service Recovery - Actions Prioritaires</h3>';
-            
+
             sortedByChurn.forEach(s => {
                 const recoveryActions = getServiceRecoveryActions(s.churn.risk);
                 const al = document.createElement('div');
                 al.className = `sentiment-alert-enhanced priority-${s.churn.risk}`;
-                
+
                 let actionsHTML = '';
                 if (recoveryActions.length > 0) {
                     actionsHTML = '<div class="recovery-actions">';
@@ -2427,12 +2447,12 @@ function renderSentiment() {
                     });
                     actionsHTML += '</div>';
                 }
-                
+
                 al.innerHTML = `
                     <div class="sentiment-alert-header">
                         <div class="sentiment-alert-client-info">
                             <span class="sentiment-alert-client-name">${s.id}</span>
-                            <span class="sentiment-alert-score" style="color:${s.level==='negative'?'#ef4444':'#fb923c'}">${s.score}%</span>
+                            <span class="sentiment-alert-score" style="color:${s.level === 'negative' ? '#ef4444' : '#fb923c'}">${s.score}%</span>
                         </div>
                         <div class="sentiment-alert-badges">
                             <span class="churn-risk-badge" style="background:${s.churn.color}">${s.churn.icon} ${s.churn.label}</span>
@@ -2454,9 +2474,9 @@ function renderSentiment() {
     const grid = $('sentimentGrid');
     if (!grid) return;
     grid.innerHTML = '';
-    
-    clientsWithChurn.sort((a,b) => a.score-b.score).forEach(s => {
-        const color = s.level==='positive'?'#10b981':s.level==='negative'?'#ef4444':'#888';
+
+    clientsWithChurn.sort((a, b) => a.score - b.score).forEach(s => {
+        const color = s.level === 'positive' ? '#10b981' : s.level === 'negative' ? '#ef4444' : '#888';
         const card = document.createElement('div');
         card.className = 'sentiment-card-enhanced';
         card.innerHTML = `
@@ -2472,7 +2492,7 @@ function renderSentiment() {
                     </div>
                 </div>
             </div>
-            <div class="sentiment-keywords">${s.posFound.map(k=>`<span class="sentiment-kw positive">${k}</span>`).join('')}${s.negFound.map(k=>`<span class="sentiment-kw negative">${k}</span>`).join('')}${s.posFound.length===0&&s.negFound.length===0?'<span class="sentiment-kw neutral">neutre</span>':''}</div>
+            <div class="sentiment-keywords">${s.posFound.map(k => `<span class="sentiment-kw positive">${k}</span>`).join('')}${s.negFound.map(k => `<span class="sentiment-kw negative">${k}</span>`).join('')}${s.posFound.length === 0 && s.negFound.length === 0 ? '<span class="sentiment-kw neutral">neutre</span>' : ''}</div>
             <div class="sentiment-excerpt">"${s.excerpt}..."</div>
             <div class="sentiment-recommendations">
                 <div class="sentiment-rec-title">💡 Recommandations</div>
@@ -2491,54 +2511,54 @@ function renderBoutique() {
     const kpis = $('boutiqueKPIs');
     if (!kpis) return;
 
-    const avgSentiment = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s,d)=>s+d.score,0)/SENTIMENT_DATA.length) : 0;
-    const atRiskPct = STATS.clients > 0 ? Math.round((STATS.atRisk/STATS.clients)*100) : 0;
+    const avgSentiment = SENTIMENT_DATA.length > 0 ? Math.round(SENTIMENT_DATA.reduce((s, d) => s + d.score, 0) / SENTIMENT_DATA.length) : 0;
+    const atRiskPct = STATS.clients > 0 ? Math.round((STATS.atRisk / STATS.clients) * 100) : 0;
 
     kpis.innerHTML = `
         <div class="boutique-kpi"><div class="boutique-kpi-value">${STATS.clients}</div><div class="boutique-kpi-label">Notes traitées</div></div>
         <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:#10b981">${STATS.tags}</div><div class="boutique-kpi-label">Tags extraits</div></div>
         <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:#d4af37">${STATS.nba}</div><div class="boutique-kpi-label">Actions NBA</div></div>
-        <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:${avgSentiment>=60?'#10b981':'#ef4444'}">${avgSentiment}%</div><div class="boutique-kpi-label">Satisfaction</div></div>
-        <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:${atRiskPct>10?'#ef4444':'#10b981'}">${atRiskPct}%</div><div class="boutique-kpi-label">À risque</div></div>
+        <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:${avgSentiment >= 60 ? '#10b981' : '#ef4444'}">${avgSentiment}%</div><div class="boutique-kpi-label">Satisfaction</div></div>
+        <div class="boutique-kpi"><div class="boutique-kpi-value" style="color:${atRiskPct > 10 ? '#ef4444' : '#10b981'}">${atRiskPct}%</div><div class="boutique-kpi-label">À risque</div></div>
     `;
 
     const tagFreq = new Map();
-    DATA.forEach(r => r.tags.forEach(t => tagFreq.set(t.t, (tagFreq.get(t.t)||0)+1)));
-    const top5 = Array.from(tagFreq.entries()).sort((a,b) => b[1]-a[1]).slice(0,5);
+    DATA.forEach(r => r.tags.forEach(t => tagFreq.set(t.t, (tagFreq.get(t.t) || 0) + 1)));
+    const top5 = Array.from(tagFreq.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
     const maxCount = top5.length > 0 ? top5[0][1] : 1;
 
     const topList = $('boutiqueTopList');
-    if (topList) topList.innerHTML = top5.map(([tag,count],i) => `
-        <div class="top5-item"><div class="top5-rank r${i+1}">${i+1}</div><div class="top5-info"><div class="top5-name">${tag}</div><div class="top5-bar"><div class="top5-bar-fill" style="width:${(count/maxCount*100).toFixed(0)}%"></div></div></div><div class="top5-count">${count}</div></div>
+    if (topList) topList.innerHTML = top5.map(([tag, count], i) => `
+        <div class="top5-item"><div class="top5-rank r${i + 1}">${i + 1}</div><div class="top5-info"><div class="top5-name">${tag}</div><div class="top5-bar"><div class="top5-bar-fill" style="width:${(count / maxCount * 100).toFixed(0)}%"></div></div></div><div class="top5-count">${count}</div></div>
     `).join('');
 
     const actionsList = $('boutiqueActionsList');
     if (actionsList) {
         const actions = [];
-        if (top5.length > 0) actions.push({ icon:'📦', text:`Réapprovisionner "${top5[0][0]}"`, priority:'high' });
+        if (top5.length > 0) actions.push({ icon: '📦', text: `Réapprovisionner "${top5[0][0]}"`, priority: 'high' });
         const negClients = SENTIMENT_DATA.filter(s => s.level === 'negative');
-        if (negClients.length > 0) actions.push({ icon:'📞', text:`Contacter ${negClients.length} client${negClients.length>1?'s':''} insatisfait${negClients.length>1?'s':''}`, priority:'high' });
-        const occasionTags = DATA.filter(r => r.tags.some(t => t.c==='contexte'));
-        if (occasionTags.length > 0) actions.push({ icon:'🎁', text:`${occasionTags.length} opportunités gifting`, priority:'medium' });
-        const vipCount = DATA.filter(r => r.tags.some(t => t.t==='Key_Account')).length;
-        if (vipCount > 0) actions.push({ icon:'⭐', text:`${vipCount} Key Accounts — planifier private viewing`, priority:'medium' });
-        actions.push({ icon:'📊', text:'Diffuser le rapport hebdomadaire', priority:'low' });
-        actionsList.innerHTML = actions.map(a => `<div class="action-item"><div class="action-icon">${a.icon}</div><div><div class="action-text">${a.text}</div><span class="action-priority ${a.priority}">${a.priority==='high'?'Urgent':a.priority==='medium'?'Cette semaine':'Planifié'}</span></div></div>`).join('');
+        if (negClients.length > 0) actions.push({ icon: '📞', text: `Contacter ${negClients.length} client${negClients.length > 1 ? 's' : ''} insatisfait${negClients.length > 1 ? 's' : ''}`, priority: 'high' });
+        const occasionTags = DATA.filter(r => r.tags.some(t => t.c === 'contexte'));
+        if (occasionTags.length > 0) actions.push({ icon: '🎁', text: `${occasionTags.length} opportunités gifting`, priority: 'medium' });
+        const vipCount = DATA.filter(r => r.tags.some(t => t.t === 'Key_Account')).length;
+        if (vipCount > 0) actions.push({ icon: '⭐', text: `${vipCount} Key Accounts — planifier private viewing`, priority: 'medium' });
+        actions.push({ icon: '📊', text: 'Diffuser le rapport hebdomadaire', priority: 'low' });
+        actionsList.innerHTML = actions.map(a => `<div class="action-item"><div class="action-icon">${a.icon}</div><div><div class="action-text">${a.text}</div><span class="action-priority ${a.priority}">${a.priority === 'high' ? 'Urgent' : a.priority === 'medium' ? 'Cette semaine' : 'Planifié'}</span></div></div>`).join('');
     }
 
     const caPerf = $('boutiqueCAPerfList');
     if (caPerf) {
         const caMap = new Map();
         DATA.forEach(r => {
-            if (!caMap.has(r.ca)) caMap.set(r.ca, { notes:0, tags:0, sentiment:0 });
+            if (!caMap.has(r.ca)) caMap.set(r.ca, { notes: 0, tags: 0, sentiment: 0 });
             const entry = caMap.get(r.ca);
             entry.notes++;
             entry.tags += r.tags.length;
-            entry.sentiment += r.sentiment ? (r.sentiment.score||50) : 50;
+            entry.sentiment += r.sentiment ? (r.sentiment.score || 50) : 50;
         });
         caPerf.innerHTML = Array.from(caMap.entries()).map(([ca, data]) => {
-            const avgSent = Math.round(data.sentiment/data.notes);
-            const color = avgSent>=70?'#10b981':avgSent>=40?'#fb923c':'#ef4444';
+            const avgSent = Math.round(data.sentiment / data.notes);
+            const color = avgSent >= 70 ? '#10b981' : avgSent >= 40 ? '#fb923c' : '#ef4444';
             return `<div class="ca-perf-item"><span class="ca-perf-name">${ca}</span><div class="ca-perf-bar"><div class="ca-perf-bar-fill" style="width:${avgSent}%;background:${color}"></div></div><div class="ca-perf-stats"><span>${data.notes} notes</span><span>${data.tags} tags</span><span style="color:${color}">${avgSent}%</span></div></div>`;
         }).join('');
     }
@@ -2548,11 +2568,11 @@ function renderBoutique() {
         const stockRecs = [];
         top5.forEach(([tag, count]) => {
             if (count > 2) {
-                stockRecs.push({ icon:'📦', text:`${tag}: ${count} demandes — vérifier stocks produits associés`, urgency: count>3?'high':'medium' });
+                stockRecs.push({ icon: '📦', text: `${tag}: ${count} demandes — vérifier stocks produits associés`, urgency: count > 3 ? 'high' : 'medium' });
             }
         });
-        if (stockRecs.length === 0) stockRecs.push({ icon:'✅', text:'Pas de recommandation urgente', urgency:'medium' });
-        stockList.innerHTML = stockRecs.map(s => `<div class="stock-item"><div class="stock-icon">${s.icon}</div><div class="stock-text">${s.text}</div><span class="stock-urgency ${s.urgency}">${s.urgency==='high'?'Urgent':'À suivre'}</span></div>`).join('');
+        if (stockRecs.length === 0) stockRecs.push({ icon: '✅', text: 'Pas de recommandation urgente', urgency: 'medium' });
+        stockList.innerHTML = stockRecs.map(s => `<div class="stock-item"><div class="stock-icon">${s.icon}</div><div class="stock-text">${s.text}</div><span class="stock-urgency ${s.urgency}">${s.urgency === 'high' ? 'Urgent' : 'À suivre'}</span></div>`).join('');
     }
 }
 
@@ -2599,12 +2619,12 @@ function generateBriefContent(clientId, container) {
     }
 
     const tags = Array.isArray(client.tags) ? client.tags : [];
-    const profilTags   = tags.filter(t => t.c === 'profil');
-    const interetTags  = tags.filter(t => t.c === 'interet');
+    const profilTags = tags.filter(t => t.c === 'profil');
+    const interetTags = tags.filter(t => t.c === 'interet');
     const contexteTags = tags.filter(t => t.c === 'contexte');
-    const voyageTags   = tags.filter(t => t.c === 'voyage');
-    const marqueTags   = tags.filter(t => t.c === 'marque');
-    const serviceTags  = tags.filter(t => t.c === 'service');
+    const voyageTags = tags.filter(t => t.c === 'voyage');
+    const marqueTags = tags.filter(t => t.c === 'marque');
+    const serviceTags = tags.filter(t => t.c === 'service');
 
     // NBA
     const nbaItems = Array.isArray(client.nba) ? client.nba.slice(0, 3) : [];
@@ -2661,8 +2681,8 @@ function generateBriefContent(clientId, container) {
     // Section 3 — Contexte & historique
     const contextGroups = [];
     if (contexteTags.length) contextGroups.push({ label: 'Contexte', tags: contexteTags });
-    if (voyageTags.length)   contextGroups.push({ label: 'Voyage',   tags: voyageTags });
-    if (marqueTags.length)   contextGroups.push({ label: 'Marques',  tags: marqueTags });
+    if (voyageTags.length) contextGroups.push({ label: 'Voyage', tags: voyageTags });
+    if (marqueTags.length) contextGroups.push({ label: 'Marques', tags: marqueTags });
 
     const section3 = `
         <div class="brief-card">
@@ -2682,7 +2702,7 @@ function generateBriefContent(clientId, container) {
                 <div class="brief-product-name">${p.title || 'Produit sans titre'}</div>
                 <div class="brief-product-cat">${p.category || ''}</div>
                 <div class="brief-product-price">${priceTier(p.price)}</div>
-                ${p.reasons && p.reasons.length ? `<div class="brief-product-reasons">${p.reasons.slice(0,2).map(r => `<span class="brief-reason">${r}</span>`).join('')}</div>` : ''}
+                ${p.reasons && p.reasons.length ? `<div class="brief-product-reasons">${p.reasons.slice(0, 2).map(r => `<span class="brief-reason">${r}</span>`).join('')}</div>` : ''}
                 ${p.itemurl ? `<a class="brief-product-link" href="${p.itemurl}" target="_blank" rel="noopener">Voir le produit</a>` : ''}
             </div>
         </div>`).join('')
@@ -2774,9 +2794,9 @@ function exportCSV() {
     DATA.forEach(r => {
         lines.push([
             r.id, r.date, r.lang, r.ca,
-            '"' + (r.clean||'').replace(/"/g,'""') + '"',
-            '"' + r.tags.map(t=>t.t).join('|') + '"',
-            '"' + (r.nba||[]).map(a=>a.action).join(' | ') + '"'
+            '"' + (r.clean || '').replace(/"/g, '""') + '"',
+            '"' + r.tags.map(t => t.t).join('|') + '"',
+            '"' + (r.nba || []).map(a => a.action).join(' | ') + '"'
         ].join(','));
     });
     dl(lines.join('\n'), 'lvmh_ai_platform.csv', 'text/csv');
@@ -2795,7 +2815,7 @@ function exportReport() {
         summary: { clients: STATS.clients, tags: STATS.tags, rgpdMasked: STATS.rgpd, nbaActions: STATS.nba, privacyAvg: STATS.privacyAvg },
         privacyScores: PRIVACY_SCORES.map(p => ({ ca: p.ca, score: p.score, level: p.level, violations: p.violations, coaching: p.coaching })),
         rgpdViolations: RGPD_BAD,
-        tagDistribution: (() => { const m = {}; DATA.forEach(r => r.tags.forEach(t => { m[t.t]=(m[t.t]||0)+1; })); return m; })()
+        tagDistribution: (() => { const m = {}; DATA.forEach(r => r.tags.forEach(t => { m[t.t] = (m[t.t] || 0) + 1; })); return m; })()
     };
     dl(JSON.stringify(report, null, 2), 'lvmh_full_report.json', 'application/json');
 }

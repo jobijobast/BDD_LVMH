@@ -1107,13 +1107,30 @@ const PAGE_CONFIG = {
     },
     clients: {
         _navId: 'clients',
-        title: 'Mes clients',
+        title: 'Tous les Clients',
         badge: '',
         navItems: ['Tous', 'Nouveaux', 'Prioritaires', 'À relancer'],
         headerActions: `
-            <button class="btn" id="btn-filtres-clients" onclick="openClientFilters(this)">Filtres</button>
-            <button class="btn" onclick="navigateTo('m-import')">Import CSV</button>
             <button class="btn btn-primary" onclick="navigateTo('v-home')">+ Nouvelle note</button>
+            <div class="header-meatball" id="headerMeatball">
+                <button class="btn-meatball" onclick="toggleMeatballMenu(this)" title="Plus d'options">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>
+                </button>
+                <div class="meatball-dropdown">
+                    <button class="meatball-item" onclick="openClientFilters(this);closeMeatballMenu()">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 3h12M4 8h8M6 13h4"/></svg>
+                        Filtres
+                    </button>
+                    <button class="meatball-item" onclick="navigateTo('m-import');closeMeatballMenu()">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2M8 2v9M5 5l3-3 3 3"/></svg>
+                        Import CSV
+                    </button>
+                    <button class="meatball-item" onclick="closeMeatballMenu()">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2M8 9V2M5 6l3 3 3-3"/></svg>
+                        Exporter
+                    </button>
+                </div>
+            </div>
         `,
         roles: ['vendeur', 'manager', 'admin']
     },
@@ -1122,7 +1139,7 @@ const PAGE_CONFIG = {
         title: 'Next Best Actions',
         badge: '',
         navItems: ['Toutes', 'Conversion', 'Engagement', 'Nurture'],
-        headerActions: `<button class="btn">Exporter</button>`,
+        headerActions: `<button class="btn btn-ghost">Exporter</button>`,
         roles: ['vendeur', 'manager', 'admin']
     },
     produits: {
@@ -1154,7 +1171,7 @@ const PAGE_CONFIG = {
         title: 'Dashboard',
         badge: 'Manager',
         navItems: ['Vue globale', 'Performance', 'Équipe'],
-        headerActions: `<button class="btn">Exporter</button>`,
+        headerActions: `<button class="btn btn-ghost">Exporter</button>`,
         roles: ['manager', 'admin']
     },
     privacy: {
@@ -1194,7 +1211,7 @@ const PAGE_CONFIG = {
         title: 'Luxury Pulse',
         badge: 'ROI',
         navItems: ['Signaux', 'ROI', 'Tendances'],
-        headerActions: `<button class="btn">Exporter rapport</button>`,
+        headerActions: `<button class="btn btn-ghost">Exporter rapport</button>`,
         roles: ['manager', 'admin']
     },
     boutique: {
@@ -1202,7 +1219,7 @@ const PAGE_CONFIG = {
         title: 'Dashboard Boutique',
         badge: 'Manager',
         navItems: ['KPIs', 'Stock', 'Performance'],
-        headerActions: `<button class="btn">Rapport</button>`,
+        headerActions: `<button class="btn btn-ghost">Rapport</button>`,
         roles: ['manager', 'admin']
     },
     import: {
@@ -1262,22 +1279,25 @@ function showPage(pageId) {
 
 // Called by navigateTo() — updates new layout elements if they exist
 function _updatePageMeta(navId) {
-    // Find PAGE_CONFIG entry for this navId
     const configKey = PAGE_ALIASES[navId] || Object.keys(PAGE_CONFIG).find(k => PAGE_CONFIG[k]._navId === navId);
     const config = configKey ? PAGE_CONFIG[configKey] : null;
     if (!config) return;
 
-    // Badge
-    const badgeEl = $('page-badge');
-    if (badgeEl) {
-        let badge = config.badge || '';
+    // 1. Page Title
+    const titleEl = document.getElementById('pageTitle');
+    if (titleEl) {
+        titleEl.textContent = config.title;
+    }
+
+    // 2. Subtitle (Boutique + Clients count)
+    const boutiqueEl = document.getElementById('boutiqueNameDisplay');
+    if (boutiqueEl) {
+        let subtitle = (currentUser && currentUser.boutique ? currentUser.boutique.name : 'LV Boutique');
         if (configKey === 'clients') {
             const count = (window.DATA || DATA || []).length;
-            const role = (currentUser && currentUser.role) || 'vendeur';
-            badge = `${count} client${count > 1 ? 's' : ''} · ${role}`;
+            subtitle = `${subtitle} · ${count} client${count > 1 ? 's' : ''}`;
         }
-        badgeEl.textContent = badge;
-        badgeEl.style.display = badge ? 'inline-flex' : 'none';
+        boutiqueEl.textContent = subtitle;
     }
 
     // Header actions
@@ -1312,6 +1332,30 @@ function switchNavTab(el, navId, tab) {
     document.querySelectorAll('#top-nav .nav-item').forEach(n => n.classList.remove('active'));
     el.classList.add('active');
     onNavTab(navId, tab);
+}
+
+// ── Meatball menu (three-dots dropdown) ──
+function toggleMeatballMenu(btn) {
+    const dropdown = btn.closest('.header-meatball');
+    if (!dropdown) return;
+    dropdown.classList.toggle('open');
+    // Close on outside click
+    if (dropdown.classList.contains('open')) {
+        setTimeout(() => {
+            document.addEventListener('click', _closeMeatballOutside, { once: true, capture: true });
+        }, 10);
+    }
+}
+
+function closeMeatballMenu() {
+    document.querySelectorAll('.header-meatball.open').forEach(el => el.classList.remove('open'));
+}
+
+function _closeMeatballOutside(e) {
+    const meatball = document.querySelector('.header-meatball.open');
+    if (meatball && !meatball.contains(e.target)) {
+        meatball.classList.remove('open');
+    }
 }
 
 function onNavTab(navId, tab) {

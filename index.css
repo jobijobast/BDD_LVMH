@@ -217,12 +217,11 @@ p {
     flex-shrink: 0;
 }
 
-/* ─── TOP NAV ───────────────────────────────────────────────── */
+/* ─── TOP NAV (base — overridden by inline styles in index.html) ──── */
 .top-nav {
     display: flex;
     align-items: center;
     gap: 4px;
-    margin-left: auto;
 }
 
 .nav-item {
@@ -230,12 +229,12 @@ p {
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    border-radius: var(--radius-sm);
+    border-radius: 0;
     font-size: 0.78rem;
-    font-weight: 500;
-    color: var(--text-secondary);
+    font-weight: 400;
+    color: #B0AEA6;
     cursor: pointer;
-    transition: var(--transition-fast);
+    transition: color 0.2s ease;
     border: none;
     background: none;
     font-family: var(--font-body);
@@ -243,13 +242,13 @@ p {
 }
 
 .nav-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
+    background: none;
+    color: #6A6A68;
 }
 
 .nav-item.active {
-    background: var(--bg-active);
-    color: var(--text-primary);
+    background: none;
+    color: #2A2A28;
     font-weight: 600;
 }
 
@@ -1027,10 +1026,8 @@ p {
     padding: 0 48px 72px;
 }
 
+/* Base page-header — layout controlled by inline styles in index.html */
 .page-header {
-    padding: 36px 40px 0;
-    max-width: 1600px;
-    margin: 0 auto;
     width: 100%;
 }
 
@@ -2384,8 +2381,8 @@ p {
 
 .nba-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 24px;
     width: 100%;
 }
 
@@ -2395,143 +2392,223 @@ p {
     }
 }
 
+/* ── NBA Card — "Quiet Luxury" Redesign ────────────────────── */
 .nba-card {
-    background: var(--surface);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: var(--radius-lg);
+    background: #FFFFFF;
+    border: none;
+    border-radius: 10px;
     padding: 0;
-    transition: var(--transition);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
     display: flex;
     flex-direction: row;
-    box-shadow: var(--shadow-card);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03);
 }
 
 .nba-card:hover {
-    border-color: rgba(26, 26, 26, 0.12);
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 8px 32px rgba(0, 0, 0, 0.04);
 }
 
 .nba-card-stripe {
-    width: 4px;
+    width: 3px;
     flex-shrink: 0;
+    opacity: 0.7;
+    border-radius: 3px 0 0 3px;
 }
 
 .nba-card-body {
     flex: 1;
-    padding: 20px 22px;
+    padding: 28px 30px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 18px;
     min-width: 0;
 }
 
+/* ── Card Header: Name + KPIs ── */
 .nba-card-head {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 12px;
+    gap: 16px;
 }
 
 .nba-card-identity {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
 }
 
 .nba-client-name {
     font-family: var(--font-display);
     font-weight: 600;
-    color: var(--text-primary);
-    font-size: 1rem;
-    letter-spacing: 0.02em;
+    color: #2A2A28;
+    font-size: 1.35rem;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
 }
 
 .nba-seg-pill {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     padding: 3px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    border-radius: 20px;
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.4px;
     align-self: flex-start;
+    border: none;
 }
 
+/* ── KPI Badges — inline pastel pills ── */
 .nba-kpis {
     display: flex;
-    gap: 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    background: var(--content-bg);
+    gap: 6px;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    background: none;
+    flex-shrink: 0;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .nba-kpi {
-    flex: 1;
+    flex: none;
     text-align: center;
-    padding: 10px 6px;
-    border-right: 1px solid var(--border);
+    padding: 6px 12px;
+    border-right: none;
+    border-radius: 8px;
+    background: #F8F8F6;
 }
 
 .nba-kpi:last-child {
     border-right: none;
 }
 
+/* Uplift KPI */
+.nba-kpi:nth-child(1) {
+    background: rgba(16, 185, 129, 0.07);
+}
+
+/* ROI KPI */
+.nba-kpi:nth-child(2) {
+    background: rgba(184, 150, 90, 0.08);
+}
+
+/* Sentiment KPI */
+.nba-kpi:nth-child(3) {
+    background: rgba(37, 99, 235, 0.06);
+}
+
 .nba-kpi-val {
     display: block;
-    font-family: var(--font-display);
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #3A3A38;
+    letter-spacing: 0.01em;
+}
+
+.nba-kpi:nth-child(1) .nba-kpi-val {
+    color: #0D9668;
+}
+
+.nba-kpi:nth-child(2) .nba-kpi-val {
+    color: #92751A;
+}
+
+.nba-kpi:nth-child(3) .nba-kpi-val {
+    color: #2563EB;
 }
 
 .nba-kpi-lbl {
     display: block;
-    font-size: 0.58rem;
-    color: var(--text-secondary);
+    font-size: 0.52rem;
+    color: #9A9890;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    margin-top: 2px;
+    letter-spacing: 0.8px;
+    margin-top: 1px;
+    font-weight: 500;
 }
 
+/* ── Tag strip — borderless pastel pills ── */
 .nba-tag-strip {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 6px;
     align-items: center;
 }
 
 .nba-tag-pill {
-    background: var(--content-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 3px 8px;
+    background: rgba(0, 0, 0, 0.03);
+    border: none;
+    border-radius: 20px;
+    padding: 4px 11px;
     font-size: 0.65rem;
-    color: var(--text-secondary);
+    font-weight: 400;
+    color: #6A6A68;
+    letter-spacing: 0.2px;
+}
+
+/* Gentle pastel tints per tag position */
+.nba-tag-pill:nth-child(1) {
+    background: rgba(91, 33, 182, 0.06);
+    color: #6B21A8;
+}
+
+.nba-tag-pill:nth-child(2) {
+    background: rgba(234, 88, 12, 0.06);
+    color: #C2410C;
+}
+
+.nba-tag-pill:nth-child(3) {
+    background: rgba(6, 95, 70, 0.06);
+    color: #047857;
+}
+
+.nba-tag-pill:nth-child(4) {
+    background: rgba(159, 18, 57, 0.06);
+    color: #9F1239;
+}
+
+.nba-tag-pill:nth-child(5) {
+    background: rgba(30, 64, 175, 0.06);
+    color: #1E40AF;
 }
 
 .nba-tag-more {
-    font-size: 0.65rem;
-    color: var(--gold);
+    font-size: 0.62rem;
+    color: #9A9890;
     font-weight: 500;
+    padding-left: 2px;
 }
 
+/* ── Action Steps — clean vertical list ── */
 .nba-actions-list {
     display: flex;
     flex-direction: column;
     gap: 0;
-    border-top: 1px solid var(--border);
-    padding-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    padding-top: 16px;
+    margin-top: 2px;
 }
 
 .nba-action-row {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-    transition: var(--transition);
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+    transition: background 0.2s ease, padding 0.2s ease;
+    border-radius: 6px;
+    margin: 0 -8px;
+    padding-left: 8px;
+    padding-right: 8px;
 }
 
 .nba-action-row:last-child {
@@ -2539,62 +2616,90 @@ p {
 }
 
 .nba-action-row:hover {
-    padding-left: 4px;
+    background: rgba(0, 0, 0, 0.015);
 }
 
 .nba-action-num {
-    background: var(--text-primary);
-    color: var(--surface);
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
+    background: #2A2A28;
+    color: #FFFFFF;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 0.6rem;
     flex-shrink: 0;
-    margin-top: 1px;
+    margin-top: 2px;
+    font-family: var(--font-body);
 }
 
 .nba-action-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
 .nba-action-text {
-    color: var(--text-primary);
-    font-size: 0.8rem;
-    line-height: 1.5;
+    color: #3A3A38;
+    font-size: 0.82rem;
+    line-height: 1.55;
     font-weight: 400;
+    font-family: var(--font-body);
 }
 
+/* ── Priority badges with color-coded dots ── */
 .nba-action-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    border-radius: 0;
     font-size: 0.56rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.8px;
     align-self: flex-start;
+    background: none;
+    color: #9A9890;
+}
+
+/* Color-coded dot before the badge text */
+.nba-action-badge::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .nba-action-badge.immediate {
-    background: rgba(220, 38, 38, 0.08);
-    color: #DC2626;
+    background: none;
+    color: #B91C1C;
+}
+
+.nba-action-badge.immediate::before {
+    background: #DC2626;
 }
 
 .nba-action-badge.shortterm {
-    background: rgba(234, 88, 12, 0.08);
-    color: #EA580C;
+    background: none;
+    color: #C2410C;
+}
+
+.nba-action-badge.shortterm::before {
+    background: #EA580C;
 }
 
 .nba-action-badge.longterm {
-    background: rgba(37, 99, 235, 0.08);
-    color: #2563EB;
+    background: none;
+    color: #1D4ED8;
+}
+
+.nba-action-badge.longterm::before {
+    background: #3B82F6;
 }
 
 /* ─── 14. PRODUITS (Product Matcher) ───────────────────────── */
@@ -8183,13 +8288,15 @@ p {
 
 .stats-bar {
     display: flex;
-    align-items: stretch;
+    align-items: center;
+    justify-content: center;
     gap: 0;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 32px;
+    margin-top: 32px;
+    background: #FFFFFF;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 24px 0;
+    width: 100%;
+    flex-shrink: 0;
 }
 
 .stats-bar-item {
@@ -8459,7 +8566,179 @@ p {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* ── Primary button refinement ── */
+.page-header-actions .btn-primary {
+    background: #2A2A28;
+    color: #FFFFFF;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+    white-space: nowrap;
+}
+
+.page-header-actions .btn-primary:hover {
+    background: #1A1A18;
+    transform: translateY(-1px);
+}
+
+/* ── Meatball three-dots menu ── */
+.header-meatball {
+    position: relative;
+}
+
+.btn-meatball {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    color: #9A9890;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-meatball:hover {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.12);
+    color: #6A6A68;
+}
+
+.meatball-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 180px;
+    background: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+    padding: 6px;
+    z-index: 300;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header-meatball.open .meatball-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.meatball-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 14px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: #3A3A38;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-align: left;
+}
+
+.meatball-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.meatball-item svg {
+    flex-shrink: 0;
+    color: #9A9890;
+}
+
+/* ── Search + Filter Bar (clients page) ── */
+.search-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 0 24px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.search-filter-input-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 400px;
+}
+
+.search-filter-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.search-filter-bar .search-input {
+    width: 100%;
+    max-width: none;
+    padding: 9px 14px 9px 38px;
+    background: #FAFAF8;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    color: #2A2A28;
+    transition: all 0.2s ease;
+}
+
+.search-filter-bar .search-input:focus {
+    background: #FFFFFF;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.03);
+}
+
+.search-filter-bar .search-input::placeholder {
+    color: #B0AEA6;
+    font-weight: 400;
+}
+
+/* ── Ghost Filter Button ── */
+.btn-ghost-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: #6A6A68;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-ghost-filter:hover {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.14);
+    color: #3A3A38;
+}
+
+.btn-ghost-filter svg {
     flex-shrink: 0;
 }
 
@@ -8840,8 +9119,10 @@ p {
 .stat-item {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 8px 16px;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 24px;
+    text-align: center;
 }
 
 .stat-delta {

@@ -367,46 +367,107 @@
             margin-left: 56px;
         }
 
-        /* Top Nav (tabs contextuels) */
-        .top-nav {
-            height: 40px;
-            min-height: 40px;
-            background: var(--surface, #fff);
-            border-bottom: 1px solid var(--border, #EBEBEB);
+        /* ══ Unified Header Bar ══ */
+        .page-header {
+            min-height: 64px;
             display: flex;
             align-items: center;
-            padding: 0 20px;
-            gap: 4px;
+            gap: 32px;
+            padding: 0 32px;
+            background: #FFFFFF;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
             flex-shrink: 0;
         }
 
-        /* Page Header */
-        .page-header {
-            height: 52px;
-            min-height: 52px;
+        .page-header-left {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 0 24px;
-            background: var(--surface, #fff);
-            border-bottom: 1px solid var(--border, #EBEBEB);
+            flex-direction: column;
+            gap: 2px;
             flex-shrink: 0;
+            min-width: 180px;
         }
 
         .page-header .page-title {
             font-family: var(--font-display, 'Cormorant Garamond', serif);
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 500;
-            color: var(--text-primary, #111010);
-            letter-spacing: 0.02em;
+            color: #2A2A28;
+            letter-spacing: 0.01em;
+            line-height: 1.2;
         }
 
         .page-header .boutique-name {
             font-family: var(--font-body, 'DM Sans', sans-serif);
             font-size: 11px;
-            color: var(--text-secondary, #888880);
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
+            color: #9A9890;
+            letter-spacing: 0.03em;
+        }
+
+        /* ── Navigation Tabs (inside header) ── */
+        .top-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            justify-content: center;
+            min-height: 100%;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .top-nav .nav-item {
+            position: relative;
+            padding: 20px 16px;
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 0.78rem;
+            font-weight: 400;
+            color: #B0AEA6;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            border: none;
+            background: none;
+            letter-spacing: 0.02em;
+            border-radius: 0;
+        }
+
+        .top-nav .nav-item:hover {
+            color: #6A6A68;
+            background: none;
+        }
+
+        .top-nav .nav-item.active {
+            color: #2A2A28;
+            font-weight: 600;
+            background: none;
+        }
+
+        /* Thin elegant underline for active tab */
+        .top-nav .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 16px;
+            right: 16px;
+            height: 2px;
+            background: #2A2A28;
+            border-radius: 1px;
+            transform: scaleX(0);
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .top-nav .nav-item.active::after {
+            transform: scaleX(1);
+        }
+
+        .top-nav .nav-item:hover::after {
+            transform: scaleX(0.5);
+            background: #B0AEA6;
+        }
+
+        .top-nav .nav-item.active:hover::after {
+            transform: scaleX(1);
+            background: #2A2A28;
         }
 
         /* Hide menuToggle (replaced by sidebar) */
@@ -474,15 +535,57 @@
         .avatar-strip {
             display: flex;
             align-items: center;
-            gap: var(--space-sm, 8px);
-            padding: 0 2px;
+            justify-content: center;
+            gap: 16px;
+            padding: 12px 24px;
             flex-shrink: 0;
-            margin-bottom: 12px;
+            margin-bottom: 24px;
+            position: relative;
+            width: 100%;
+        }
+
+        /* Arrows for symmetry and scroll signaling */
+        .avatar-strip-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #9A9890;
+            cursor: pointer;
+            padding: 8px;
+            font-size: 14px;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+        }
+
+        .avatar-strip-arrow:hover {
+            color: #2A2A28;
+            opacity: 1;
+        }
+
+        .avatar-strip-arrow.left {
+            left: 40px;
+        }
+
+        .avatar-strip-arrow.right {
+            right: 40px;
         }
 
         .stats-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin-top: 32px;
+            background: #FFFFFF;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 24px 0;
+            width: 100%;
             flex-shrink: 0;
-            margin-top: 12px;
         }
 
         .dashboard-grid {
@@ -820,19 +923,25 @@
         <!-- ══ APP BODY ══════════════════════════════════════════ -->
         <div class="app-body">
 
-            <!-- Top Nav (tabs contextuels selon la page) -->
-            <nav class="top-nav" id="top-nav">
-                <!-- Injecté dynamiquement par engine.js selon la page active -->
-            </nav>
-
-            <!-- Page Header -->
+            <!-- ══ UNIFIED HEADER  ══════════════════════════════════ -->
             <header id="appHeader" class="page-header">
                 <!-- menuToggle conservé dans le DOM (app.js lui assigne un onclick) mais caché via CSS -->
                 <button id="menuToggle" class="menu-toggle">&#9776;</button>
-                <div id="pageTitle" class="page-title">
-                    <span id="page-badge" class="page-badge" style="display:none"></span>
+
+                <!-- LEFT: Title + Boutique subtitle -->
+                <div class="page-header-left">
+                    <div id="pageTitle" class="page-title">
+                        <span id="page-badge" class="page-badge" style="display:none"></span>
+                    </div>
+                    <div id="boutiqueNameDisplay" class="boutique-name"></div>
                 </div>
-                <div id="boutiqueNameDisplay" class="boutique-name"></div>
+
+                <!-- CENTER: Navigation tabs (injected dynamically) -->
+                <nav class="top-nav" id="top-nav">
+                    <!-- Injecté dynamiquement par renderTopNav() -->
+                </nav>
+
+                <!-- RIGHT: Action buttons -->
                 <div id="page-header-actions" class="page-header-actions"></div>
             </header>
 
@@ -898,15 +1007,29 @@
 
             <!-- PAGE: CLIENTS — id conservé: page-clients (navId: clients) -->
             <div id="page-clients" class="page page-canvas hidden">
+                <!-- Search + Filter bar -->
+                <div class="search-filter-bar">
+                    <div class="search-filter-input-wrap">
+                        <svg class="search-filter-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"
+                            stroke="#B0AEA6" stroke-width="1.5" stroke-linecap="round">
+                            <circle cx="7" cy="7" r="5" />
+                            <path d="M11 11l3.5 3.5" />
+                        </svg>
+                        <input type="text" class="search-input" id="personSearch"
+                            placeholder="Rechercher client, tag...">
+                    </div>
+                    <button class="btn-ghost-filter" id="btn-filtres-clients" onclick="openClientFilters(this)">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round">
+                            <path d="M2 3h12M4 8h8M6 13h4" />
+                        </svg>
+                        Filtres
+                    </button>
+                </div>
+
                 <!-- Strip avatars -->
                 <div class="avatar-strip" id="clients-avatar-strip">
                     <!-- Injecté par renderAvatarStrip() dans engine.js -->
-                </div>
-
-                <!-- Barre de recherche + légende (contenu existant conservé) -->
-                <div class="section-header">
-                    <h2>Fiches Clients</h2>
-                    <input type="text" class="search-input" id="personSearch" placeholder="Rechercher client, tag...">
                 </div>
                 <div class="legend" id="tagLegend"></div>
 
