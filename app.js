@@ -956,6 +956,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         icon.addEventListener('click', () => showPage(icon.dataset.page));
     });
 
+    // ── Sidebar toggle (expand / collapse) ──
+    const sidebarToggle = $('sidebarToggle');
+    const sidebarEl = $('sidebar');
+    if (sidebarToggle && sidebarEl) {
+        // Restore state from localStorage (default: expanded)
+        const savedState = localStorage.getItem('lvmh_sidebar_collapsed');
+        if (savedState === 'true') {
+            sidebarEl.classList.add('collapsed');
+        }
+        sidebarToggle.addEventListener('click', () => {
+            sidebarEl.classList.toggle('collapsed');
+            localStorage.setItem('lvmh_sidebar_collapsed', sidebarEl.classList.contains('collapsed'));
+        });
+    }
+
     // Check for existing session
     if (restoreSession()) {
         await startApp();
@@ -1044,6 +1059,20 @@ async function startApp() {
 
     // Expose currentUser as window.CURRENT_USER for PAGE_CONFIG role checks
     window.CURRENT_USER = currentUser;
+
+    // ── Populate sidebar user info ──
+    const railUserName = document.getElementById('rail-user-name');
+    const railUserRole = document.getElementById('rail-user-role');
+    const railAvatar = $('rail-user-avatar');
+    if (railUserName && currentUser) {
+        railUserName.textContent = `${currentUser.first_name} ${currentUser.last_name}`;
+    }
+    if (railUserRole && currentUser) {
+        railUserRole.textContent = currentUser.role || 'Vendeur';
+    }
+    if (railAvatar && currentUser) {
+        railAvatar.textContent = ((currentUser.first_name || '')[0] + (currentUser.last_name || '')[0]).toUpperCase();
+    }
 
     // Load data from Supabase
     await loadClientsFromDB();
@@ -1402,7 +1431,12 @@ function applyRoleVisibility() {
     const isManager = role === 'manager' || role === 'admin';
 
     document.querySelectorAll('.manager-only').forEach(el => {
-        el.style.display = isManager ? 'flex' : 'none';
+        if (!isManager) {
+            el.style.display = 'none';
+        } else {
+            // Section labels are block, rail icons are flex
+            el.style.display = el.classList.contains('rail-section-label') ? 'block' : 'flex';
+        }
     });
 
     // Update rail avatar if it exists

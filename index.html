@@ -11,8 +11,7 @@
     <link rel="stylesheet" href="index.css?v=10">
     <style>
         /* ══ NEW LAYOUT TOKENS ══════════════════════════════════════ */
-
-        /* App shell: icon-rail + app-body côte à côte */
+        /* App shell: sidebar + app-body côte à côte */
         #appShell.app-shell {
             display: flex;
             flex-direction: row;
@@ -20,58 +19,191 @@
             overflow: hidden;
         }
 
-        /* Icon Rail */
+        /* ══ EXPANDABLE SIDEBAR — Quiet Luxury ══════════════════ */
         .icon-rail {
-            width: 56px;
+            width: 220px;
             min-width: 56px;
             background: var(--carbon, #1A1A1A);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            padding: 12px 0;
+            align-items: stretch;
+            padding: 16px 0;
             gap: 2px;
             z-index: 100;
             flex-shrink: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            transition: width 0.3s ease-in-out;
         }
 
+        /* Collapsed state */
+        .icon-rail.collapsed {
+            width: 56px;
+        }
+
+        /* ── Toggle button ── */
+        .rail-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 16px 12px;
+            margin-bottom: 4px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.35);
+            transition: color 0.2s;
+            flex-shrink: 0;
+        }
+
+        .rail-toggle:hover {
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .rail-toggle svg {
+            transition: transform 0.3s ease-in-out;
+            flex-shrink: 0;
+        }
+
+        .icon-rail.collapsed .rail-toggle {
+            justify-content: center;
+            padding: 0 10px 12px;
+        }
+
+        .icon-rail.collapsed .rail-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        /* ── Logo ── */
         .rail-logo {
-            width: 32px;
+            width: auto;
             height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 12px;
+            margin: 0 16px 16px;
             color: var(--gold, #B8965A);
             font-family: var(--font-display, 'Cormorant Garamond', serif);
             font-size: 11px;
             font-weight: 600;
             letter-spacing: 0.05em;
-            border: 1px solid rgba(184,150,90,0.3);
+            border: 1px solid rgba(184, 150, 90, 0.3);
+            transition: margin 0.3s ease-in-out;
+            flex-shrink: 0;
         }
 
-        .rail-icon {
+        .icon-rail.collapsed .rail-logo {
+            margin: 0 10px 16px;
             width: 36px;
-            height: 36px;
+            justify-content: center;
+        }
+
+        /* ── Section label ── */
+        .rail-section-label {
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 0.56rem;
+            font-weight: 600;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.22);
+            padding: 16px 20px 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            opacity: 1;
+            transition: opacity 0.2s ease-in-out 0.1s;
+        }
+
+        .icon-rail.collapsed .rail-section-label {
+            opacity: 0;
+            height: 0;
+            padding: 0;
+            overflow: hidden;
+            transition: opacity 0.15s ease-in-out, height 0s 0.15s, padding 0s 0.15s;
+        }
+
+        /* ── Nav items (icon + label) ── */
+        .rail-icon {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            height: 42px;
+            padding: 0 20px;
+            color: rgba(255, 255, 255, 0.45);
+            border-radius: 0;
+            cursor: pointer;
+            transition: color 0.2s, background 0.2s, padding 0.3s ease-in-out;
+            position: relative;
+            text-decoration: none;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .rail-icon .rail-icon-svg {
+            width: 18px;
+            height: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: rgba(255,255,255,0.35);
-            border-radius: 2px;
-            cursor: pointer;
-            transition: color 0.2s, background 0.2s;
-            position: relative;
+            flex-shrink: 0;
+        }
+
+        .rail-icon .rail-icon-svg svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .rail-icon .rail-label {
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 0.76rem;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+            color: inherit;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.2s ease-in-out 0.1s;
+            flex-shrink: 0;
+        }
+
+        /* Collapsed: icon only */
+        .icon-rail.collapsed .rail-icon {
+            justify-content: center;
+            padding: 0 10px;
+        }
+
+        .icon-rail.collapsed .rail-icon .rail-label {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            transition: opacity 0.1s ease-in-out;
         }
 
         .rail-icon:hover {
-            color: rgba(255,255,255,0.8);
-            background: rgba(255,255,255,0.06);
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.88);
         }
 
         .rail-icon.active {
-            color: var(--gold, #B8965A);
-            background: rgba(184,150,90,0.1);
+            background: rgba(255, 255, 255, 0.10);
+            color: #FFFFFF;
         }
 
+        .rail-icon.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 60%;
+            background: var(--gold, #B8965A);
+            border-radius: 0 2px 2px 0;
+        }
+
+        /* Tooltip only in collapsed mode */
         .rail-icon[data-tooltip]::after {
             content: attr(data-tooltip);
             position: absolute;
@@ -79,48 +211,73 @@
             top: 50%;
             transform: translateY(-50%);
             background: #1a1a1e;
-            color: rgba(255,255,255,0.9);
+            color: rgba(255, 255, 255, 0.9);
             font-family: var(--font-body, 'DM Sans', sans-serif);
             font-size: 11px;
             white-space: nowrap;
-            padding: 4px 8px;
-            border-radius: 2px;
+            padding: 6px 12px;
+            border-radius: 4px;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.15s;
             z-index: 200;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
-        .rail-icon:hover[data-tooltip]::after {
+        /* Only show tooltip when collapsed */
+        .icon-rail.collapsed .rail-icon:hover[data-tooltip]::after {
             opacity: 1;
         }
 
+        /* Hide tooltip when expanded */
+        .icon-rail:not(.collapsed) .rail-icon[data-tooltip]::after {
+            display: none;
+        }
+
         .rail-sep {
-            width: 20px;
             height: 1px;
-            background: rgba(255,255,255,0.08);
-            margin: 4px 0;
+            background: rgba(255, 255, 255, 0.07);
+            margin: 8px 20px;
             flex-shrink: 0;
+            transition: margin 0.3s ease-in-out;
+        }
+
+        .icon-rail.collapsed .rail-sep {
+            margin: 8px 14px;
         }
 
         .rail-footer {
             margin-top: auto;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,0.06);
+            align-items: stretch;
+            gap: 4px;
+            padding: 12px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
             width: 100%;
+            transition: padding 0.3s ease-in-out;
+        }
+
+        .icon-rail.collapsed .rail-footer {
+            align-items: center;
+            padding: 12px 10px;
+        }
+
+        .rail-footer-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 4px;
+            overflow: hidden;
         }
 
         .rail-avatar {
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            background: rgba(184,150,90,0.15);
-            border: 1px solid rgba(184,150,90,0.4);
+            background: rgba(184, 150, 90, 0.15);
+            border: 1px solid rgba(184, 150, 90, 0.4);
             color: var(--gold, #B8965A);
             font-family: var(--font-body, 'DM Sans', sans-serif);
             font-size: 10px;
@@ -130,25 +287,63 @@
             justify-content: center;
             letter-spacing: 0.02em;
             cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .rail-user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            overflow: hidden;
+            opacity: 1;
+            transition: opacity 0.2s ease-in-out 0.1s;
+        }
+
+        .rail-user-name {
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.75);
+            white-space: nowrap;
+            letter-spacing: 0.2px;
+        }
+
+        .rail-user-role {
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 0.56rem;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.30);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .icon-rail.collapsed .rail-user-info {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            transition: opacity 0.1s ease-in-out;
         }
 
         .rail-logout-btn {
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: none;
             border: none;
-            color: rgba(255,255,255,0.25);
+            color: rgba(255, 255, 255, 0.25);
             cursor: pointer;
-            border-radius: 2px;
-            transition: color 0.2s;
+            border-radius: 4px;
+            transition: color 0.2s, background 0.2s;
             padding: 0;
+            flex-shrink: 0;
         }
 
         .rail-logout-btn:hover {
-            color: rgba(255,100,100,0.7);
+            color: rgba(255, 100, 100, 0.7);
+            background: rgba(255, 100, 100, 0.06);
         }
 
         /* Hidden user info — populated by buildSidebar() */
@@ -164,7 +359,12 @@
             flex-direction: column;
             overflow: hidden;
             background: var(--content-bg, #FAFAF8);
-            margin-left: 56px; /* compense le icon-rail position:fixed (56px) */
+            margin-left: 220px;
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        .icon-rail.collapsed~.app-body {
+            margin-left: 56px;
         }
 
         /* Top Nav (tabs contextuels) */
@@ -209,7 +409,7 @@
             text-transform: uppercase;
         }
 
-        /* Hide menuToggle (replaced by icon-rail) */
+        /* Hide menuToggle (replaced by sidebar) */
         .menu-toggle {
             display: none !important;
         }
@@ -320,21 +520,18 @@
             pointer-events: none;
         }
 
-        /* ══ FIX: Login background (bg-luxury.png) ═══════════════
-           Problème : .login-page { background: var(--bg-canvas) } dans index.css
-           efface le ::before qui porte bg-luxury.png (z-index:-1 va derrière body).
-           Fix : rendre .login-page transparent + passer ::before en position:absolute
-           afin qu'il soit relatif à .login-page (stacking context isolé).
-        ══════════════════════════════════════════════════════════ */
+        /* ══ FIX: Login background (bg-luxury.png) ═══════════════ */
         .login-page {
             background: transparent !important;
             position: relative !important;
             isolation: isolate;
         }
+
         .login-page::before {
             position: absolute !important;
             z-index: -1 !important;
         }
+
         .login-card {
             position: relative !important;
             z-index: 1;
@@ -345,16 +542,69 @@
             .login-page {
                 padding: 16px !important;
             }
+
             .login-card {
                 padding: 36px 20px 28px !important;
                 max-width: calc(100vw - 32px) !important;
             }
+
             .login-footer {
                 white-space: normal !important;
                 overflow-wrap: break-word !important;
                 word-break: break-word !important;
                 letter-spacing: 0.8px !important;
             }
+        }
+
+        /* ══ Sidebar responsive — collapse on smaller screens ═══ */
+        @media (max-width: 1024px) {
+            .icon-rail {
+                width: 56px;
+            }
+
+            .icon-rail .rail-label,
+            .icon-rail .rail-section-label,
+            .icon-rail .rail-user-info {
+                opacity: 0;
+                width: 0;
+                overflow: hidden;
+            }
+
+            .icon-rail .rail-icon {
+                justify-content: center;
+                padding: 0 10px;
+            }
+
+            .icon-rail .rail-sep {
+                margin: 8px 14px;
+            }
+
+            .app-body {
+                margin-left: 56px;
+            }
+
+            .icon-rail .rail-toggle {
+                justify-content: center;
+                padding: 0 10px 12px;
+            }
+        }
+
+        /* Custom scrollbar for sidebar */
+        .icon-rail::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .icon-rail::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .icon-rail::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .icon-rail::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
     </style>
 </head>
@@ -396,95 +646,166 @@
     <!-- ===== APP SHELL ===== -->
     <div id="appShell" class="app-shell hidden">
 
-        <!-- ══ ICON RAIL ══════════════════════════════════════════ -->
+        <!-- ══ EXPANDABLE SIDEBAR ══════════════════════════════════ -->
         <!-- id="sidebar" conservé — app.js fait $('sidebar').classList.remove('open') -->
         <nav class="icon-rail" id="sidebar">
+
+            <!-- Toggle chevron -->
+            <button class="rail-toggle" id="sidebarToggle" title="Réduire / Déployer">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg>
+            </button>
+
             <div class="rail-logo"><span>LV</span></div>
 
-            <!-- ── Vendeur ── -->
+            <!-- ── Section: Espace Vendeur ── -->
+            <div class="rail-section-label">Espace Vendeur</div>
+
             <div class="rail-icon active" data-page="v-home" data-tooltip="Dictée vocale">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="5" y="1" width="6" height="9" rx="3"/>
-                    <path d="M2 8a6 6 0 0012 0M8 14v2M5 16h6"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="1" width="6" height="9" rx="3" />
+                        <path d="M2 8a6 6 0 0012 0M8 14v2M5 16h6" />
+                    </svg>
+                </span>
+                <span class="rail-label">Dictée vocale</span>
             </div>
 
             <div class="rail-icon" data-page="clients" data-tooltip="Mes clients">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="8" cy="6" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="8" cy="6" r="3" />
+                        <path d="M2 14c0-3 2.7-5 6-5s6 2 6 5" />
+                    </svg>
+                </span>
+                <span class="rail-label">Clients</span>
             </div>
 
             <div class="rail-icon" data-page="nba" data-tooltip="Next Best Actions">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M8 2l1.5 3.5L13 6.5l-2.5 2.5.5 3.5L8 11l-3 1.5.5-3.5L3 6.5l3.5-1z"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 2l1.5 3.5L13 6.5l-2.5 2.5.5 3.5L8 11l-3 1.5.5-3.5L3 6.5l3.5-1z" />
+                    </svg>
+                </span>
+                <span class="rail-label">Next Best Action</span>
             </div>
 
             <div class="rail-icon" data-page="products" data-tooltip="Produits">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 4l1.5 8h9L14 4H2zM6 4V3a2 2 0 014 0v1"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 4l1.5 8h9L14 4H2zM6 4V3a2 2 0 014 0v1" />
+                    </svg>
+                </span>
+                <span class="rail-label">Produits</span>
             </div>
 
             <div class="rail-icon" data-page="followup" data-tooltip="Follow-up IA">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2L2 7l5 2 2 5 5-12z"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2L2 7l5 2 2 5 5-12z" />
+                    </svg>
+                </span>
+                <span class="rail-label">Follow-up IA</span>
             </div>
 
             <div class="rail-icon" data-page="brief" data-tooltip="Client Brief">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="1" width="10" height="14" rx="1"/><path d="M6 5h4M6 8h4M6 11h2"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="1" width="10" height="14" rx="1" />
+                        <path d="M6 5h4M6 8h4M6 11h2" />
+                    </svg>
+                </span>
+                <span class="rail-label">Client Brief</span>
             </div>
 
             <div class="rail-sep"></div>
 
-            <!-- ── Manager uniquement (masqués via JS si rôle vendeur) ── -->
+            <!-- ── Section: Espace Manager (masqués via JS si rôle vendeur) ── -->
+            <div class="rail-section-label manager-only">Espace Manager</div>
+
             <div class="rail-icon manager-only" data-page="m-dashboard" data-tooltip="Dashboard">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
-                    <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1" y="1" width="6" height="6" rx="1" />
+                        <rect x="9" y="1" width="6" height="6" rx="1" />
+                        <rect x="1" y="9" width="6" height="6" rx="1" />
+                        <rect x="9" y="9" width="6" height="6" rx="1" />
+                    </svg>
+                </span>
+                <span class="rail-label">Dashboard</span>
             </div>
 
             <div class="rail-icon manager-only" data-page="m-privacy" data-tooltip="Privacy Score">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M8 1L2 4v4c0 3.3 2.7 6 6 7 3.3-1 6-3.7 6-7V4L8 1z"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 1L2 4v4c0 3.3 2.7 6 6 7 3.3-1 6-3.7 6-7V4L8 1z" />
+                    </svg>
+                </span>
+                <span class="rail-label">Privacy Score</span>
             </div>
 
             <div class="rail-icon manager-only" data-page="m-coach" data-tooltip="Coach RGPD">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M13 2L3 9l4 1 1 4 5-12z"/><path d="M9 7l3-3"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 2L3 9l4 1 1 4 5-12z" />
+                        <path d="M9 7l3-3" />
+                    </svg>
+                </span>
+                <span class="rail-label">Coach RGPD</span>
             </div>
 
             <div class="rail-icon manager-only" data-page="m-sentiment" data-tooltip="Analyse Sentiment">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 12l3-4 3 2 3-5 3 3"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12l3-4 3 2 3-5 3 3" />
+                    </svg>
+                </span>
+                <span class="rail-label">Sentiment</span>
             </div>
 
             <div class="rail-icon manager-only" data-page="m-team" data-tooltip="Équipe">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="6" cy="6" r="2.5"/><path d="M1 14c0-2.5 2.2-4 5-4s5 1.5 5 4"/>
-                    <circle cx="12" cy="5" r="2"/><path d="M12 10c1.5 0 3 .8 3 3"/>
-                </svg>
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="6" r="2.5" />
+                        <path d="M1 14c0-2.5 2.2-4 5-4s5 1.5 5 4" />
+                        <circle cx="12" cy="5" r="2" />
+                        <path d="M12 10c1.5 0 3 .8 3 3" />
+                    </svg>
+                </span>
+                <span class="rail-label">Équipe</span>
             </div>
 
             <div class="rail-sep"></div>
 
-            <!-- ── Footer rail : user info + logout ── -->
+            <!-- ── Footer : user info + logout ── -->
             <div class="rail-footer">
                 <!-- Peuplé par buildSidebar() via JS, cachés visuellement mais dans le DOM -->
                 <div id="userNameDisplay" class="sidebar-user-name"></div>
                 <div id="userRoleDisplay" class="sidebar-user-role"></div>
-                <div class="rail-avatar" id="rail-user-avatar" title="Compte utilisateur">BL</div>
+                <div class="rail-footer-user">
+                    <div class="rail-avatar" id="rail-user-avatar" title="Compte utilisateur">BL</div>
+                    <div class="rail-user-info">
+                        <div class="rail-user-name" id="rail-user-name"></div>
+                        <div class="rail-user-role" id="rail-user-role"></div>
+                    </div>
+                </div>
                 <button id="logoutBtn" class="rail-logout-btn" title="Déconnexion">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6"/>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6" />
                     </svg>
                 </button>
             </div>
@@ -585,8 +906,7 @@
                 <!-- Barre de recherche + légende (contenu existant conservé) -->
                 <div class="section-header">
                     <h2>Fiches Clients</h2>
-                    <input type="text" class="search-input" id="personSearch"
-                        placeholder="Rechercher client, tag...">
+                    <input type="text" class="search-input" id="personSearch" placeholder="Rechercher client, tag...">
                 </div>
                 <div class="legend" id="tagLegend"></div>
 
@@ -611,7 +931,8 @@
                     </div>
                     <!-- Colonne 4 : Prioritaires -->
                     <div class="kanban-col" id="col-detail-wrap">
-                        <div class="col-header">Prioritaires <span class="col-count" id="count-prioritaires">0</span></div>
+                        <div class="col-header">Prioritaires <span class="col-count" id="count-prioritaires">0</span>
+                        </div>
                         <div class="col-body" id="col-prioritaires"></div>
                     </div>
                 </div>
@@ -685,9 +1006,16 @@
                     <div class="coach-input-section">
                         <label class="coach-label">Votre note (fictive)</label>
                         <div class="coach-textarea-wrap">
-                            <textarea id="coachInput" class="coach-textarea" placeholder="Tapez ou dictez une note fictive pour vous entraîner... Ex: 'Client venu avec son épouse Marie, 45 ans, médecin, intéressée par les sacs iconiques pour un anniversaire'"></textarea>
+                            <textarea id="coachInput" class="coach-textarea"
+                                placeholder="Tapez ou dictez une note fictive pour vous entraîner... Ex: 'Client venu avec son épouse Marie, 45 ans, médecin, intéressée par les sacs iconiques pour un anniversaire'"></textarea>
                             <button id="coachMic" class="coach-mic-btn" title="Dicter">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                    <line x1="12" y1="19" x2="12" y2="23" />
+                                    <line x1="8" y1="23" x2="16" y2="23" />
+                                </svg>
                             </button>
                         </div>
                         <button id="coachAnalyze" class="coach-analyze-btn">Analyser ma note</button>
@@ -704,7 +1032,9 @@
                     <div class="ck-topbar">
                         <div class="ck-tb-left">
                             <div class="ck-store-badge">
-                                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                                    <circle cx="5" cy="5" r="5" />
+                                </svg>
                                 LV Montaigne
                             </div>
                             <div class="ck-tb-divider"></div>
@@ -792,9 +1122,12 @@
                                 <div class="ck-bottom-card">
                                     <div class="ck-bottom-title">Alertes</div>
                                     <div class="ck-alert-list" id="ck-alert-list">
-                                        <div class="ck-alert high"><span class="ck-alert-dot"></span>Clients à risque churn</div>
-                                        <div class="ck-alert mid"><span class="ck-alert-dot"></span>RGPD : 2 violations récentes</div>
-                                        <div class="ck-alert low"><span class="ck-alert-dot"></span>Pipeline IA opérationnel</div>
+                                        <div class="ck-alert high"><span class="ck-alert-dot"></span>Clients à risque
+                                            churn</div>
+                                        <div class="ck-alert mid"><span class="ck-alert-dot"></span>RGPD : 2 violations
+                                            récentes</div>
+                                        <div class="ck-alert low"><span class="ck-alert-dot"></span>Pipeline IA
+                                            opérationnel</div>
                                     </div>
                                 </div>
                                 <div class="ck-bottom-card">
@@ -815,7 +1148,8 @@
                                 <div class="ck-radar-wrap" id="cockpitRadar"></div>
                             </div>
                             <div class="ck-side-card">
-                                <div class="ck-side-title">Agenda <span class="ck-cal-month" id="ck-cal-month"></span></div>
+                                <div class="ck-side-title">Agenda <span class="ck-cal-month" id="ck-cal-month"></span>
+                                </div>
                                 <div class="ck-calendar-grid" id="cockpitCalendar"></div>
                             </div>
                         </div>
