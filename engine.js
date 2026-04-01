@@ -931,8 +931,11 @@ function renderNBA() {
                 <div class="nba-card-head">
                     <div class="nba-card-identity">
                         <span class="nba-client-name">${p.ca || p.id}</span>
-                        <span class="nba-seg-pill" style="color:${p.segment.color};border-color:${p.segment.color}20;background:${p.segment.color}10">${p.segment.label}</span>
                     </div>
+                </div>
+
+                <!-- NEW: Centered Info Core (KPIs + Tags) -->
+                <div class="nba-info-core">
                     <div class="nba-kpis">
                         <div class="nba-kpi">
                             <span class="nba-kpi-val">${upliftSign}${upliftPct}%</span>
@@ -947,8 +950,20 @@ function renderNBA() {
                             <span class="nba-kpi-lbl">Sentiment</span>
                         </div>
                     </div>
+
+                    ${tags.length > 0 ? `
+                    <div class="nba-tag-strip">
+                        <span class="nba-seg-pill" style="color:${p.segment.color};border-color:${p.segment.color}20;background:${p.segment.color}10">${p.segment.label}</span>
+                        ${tags.slice(0, 5).map(t => `<span class="nba-tag-pill">${t.t}</span>`).join('')}
+                        ${tags.length > 5 ? `<span class="nba-tag-more">+${tags.length - 5}</span>` : ''}
+                    </div>
+                    ` : `
+                    <div class="nba-tag-strip">
+                        <span class="nba-seg-pill" style="color:${p.segment.color};border-color:${p.segment.color}20;background:${p.segment.color}10">${p.segment.label}</span>
+                    </div>
+                    `}
                 </div>
-                ${tags.length > 0 ? `<div class="nba-tag-strip">${tags.slice(0, 5).map(t => `<span class="nba-tag-pill">${t.t}</span>`).join('')}${tags.length > 5 ? `<span class="nba-tag-more">+${tags.length - 5}</span>` : ''}</div>` : ''}
+
                 <div class="nba-actions-list">
                     ${nbaList.map((a, i) => {
             const cls = typeClasses[a.type] || 'shortterm';

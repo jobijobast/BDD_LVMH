@@ -2232,13 +2232,14 @@ p {
 
 .nba-header {
     width: 100%;
+    margin-bottom: 32px;
 }
 
 .nba-segments {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 12px;
-    margin-bottom: 4px;
+    gap: 16px;
+    width: 100%;
 }
 
 @media (max-width: 900px) {
@@ -2255,18 +2256,32 @@ p {
 
 .nba-seg-btn {
     background: var(--surface);
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.05);
     border-radius: var(--radius-lg);
-    padding: 16px 14px;
+    padding: 24px 18px;
     cursor: pointer;
-    text-align: left;
+    text-align: center;
     transition: var(--transition);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     position: relative;
     overflow: hidden;
-    box-shadow: var(--shadow-card);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.nba-seg-btn:hover {
+    background: #FFFFFF;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+}
+
+.nba-seg-btn.active {
+    background: #FFFFFF;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
 .nba-seg-btn::before {
@@ -2279,12 +2294,6 @@ p {
     opacity: 0;
     transition: opacity 0.25s ease;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-}
-
-.nba-seg-btn:hover {
-    border-color: rgba(26, 26, 26, 0.12);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
 }
 
 .nba-seg-btn:hover::before {
@@ -2432,6 +2441,7 @@ p {
     justify-content: space-between;
     align-items: flex-start;
     gap: 16px;
+    margin-bottom: 4px;
 }
 
 .nba-card-identity {
@@ -2442,9 +2452,20 @@ p {
     min-width: 0;
 }
 
+/* ── Info Core: Grouped & Centered KPIs + Tags ── */
+.nba-info-core {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin: 10px 0 20px;
+    padding: 0 0 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+
 .nba-client-name {
     font-family: var(--font-display);
-    font-weight: 600;
+    font-weight: 500;
     color: #2A2A28;
     font-size: 1.35rem;
     letter-spacing: 0.01em;
@@ -2454,36 +2475,37 @@ p {
 .nba-seg-pill {
     display: inline-flex;
     align-items: center;
-    padding: 3px 10px;
+    padding: 4px 12px;
     border-radius: 20px;
-    font-size: 0.6rem;
-    font-weight: 500;
+    font-size: 0.62rem;
+    font-weight: 600;
     letter-spacing: 0.4px;
-    align-self: flex-start;
     border: none;
+    text-transform: uppercase;
 }
 
 /* ── KPI Badges — inline pastel pills ── */
 .nba-kpis {
     display: flex;
-    gap: 6px;
+    gap: 10px;
     border: none;
     border-radius: 0;
     overflow: visible;
     background: none;
     flex-shrink: 0;
-    align-items: flex-start;
+    align-items: center;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: center;
+    width: 100%;
 }
 
 .nba-kpi {
     flex: none;
     text-align: center;
-    padding: 6px 12px;
-    border-right: none;
-    border-radius: 8px;
+    padding: 8px 16px;
+    border-radius: 10px;
     background: #F8F8F6;
+    min-width: 90px;
 }
 
 .nba-kpi:last-child {
@@ -2492,7 +2514,7 @@ p {
 
 /* Uplift KPI */
 .nba-kpi:nth-child(1) {
-    background: rgba(16, 185, 129, 0.07);
+    background: rgba(16, 185, 129, 0.06);
 }
 
 /* ROI KPI */
@@ -2508,18 +2530,19 @@ p {
 .nba-kpi-val {
     display: block;
     font-family: var(--font-body);
-    font-size: 0.78rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: #3A3A38;
     letter-spacing: 0.01em;
 }
 
+/* ... colors ... */
 .nba-kpi:nth-child(1) .nba-kpi-val {
     color: #0D9668;
 }
 
 .nba-kpi:nth-child(2) .nba-kpi-val {
-    color: #92751A;
+    color: #9A7B4F;
 }
 
 .nba-kpi:nth-child(3) .nba-kpi-val {
@@ -2528,47 +2551,50 @@ p {
 
 .nba-kpi-lbl {
     display: block;
-    font-size: 0.52rem;
+    font-size: 0.55rem;
     color: #9A9890;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    margin-top: 1px;
+    margin-top: 2px;
     font-weight: 500;
 }
 
-/* ── Tag strip — borderless pastel pills ── */
+/* ── Tag strip — centered bubbles ── */
 .nba-tag-strip {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
+    justify-content: center;
+    width: 100%;
 }
 
 .nba-tag-pill {
     background: rgba(0, 0, 0, 0.03);
     border: none;
     border-radius: 20px;
-    padding: 4px 11px;
+    padding: 5px 14px;
     font-size: 0.65rem;
     font-weight: 400;
     color: #6A6A68;
     letter-spacing: 0.2px;
+    transition: all 0.2s ease;
+}
+
+.nba-tag-pill:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #2A2A28;
 }
 
 /* Gentle pastel tints per tag position */
-.nba-tag-pill:nth-child(1) {
+.nba-tag-pill:nth-child(2) {
     background: rgba(91, 33, 182, 0.06);
     color: #6B21A8;
 }
 
-.nba-tag-pill:nth-child(2) {
-    background: rgba(234, 88, 12, 0.06);
-    color: #C2410C;
-}
-
 .nba-tag-pill:nth-child(3) {
-    background: rgba(6, 95, 70, 0.06);
-    color: #047857;
+    background: rgba(4, 120, 87, 0.06);
+    color: #059669;
 }
 
 .nba-tag-pill:nth-child(4) {

@@ -597,8 +597,10 @@
 
         .followup-layout {
             display: grid;
-            grid-template-columns: 3fr 2fr;
-            gap: var(--space-md, 16px);
+            grid-template-columns: 1fr;
+            gap: 24px;
+            max-width: 1000px;
+            margin: 0 auto;
         }
 
         .privacy-layout {
@@ -609,8 +611,9 @@
 
         .nba-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--space-md, 16px);
+            grid-template-columns: 1fr;
+            gap: 16px;
+            width: 100%;
         }
 
         /* ── Sidebar nav caché — conservé pour buildSidebar() ── */
