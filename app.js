@@ -520,102 +520,152 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 let recognition = null;
 let isRecording = false;
 let finalTranscript = '';
+let interimTranscript = '';
 let speechTimeout = null;
+let vocalLang = 'fr-FR';
 
 function initSpeechRecognition() {
+    // Juste verifier le support — plus de creation d'instance ici
     if (!SpeechRecognition) {
-        // No support — the fallback textarea is always visible anyway
-        return;
+        console.warn('Web Speech API non supportee');
     }
+    // Sync lang selector if it exists
+    const sel = document.getElementById('vocalLang');
+    if (sel) {
+        sel.onchange = () => { vocalLang = sel.value; };
+    }
+}
 
-    recognition = new SpeechRecognition();
-    recognition.lang = 'fr-FR';
-    recognition.continuous = true;
-    recognition.interimResults = true;
+function _createRecognitionInstance() {
+    const rec = new SpeechRecognition();
+    rec.lang = vocalLang;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
 
-    recognition.onresult = (event) => {
-        // Clear no-result timeout
+    rec.onresult = (event) => {
         if (speechTimeout) { clearTimeout(speechTimeout); speechTimeout = null; }
 
-        let interim = '';
+        interimTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
+            const t = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
-                finalTranscript += transcript + ' ';
+                finalTranscript += t + ' ';
             } else {
-                interim += transcript;
+                interimTranscript += t;
             }
         }
+
         const area = $('transcriptArea');
         if (area) {
-            area.value = finalTranscript + interim;
-            $('submitVocal').disabled = !(finalTranscript.trim().length > 0 || area.value.trim().length > 0);
+            area.value = finalTranscript + interimTranscript;
+            area.scrollTop = area.scrollHeight;
+            $('submitVocal').disabled = !(area.value.trim().length > 0);
+        }
+        // Update word counter
+        _updateWordCount();
+        // Show interim indicator
+        const interim = $('interimDisplay');
+        if (interim) {
+            interim.textContent = interimTranscript ? '…' + interimTranscript : '';
         }
     };
 
-    recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
+    rec.onerror = (event) => {
+        console.error('Speech error:', event.error);
         const status = $('micStatus');
         if (!status) return;
-
         if (event.error === 'not-allowed') {
-            status.textContent = 'Micro refuse. Autorisez dans les parametres du navigateur.';
-            showToast('Acces au micro refuse', 'error');
+            status.textContent = 'Micro refus\u00e9 — autorisez dans les param\u00e8tres du navigateur.';
+            showToast('Acc\u00e8s au micro refus\u00e9', 'error');
+            stopRecording();
         } else if (event.error === 'no-speech') {
-            status.textContent = 'Aucune parole detectee. Reessayez.';
+            // Continue — just no speech detected yet
+            status.textContent = 'Parlez plus fort ou rapprochez-vous\u2026';
+        } else if (event.error === 'network') {
+            status.textContent = 'Erreur r\u00e9seau — v\u00e9rifiez votre connexion.';
+            showToast('Erreur r\u00e9seau Speech API', 'error');
+            stopRecording();
+        } else if (event.error === 'aborted') {
+            // Intentional abort — do nothing
         } else {
             status.textContent = 'Erreur: ' + event.error;
+            stopRecording();
         }
-        stopRecording();
     };
 
-    recognition.onend = () => {
+    rec.onend = () => {
         if (isRecording) {
-            // Restart automatically unless explicitly stopped
-            try { recognition.start(); } catch (e) { stopRecording(); }
+            // Recreer une nouvelle instance — corrige le bug de reutilisation Chrome
+            try {
+                recognition = _createRecognitionInstance();
+                recognition.start();
+            } catch (e) {
+                stopRecording();
+            }
         }
     };
+
+    return rec;
+}
+
+function _updateWordCount() {
+    const area = $('transcriptArea');
+    const counter = $('wordCounter');
+    if (!area || !counter) return;
+    const words = area.value.trim().split(/\s+/).filter(w => w.length > 0);
+    counter.textContent = words.length + (words.length <= 1 ? ' mot' : ' mots');
 }
 
 async function startRecording() {
-    if (!recognition) {
-        showToast('Votre navigateur ne supporte pas la reconnaissance vocale. Utilisez Chrome ou Edge.', 'error');
+    if (!SpeechRecognition) {
+        showToast('Reconnaissance vocale non support\u00e9e. Utilisez Chrome ou Edge.', 'error');
         return;
     }
 
-    // Check microphone permission first
+    // Sync language from selector
+    const sel = $('vocalLang');
+    if (sel) vocalLang = sel.value;
+
+    // Permission check
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop()); // Release immediately
+        stream.getTracks().forEach(t => t.stop());
     } catch (e) {
-        showToast('Impossible d\'acceder au microphone. Autorisez l\'acces dans les parametres.', 'error');
+        showToast('Impossible d\'acc\u00e9der au microphone. Autorisez dans les param\u00e8tres.', 'error');
         const status = $('micStatus');
-        if (status) status.textContent = 'Micro non autorise';
+        if (status) status.textContent = 'Microphone non autoris\u00e9';
         return;
     }
 
+    // Initialize finalTranscript from current textarea value
     const area = $('transcriptArea');
-    finalTranscript = area ? (area.value || '') : '';
+    finalTranscript = area ? area.value : '';
+    interimTranscript = '';
+
     isRecording = true;
 
     const btn = $('micBtn');
     const status = $('micStatus');
     if (btn) btn.classList.add('recording');
-    if (status) { status.textContent = 'Ecoute en cours...'; status.classList.add('active'); }
+    if (status) { status.textContent = '\u00c9coute en cours\u2026'; status.classList.add('active'); }
+
+    // Creer une nouvelle instance a chaque demarrage — corrige le bug Chrome
+    recognition = _createRecognitionInstance();
 
     try {
         recognition.start();
     } catch (e) {
-        // Already started
+        console.error('Cannot start recognition:', e);
+        stopRecording();
+        showToast('Impossible de d\u00e9marrer la reconnaissance vocale', 'error');
+        return;
     }
 
-    // Timeout: if no result after 5s, show message
+    // Timeout: show hint if no speech after 5s
     speechTimeout = setTimeout(() => {
-        if (isRecording) {
-            const s = $('micStatus');
-            if (s && s.textContent === 'Ecoute en cours...') {
-                s.textContent = 'Parlez plus fort ou rapprochez-vous du micro...';
-            }
+        if (isRecording && $('micStatus')) {
+            $('micStatus').textContent = 'Parlez maintenant\u2026';
         }
     }, 5000);
 }
@@ -627,14 +677,20 @@ function stopRecording() {
     const btn = $('micBtn');
     const status = $('micStatus');
     if (btn) btn.classList.remove('recording');
-    if (status) { status.textContent = 'Enregistrement termine'; status.classList.remove('active'); }
+    if (status) { status.textContent = 'Enregistrement termin\u00e9'; status.classList.remove('active'); }
+
+    // Clear interim display
+    const interim = $('interimDisplay');
+    if (interim) interim.textContent = '';
 
     if (recognition) {
-        try { recognition.stop(); } catch (e) { }
+        try { recognition.abort(); } catch (e) {}
+        recognition = null;
     }
 
     const area = $('transcriptArea');
     if (area) $('submitVocal').disabled = !(area.value.trim().length > 0);
+    _updateWordCount();
 }
 
 // ===== VOCAL SUBMIT =====
@@ -1036,7 +1092,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (transcriptArea) {
         transcriptArea.oninput = () => {
             $('submitVocal').disabled = !(transcriptArea.value.trim().length > 0);
+            _updateWordCount();
         };
+    }
+
+    const clearBtn = $('clearTranscript');
+    if (clearBtn) {
+        clearBtn.onclick = () => {
+            const area = $('transcriptArea');
+            if (area) { area.value = ''; }
+            finalTranscript = '';
+            interimTranscript = '';
+            if ($('interimDisplay')) $('interimDisplay').textContent = '';
+            if ($('submitVocal')) $('submitVocal').disabled = true;
+            if ($('wordCounter')) $('wordCounter').textContent = '0 mot';
+        };
+    }
+
+    // Sync language selector
+    const vocalLangSel = $('vocalLang');
+    if (vocalLangSel) {
+        vocalLangSel.onchange = () => { vocalLang = vocalLangSel.value; };
     }
 
     const submitBtn = $('submitVocal');

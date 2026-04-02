@@ -1097,10 +1097,21 @@
                 <div class="record-card">
                     <h3>Nouveau compte-rendu client</h3>
                     <p class="record-hint">Dictez ou saisissez les notes de votre rendez-vous client</p>
-                    <input type="text" id="clientNameInput" class="form-input"
-                        placeholder="Nom du client (ex: Mme Dubois)">
+
+                    <div class="vocal-top-row">
+                        <input type="text" id="clientNameInput" class="form-input vocal-name-input"
+                            placeholder="Nom du client (ex: Mme Dubois)">
+                        <select id="vocalLang" class="vocal-lang-select" title="Langue de dict&#233;e">
+                            <option value="fr-FR">FR &#8212; Fran&#231;ais</option>
+                            <option value="en-US">EN &#8212; English</option>
+                            <option value="it-IT">IT &#8212; Italiano</option>
+                            <option value="es-ES">ES &#8212; Espa&#241;ol</option>
+                            <option value="de-DE">DE &#8212; Deutsch</option>
+                        </select>
+                    </div>
+
                     <div class="mic-area">
-                        <button id="micBtn" class="mic-btn" title="Dicter">
+                        <button id="micBtn" class="mic-btn" title="Cliquer pour dicter">
                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
                                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
@@ -1111,8 +1122,17 @@
                         </button>
                         <div id="micStatus" class="mic-status">Cliquez pour dicter</div>
                     </div>
-                    <textarea id="transcriptArea" class="transcript-area"
-                        placeholder="La transcription apparaitra ici... Vous pouvez aussi taper directement."></textarea>
+
+                    <div class="transcript-wrapper">
+                        <div id="interimDisplay" class="transcript-interim"></div>
+                        <textarea id="transcriptArea" class="transcript-area"
+                            placeholder="La transcription appara&#238;tra ici&#8230; Vous pouvez aussi taper directement."></textarea>
+                        <div class="transcript-toolbar">
+                            <span id="wordCounter" class="word-counter">0 mot</span>
+                            <button class="transcript-clear-btn" id="clearTranscript" title="Effacer le texte" type="button">Effacer</button>
+                        </div>
+                    </div>
+
                     <button id="submitVocal" class="btn btn-gold" disabled>Analyser et sauvegarder</button>
                 </div>
 

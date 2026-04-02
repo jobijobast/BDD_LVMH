@@ -2066,6 +2066,92 @@ p {
     font-weight: 500;
 }
 
+/* ── VOCAL TOP ROW (nom + langue) ── */
+.vocal-top-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    max-width: 480px;
+    margin: 0 auto 32px;
+}
+.vocal-name-input {
+    flex: 1;
+    margin: 0 !important;
+    text-align: left !important;
+}
+.vocal-lang-select {
+    flex-shrink: 0;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border, #E8E6E2);
+    border-radius: 2px;
+    background: var(--bg-surface, #FFFFFF);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary, #1A1A1A);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236A6A68' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+}
+.vocal-lang-select:focus {
+    outline: none;
+    border-color: var(--carbon, #1A1A1A);
+}
+
+/* ── TRANSCRIPT WRAPPER ── */
+.transcript-wrapper {
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto 24px;
+}
+.transcript-interim {
+    min-height: 20px;
+    font-size: 12px;
+    color: var(--text-tertiary, #9A9890);
+    font-style: italic;
+    text-align: left;
+    padding: 0 4px 4px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.transcript-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 4px 0;
+}
+.word-counter {
+    font-size: 11px;
+    color: var(--text-tertiary, #9A9890);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+}
+.transcript-clear-btn {
+    background: none;
+    border: none;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary, #6A6A68);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 2px;
+    transition: color 0.15s, background 0.15s;
+}
+.transcript-clear-btn:hover {
+    color: var(--carbon, #1A1A1A);
+    background: var(--bg-hover, #F8F8F6);
+}
+
 .transcript-area {
     width: 100%;
     max-width: 600px;
