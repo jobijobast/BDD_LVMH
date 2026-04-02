@@ -8,7 +8,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="index.css?v=10">
+    <link rel="stylesheet" href="index.css?v=11">
     <style>
         /* ══ NEW LAYOUT TOKENS ══════════════════════════════════════ */
         /* App shell: sidebar + app-body côte à côte */
@@ -357,7 +357,8 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: hidden;
             background: var(--content-bg, #FAFAF8);
             margin-left: 220px;
             transition: margin-left 0.3s ease-in-out;
@@ -475,23 +476,28 @@
             display: none !important;
         }
 
-        /* Page Canvas: fills remaining height, no scroll on container */
+        /* Page Canvas: fills remaining height, scrolls when content overflows */
         .page-canvas {
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 20px 24px;
+            padding: 20px 24px 48px;
+        }
+
+        /* Prevent flex-shrink from clipping content on all pages */
+        .page-canvas > * {
+            flex-shrink: 0;
         }
 
         @media (max-width: 768px) {
             .page-canvas {
-                padding: 16px;
+                padding: 16px 16px 48px;
             }
         }
 
         @media (max-width: 480px) {
             .page-canvas {
-                padding: 12px;
+                padding: 12px 12px 48px;
             }
         }
 
@@ -914,6 +920,28 @@
                 <span class="rail-label">Client Brief</span>
             </div>
 
+            <div class="rail-icon" data-page="v-coach" data-tooltip="Coach RGPD">
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 1L2 4v4c0 3.3 2.7 6 6 7 3.3-1 6-3.7 6-7V4L8 1z" />
+                        <path d="M8 6v3M8 11h.01" />
+                    </svg>
+                </span>
+                <span class="rail-label">Coach RGPD</span>
+            </div>
+
+            <div class="rail-icon" data-page="v-occasions" data-tooltip="Occasion Radar">
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/>
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+                    </svg>
+                </span>
+                <span class="rail-label">Occasions</span>
+            </div>
+
             <div class="rail-sep"></div>
 
             <!-- ── Section: Espace Manager (masqués via JS si rôle vendeur) ── -->
@@ -942,17 +970,6 @@
                 <span class="rail-label">Privacy Score</span>
             </div>
 
-            <div class="rail-icon manager-only" data-page="m-coach" data-tooltip="Coach RGPD">
-                <span class="rail-icon-svg">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M13 2L3 9l4 1 1 4 5-12z" />
-                        <path d="M9 7l3-3" />
-                    </svg>
-                </span>
-                <span class="rail-label">Coach RGPD</span>
-            </div>
-
             <div class="rail-icon manager-only" data-page="m-sentiment" data-tooltip="Analyse Sentiment">
                 <span class="rail-icon-svg">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -974,6 +991,26 @@
                     </svg>
                 </span>
                 <span class="rail-label">Équipe</span>
+            </div>
+
+            <div class="rail-icon manager-only" data-page="m-collection" data-tooltip="Collection Match">
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                </span>
+                <span class="rail-label">Collection Match</span>
+            </div>
+
+            <div class="rail-icon manager-only" data-page="m-leaderboard" data-tooltip="Leaderboard Équipe">
+                <span class="rail-icon-svg">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 9H4.5a2.5 2.5 0 000 5H6"/><path d="M18 9h1.5a2.5 2.5 0 010 5H18"/>
+                        <path d="M8 9V5"/><path d="M16 9V5"/><path d="M4 5h16"/>
+                        <path d="M8 18H5v-9h14v9h-3"/><path d="M8 18h8"/>
+                    </svg>
+                </span>
+                <span class="rail-label">Leaderboard</span>
             </div>
 
             <div class="rail-sep"></div>
@@ -1208,6 +1245,21 @@
                 </div>
             </div>
 
+            <!-- PAGE: OCCASION RADAR — id: page-v-occasions (navId: v-occasions) -->
+            <div id="page-v-occasions" class="page page-canvas hidden">
+                <div id="occasions-root"></div>
+            </div>
+
+            <!-- PAGE: COLLECTION MATCH — id: page-m-collection (navId: m-collection) -->
+            <div id="page-m-collection" class="page page-canvas hidden">
+                <div id="collection-root"></div>
+            </div>
+
+            <!-- PAGE: LEADERBOARD — id: page-m-leaderboard (navId: m-leaderboard) -->
+            <div id="page-m-leaderboard" class="page page-canvas hidden">
+                <div id="leaderboard-root"></div>
+            </div>
+
             <!-- PAGE: COACH RGPD — id conservé: page-coach (navId: v-coach / m-coach) -->
             <div id="page-coach" class="page page-canvas hidden">
                 <div class="coach-container">
@@ -1239,127 +1291,128 @@
                     <!-- TOP BAR -->
                     <div class="ck-topbar">
                         <div class="ck-tb-left">
-                            <div class="ck-store-badge">
-                                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                                    <circle cx="5" cy="5" r="5" />
-                                </svg>
-                                LV Montaigne
-                            </div>
-                            <div class="ck-tb-divider"></div>
+                            <span class="ck-store-badge">
+                                <span class="ck-store-dot-live"></span>
+                                <span id="ck-store-name">LV Paris</span>
+                            </span>
+                            <span class="ck-tb-sep"></span>
                             <div class="ck-tb-inline-stats">
-                                <span class="ck-tb-stat"><span id="ck-tb-clients">—</span> clients</span>
+                                <span><span id="ck-tb-clients">—</span> clients</span>
                                 <span class="ck-tb-dot">·</span>
-                                <span class="ck-tb-stat"><span id="ck-tb-tags">—</span> tags</span>
+                                <span><span id="ck-tb-tags">—</span> tags</span>
                                 <span class="ck-tb-dot">·</span>
-                                <span class="ck-tb-stat"><span id="ck-tb-privacy">—</span>% conformité</span>
+                                <span><span id="ck-tb-privacy">—</span>% conformité</span>
                                 <span class="ck-tb-dot">·</span>
-                                <span class="ck-tb-stat"><span id="ck-tb-nba">—</span> actions NBA</span>
+                                <span><span id="ck-tb-nba">—</span> actions</span>
                             </div>
                         </div>
-                        <div class="ck-tb-right">
-                            <span class="ck-tb-date" id="ck-tb-date">—</span>
-                        </div>
+                        <span class="ck-tb-date" id="ck-tb-date">—</span>
                     </div>
 
-                    <!-- KPI ROW -->
+                    <!-- KPI ROW — Hero Row 4 cards -->
                     <div class="ck-kpi-row">
-                        <div class="ck-kpi-card">
+
+                        <!-- KPI 1: Santé Portefeuille -->
+                        <div class="ck-kpi-card ck-kpi-health" id="ck-kpi-health-card">
                             <div class="ck-kpi-top">
-                                <span class="ck-kpi-label">Clients</span>
-                                <span class="ck-kpi-trend" id="ck-trend-1">—</span>
+                                <span class="ck-kpi-label">Santé Portefeuille</span>
+                                <span class="ck-status-badge" id="ck-health-badge">—</span>
                             </div>
-                            <div class="ck-kpi-val" id="ck-kval-1">—</div>
-                            <div class="ck-kpi-spark" id="spark1"></div>
+                            <div class="ck-health-val" id="ck-health-score">—</div>
+                            <div class="ck-kpi-sub" id="ck-health-sub">Score composite</div>
                         </div>
-                        <div class="ck-kpi-card">
+
+                        <!-- KPI 2: Clients à Risque -->
+                        <div class="ck-kpi-card ck-kpi-risk" id="ck-kpi-risk-card">
                             <div class="ck-kpi-top">
-                                <span class="ck-kpi-label">Tags extraits</span>
-                                <span class="ck-kpi-trend" id="ck-trend-2">—</span>
+                                <span class="ck-kpi-label">Clients à Risque</span>
                             </div>
-                            <div class="ck-kpi-val" id="ck-kval-2">—</div>
-                            <div class="ck-kpi-spark" id="spark3"></div>
+                            <div class="ck-kpi-val" id="ck-risk-count">—</div>
+                            <div class="ck-kpi-sub">nécessitent une action</div>
+                            <div class="ck-kpi-sub" id="ck-risk-pct" style="margin-top:2px"></div>
                         </div>
-                        <div class="ck-kpi-card">
+
+                        <!-- KPI 3: Couverture Active -->
+                        <div class="ck-kpi-card ck-kpi-coverage">
                             <div class="ck-kpi-top">
-                                <span class="ck-kpi-label">Actions NBA</span>
-                                <span class="ck-kpi-trend" id="ck-trend-3">—</span>
+                                <span class="ck-kpi-label">Couverture Active</span>
                             </div>
-                            <div class="ck-kpi-val" id="ck-kval-3">—</div>
-                            <div class="ck-kpi-spark" id="spark4"></div>
-                        </div>
-                        <div class="ck-kpi-card">
-                            <div class="ck-kpi-top">
-                                <span class="ck-kpi-label">Conformité RGPD</span>
-                                <span class="ck-kpi-trend" id="ck-trend-4">—</span>
-                            </div>
-                            <div class="ck-kpi-val" id="ck-kval-4">—</div>
-                            <div class="ck-kpi-bar-wrap">
-                                <div class="ck-kpi-bar" id="ck-privacy-bar"></div>
+                            <div class="ck-kpi-val" id="ck-coverage-pct">—</div>
+                            <div class="ck-kpi-sub">clients avec note récente</div>
+                            <div class="ck-kpi-bar-wrap" style="margin-top:10px">
+                                <div class="ck-kpi-bar" id="ck-coverage-bar"></div>
                             </div>
                         </div>
+
+                        <!-- KPI 4: Score RGPD -->
+                        <div class="ck-kpi-card ck-kpi-rgpd">
+                            <div class="ck-kpi-top">
+                                <span class="ck-kpi-label">Score RGPD</span>
+                                <span class="ck-status-badge" id="ck-rgpd-badge">—</span>
+                            </div>
+                            <div class="ck-kpi-val" id="ck-rgpd-score">—</div>
+                            <div class="ck-kpi-sub">conformité globale</div>
+                        </div>
+
                     </div>
 
-                    <!-- BODY GRID 2-COL -->
-                    <div class="ck-body-grid">
+                    <!-- CHART ROW — 2 cards segments + tendance -->
+                    <div class="ck-chart-row">
 
-                        <!-- LEFT COLUMN -->
-                        <div class="ck-body-left">
-                            <!-- Activity Chart -->
-                            <div class="ck-chart-main-card">
-                                <div class="ck-chart-head">
-                                    <div class="ck-chart-title">Activité & Intelligence</div>
-                                    <div class="ck-chart-legend">
-                                        <span class="ck-leg-item ck-leg-gold">
-                                            <span class="ck-leg-line"></span> Notes
-                                        </span>
-                                        <span class="ck-leg-item ck-leg-blue">
-                                            <span class="ck-leg-line"></span> Tags
-                                        </span>
-                                    </div>
-                                    <div class="ck-chart-opts">
-                                        <button class="ck-opt active" data-range="7">7j</button>
-                                        <button class="ck-opt" data-range="14">14j</button>
-                                        <button class="ck-opt" data-range="30">30j</button>
-                                    </div>
+                        <!-- Distribution Segments -->
+                        <div class="ck-card ck-seg-card">
+                            <div class="ck-card-head">
+                                <div>
+                                    <div class="ck-card-title">Distribution Segments</div>
+                                    <div class="ck-card-sub">Où investir l'effort commercial</div>
                                 </div>
-                                <div class="ck-chart-body" id="cockpitMainChart"></div>
                             </div>
-
-                            <!-- Bottom sub-row: Alertes + Tags -->
-                            <div class="ck-bottom-row">
-                                <div class="ck-bottom-card">
-                                    <div class="ck-bottom-title">Alertes</div>
-                                    <div class="ck-alert-list" id="ck-alert-list">
-                                        <div class="ck-alert high"><span class="ck-alert-dot"></span>Clients à risque
-                                            churn</div>
-                                        <div class="ck-alert mid"><span class="ck-alert-dot"></span>RGPD : 2 violations
-                                            récentes</div>
-                                        <div class="ck-alert low"><span class="ck-alert-dot"></span>Pipeline IA
-                                            opérationnel</div>
-                                    </div>
-                                </div>
-                                <div class="ck-bottom-card">
-                                    <div class="ck-bottom-title">Top Catégories de Tags</div>
-                                    <div class="ck-tags-bars" id="cockpitTags"></div>
-                                </div>
+                            <div class="ck-seg-body">
+                                <div id="ck-seg-chart" class="ck-seg-donut-wrap"></div>
+                                <div id="ck-seg-legend" class="ck-seg-legend"></div>
                             </div>
                         </div>
 
-                        <!-- RIGHT COLUMN -->
-                        <div class="ck-body-right">
-                            <div class="ck-side-card">
-                                <div class="ck-side-title">Conformité RGPD</div>
-                                <div class="ck-donut-wrap" id="cockpitPrivacyDonut"></div>
-                            </div>
-                            <div class="ck-side-card">
-                                <div class="ck-side-title">Mix Taxonomique</div>
-                                <div class="ck-radar-wrap" id="cockpitRadar"></div>
-                            </div>
-                            <div class="ck-side-card">
-                                <div class="ck-side-title">Agenda <span class="ck-cal-month" id="ck-cal-month"></span>
+                        <!-- Tendance Sentiment -->
+                        <div class="ck-card ck-trend-card">
+                            <div class="ck-card-head">
+                                <div>
+                                    <div class="ck-card-title">Tendance Sentiment</div>
+                                    <div class="ck-card-sub">Évolution sur 30 jours</div>
                                 </div>
-                                <div class="ck-calendar-grid" id="cockpitCalendar"></div>
                             </div>
+                            <div id="ck-trend-chart" class="ck-trend-chart-area"></div>
+                            <div class="ck-trend-legend">
+                                <span class="ck-trend-leg-item"><span class="ck-trend-leg-dot" style="background:#16A34A"></span>Positifs</span>
+                                <span class="ck-trend-leg-item"><span class="ck-trend-leg-dot" style="background:#DC2626"></span>Négatifs</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- BOTTOM ROW — 2 cards vendeurs + alertes -->
+                    <div class="ck-bot-row">
+
+                        <!-- Performance Vendeurs -->
+                        <div class="ck-card ck-team-card">
+                            <div class="ck-card-head">
+                                <div>
+                                    <div class="ck-card-title">Performance Vendeurs</div>
+                                    <div class="ck-card-sub">Activité par Client Advisor</div>
+                                </div>
+                            </div>
+                            <div id="ck-team-list" class="ck-team-list"></div>
+                        </div>
+
+                        <!-- Alertes Actives -->
+                        <div class="ck-card ck-alert-card">
+                            <div class="ck-card-head">
+                                <div>
+                                    <div class="ck-card-title">Alertes Actives</div>
+                                    <div class="ck-card-sub">Actions prioritaires manager</div>
+                                </div>
+                            </div>
+                            <div id="ck-alert-feed" class="ck-alert-feed"></div>
                         </div>
 
                     </div>
@@ -1369,25 +1422,17 @@
 
             <!-- PAGE: MANAGER PRIVACY — id conservé: page-m-privacy (navId: m-privacy) -->
             <div id="page-m-privacy" class="page page-canvas hidden">
-                <div class="privacy-layout">
-                    <div id="privacy-sellers-list">
-                        <div class="privacy-overview" id="privacyOverview"></div>
-                    </div>
-                    <div id="privacy-detail">
-                        <div class="privacy-grid" id="privacyGrid"></div>
-                    </div>
-                </div>
+                <div id="privacyOverview"></div>
+                <div class="prv-grid" id="privacyGrid"></div>
             </div>
 
             <!-- PAGE: MANAGER SENTIMENT — id conservé: page-m-sentiment (navId: m-sentiment) -->
             <div id="page-m-sentiment" class="page page-canvas hidden">
-                <div class="section-header">
-                    <h2>Sentiment &amp; Retention</h2>
-                    <p class="subtitle">Detection des frustrations et alertes automatiques</p>
+                <div id="sentimentOverview"></div>
+                <div class="snt-body">
+                    <div id="sentimentAlerts"></div>
+                    <div id="sentimentGrid"></div>
                 </div>
-                <div class="sentiment-overview" id="sentimentOverview"></div>
-                <div class="sentiment-alerts" id="sentimentAlerts"></div>
-                <div class="sentiment-grid" id="sentimentGrid"></div>
             </div>
 
             <!-- PAGE: MANAGER BOUTIQUE — id conservé: page-m-boutique (navId: m-boutique) -->

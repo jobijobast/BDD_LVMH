@@ -137,11 +137,11 @@ SENTIMENT_POSITIVE = [
     'superbe','merveilleux','content','fidèle','recommande','plaisir'
 ]
 SENTIMENT_NEGATIVE = [
-    'déçu','disappointed','frustré','attente','delay','retard',
+    'déçu','disappointed','frustré','délai trop long','delay','retard livraison',
     'problème','problem','défaut','cassé','broken','mauvais',
-    'poor','cher','expensive','lent','slow','erreur','error',
+    'poor','trop cher','expensive','lent','slow','erreur','error',
     'plainte','complaint','insatisfait','médiocre','décevant',
-    'jamais reçu','perdu','endommagé','damaged'
+    'jamais reçu','perdu','endommagé','damaged','mécontent','pas satisfait'
 ]
 
 # ───────────────────────────────────────────
@@ -468,13 +468,19 @@ def build_taxonomy_from_tags(tags: list) -> dict:
 
 def analyze_sentiment_fallback(clean_text: str, row_id: str = "", ca: str = "") -> dict:
     text = clean_text.lower()
-    pos_score = sum(1 for kw in SENTIMENT_POSITIVE if kw in text)
-    neg_score = sum(1.5 for kw in SENTIMENT_NEGATIVE if kw in text)
     pos_found = [kw for kw in SENTIMENT_POSITIVE if kw in text]
     neg_found = [kw for kw in SENTIMENT_NEGATIVE if kw in text]
-    total = pos_score + neg_score or 1
+    pos_score = len(pos_found)
+    neg_score = len(neg_found) * 1.5
+
+    # Aucun signal détecté → neutre par défaut (ne pas pénaliser les notes sans keywords)
+    if pos_score == 0 and neg_score == 0:
+        return {"id": row_id, "ca": ca, "score": 55, "level": "neutral",
+                "posFound": [], "negFound": [], "excerpt": clean_text[:150]}
+
+    total = pos_score + neg_score
     score = round((pos_score / total) * 100)
-    level = "positive" if score >= 70 else ("neutral" if score >= 40 else "negative")
+    level = "positive" if score >= 65 else ("neutral" if score >= 35 else "negative")
     return {"id": row_id, "ca": ca, "score": score, "level": level, "posFound": pos_found, "negFound": neg_found, "excerpt": clean_text[:150]}
 
 

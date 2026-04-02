@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LVMH Voice-to-Tag — Flashcards</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --carbon: #1A1A1A;
+    --carbon-soft: #3A3A38;
+    --carbon-muted: #6A6A68;
+    --bg: #F4F4F2;
+    --bg-surface: #FFFFFF;
+    --border: #E8E6E2;
+    --text-primary: #1A1A1A;
+    --text-secondary: #6A6A68;
+    --positive: #16A34A;
+    --warning: #D97706;
+    --negative: #DC2626;
+    --info: #2563EB;
+    --font-display: 'Cormorant Garamond', serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    background: var(--carbon);
+    color: white;
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .app-header-brand {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .app-header-brand h1 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: white;
+  }
+  .app-header-brand span {
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .view-toggle {
+    display: flex;
+    gap: 8px;
+  }
+  .view-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.6);
+    padding: 7px 16px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .view-btn.active, .view-btn:hover {
+    background: rgba(255,255,255,0.16);
+    color: white;
+    border-color: rgba(255,255,255,0.3);
+  }
+
+  /* ── FOCUS VIEW (mode oral) ── */
+  #focusView {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    gap: 32px;
+  }
+  #focusView.hidden { display: none; }
+
+  .focus-counter {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  .focus-card-wrap {
+    width: 100%;
+    max-width: 680px;
+    height: 420px;
+    perspective: 1200px;
+    cursor: pointer;
+  }
+
+  .focus-card-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
+  }
+  .focus-card-inner.flipped { transform: rotateY(180deg); }
+
+  .focus-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 2px;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .focus-front {
+    background: var(--carbon);
+    color: white;
+    padding: 48px 52px;
+    justify-content: space-between;
+  }
+  .focus-front .card-phase {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+  }
+  .focus-front .card-number {
+    font-family: var(--font-display);
+    font-size: 64px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.1);
+    line-height: 1;
+    align-self: flex-end;
+  }
+  .focus-front .card-title {
+    font-family: var(--font-display);
+    font-size: 42px;
+    font-weight: 500;
+    line-height: 1.1;
+    color: white;
+    margin-bottom: 12px;
+  }
+  .focus-front .card-subtitle {
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.55);
+    line-height: 1.5;
+  }
+  .focus-front .flip-hint {
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.06em;
+    margin-top: auto;
+    padding-top: 24px;
+  }
+
+  .focus-back {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    transform: rotateY(180deg);
+    padding: 36px 48px;
+    gap: 0;
+    overflow-y: auto;
+  }
+  .focus-back .back-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .focus-back .back-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--carbon);
+  }
+  .focus-back .back-phase {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .back-section {
+    margin-bottom: 20px;
+  }
+  .back-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--carbon-muted);
+    margin-bottom: 6px;
+  }
+  .back-section-label::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1.5px;
+    background: var(--carbon);
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  .back-section p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-primary);
+  }
+  .back-section .highlight {
+    display: inline-block;
+    background: #F0EFEC;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--carbon);
+    margin: 2px 3px 2px 0;
+  }
+  .back-roi {
+    display: inline-block;
+    background: var(--carbon);
+    color: white;
+    border-radius: 2px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    margin-top: 8px;
+  }
+
+  /* ── NAV CONTROLS ── */
+  .focus-nav {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .nav-btn {
+    background: var(--carbon);
+    color: white;
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 2px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+  .nav-btn:hover { background: var(--carbon-soft); }
+  .nav-btn:disabled { background: var(--border); color: var(--text-secondary); cursor: default; }
+  .nav-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .progress-bar {
+    width: 280px;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--carbon);
+    border-radius: 1px;
+    transition: width 0.3s ease;
+  }
+
+  /* ── GRID VIEW ── */
+  #gridView {
+    padding: 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    align-content: start;
+  }
+  #gridView.hidden { display: none; }
+
+  .grid-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .grid-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  .grid-card-top {
+    background: var(--carbon);
+    padding: 20px 22px 18px;
+    position: relative;
+  }
+  .grid-card-top .g-phase {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .grid-card-top .g-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 500;
+    color: white;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .grid-card-top .g-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.4;
+  }
+  .grid-card-top .g-num {
+    position: absolute;
+    right: 18px;
+    top: 16px;
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.08);
+    line-height: 1;
+  }
+  .grid-card-body {
+    padding: 16px 22px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .g-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .g-row-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--carbon-muted);
+    flex-shrink: 0;
+    width: 56px;
+    padding-top: 1px;
+  }
+  .g-row-val {
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-primary);
+  }
+  .g-tag {
+    display: inline-block;
+    background: #F0EFEC;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--carbon);
+    margin: 1px 2px 1px 0;
+  }
+  .g-open-btn {
+    margin-top: 4px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 7px 14px;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    cursor: pointer;
+    align-self: flex-start;
+    transition: all 0.2s;
+  }
+  .g-open-btn:hover {
+    background: var(--carbon);
+    color: white;
+    border-color: var(--carbon);
+  }
+
+  /* Phase color bars */
+  .phase-bar {
+    height: 3px;
+  }
+  .phase-bar.overview { background: #9A9890; }
+  .phase-bar.phase1 { background: #2563EB; }
+  .phase-bar.phase2 { background: #16A34A; }
+  .phase-bar.cross { background: #D97706; }
+
+  /* keyboard shortcut hint */
+  .key-hint {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: rgba(26,26,26,0.85);
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    padding: 8px 14px;
+    border-radius: 2px;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    letter-spacing: 0.04em;
+  }
+  .key-hint kbd {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    padding: 1px 5px;
+    font-family: monospace;
+    font-size: 11px;
+    margin: 0 2px;
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-brand">
+    <h1>LVMH Voice-to-Tag</h1>
+    <span>Flashcards — Préparation Oral</span>
+  </div>
+  <div class="view-toggle">
+    <button class="view-btn active" id="btnFocus" onclick="setView('focus')">Mode Oral</button>
+    <button class="view-btn" id="btnGrid" onclick="setView('grid')">Vue Ensemble</button>
+  </div>
+</header>
+
+<!-- ══ FOCUS VIEW ══ -->
+<div id="focusView">
+  <div class="focus-counter" id="focusCounter">1 / 18</div>
+
+  <div class="focus-card-wrap" onclick="flipCard()">
+    <div class="focus-card-inner" id="focusInner">
+      <div class="focus-face focus-front" id="focusFront"></div>
+      <div class="focus-face focus-back" id="focusBack"></div>
+    </div>
+  </div>
+
+  <div class="focus-nav">
+    <button class="nav-btn" id="prevBtn" onclick="prevCard()">←</button>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="nav-hint">Clic pour retourner · ← → pour naviguer</div>
+    </div>
+    <button class="nav-btn" id="nextBtn" onclick="nextCard()">→</button>
+  </div>
+</div>
+
+<!-- ══ GRID VIEW ══ -->
+<div id="gridView" class="hidden" id="gridView"></div>
+
+<div class="key-hint">
+  <kbd>←</kbd><kbd>→</kbd> naviguer &nbsp;|&nbsp; <kbd>Espace</kbd> retourner &nbsp;|&nbsp; <kbd>G</kbd> grille
+</div>
+
+<script>
+const CARDS = [
+  {
+    phase: 'Vue d\'ensemble',
+    phaseClass: 'overview',
+    title: 'Le Projet',
+    subtitle: 'CRM IA pour boutiques LVMH',
+    quoi: 'Plateforme qui transforme les notes vocales des Client Advisors en intelligence client actionnable. Les vendeurs dictent, l\'IA structure, les managers pilotent.',
+    pourquoi: 'Les CA perdent 20-30 min par note à structurer manuellement. Zéro cohérence entre vendeurs. Données inexploitables pour le management.',
+    comment: 'Dictée vocale (Web Speech API) → nettoyage Mistral → extraction tags taxonomie LVMH → NBA → sentiment → Supabase. Stack : HTML/CSS/JS vanilla + Python Flask + Mistral AI + Supabase PostgreSQL.',
+    tags: ['Vendeur', 'Manager', 'Admin', '401 clients', 'Démo live']
+  },
+  {
+    phase: 'Pipeline IA',
+    phaseClass: 'phase1',
+    title: 'Pipeline IA',
+    subtitle: 'Voice → Tag → Action en 6 étapes',
+    quoi: 'Chaîne de traitement complète qui prend une transcription brute et produit des données structurées, conformes RGPD, avec recommandations.',
+    pourquoi: 'Une note vocale brute n\'a aucune valeur. Il faut la nettoyer, la structurer, l\'enrichir — automatiquement, sinon le CA ne l\'utilisera pas.',
+    comment: '[1] Nettoyage Mistral (filler words, masquage RGPD) → [2] Extraction tags (150+ règles regex, 7 catégories) → [3] NBA Mistral (3 actions) → [4] Sentiment (keyword → Mistral prévu) → [5] Score RGPD → [6] Sauvegarde Supabase.',
+    tags: ['Mistral AI', 'Supabase', 'server.py', 'tagger.js']
+  },
+  {
+    phase: 'Feature — Phase 1',
+    phaseClass: 'phase1',
+    title: 'Product Matcher',
+    subtitle: 'Les bons produits LV au bon client',
+    quoi: 'Système de matching entre le profil d\'un client (ses tags) et le catalogue Louis Vuitton (3,4 MB, 500 produits). Retourne les produits les plus pertinents avec explication.',
+    pourquoi: 'Un CA ne peut pas mémoriser 500 références produits. Sans recommandation automatisée, il propose toujours les mêmes 10 produits → panier moyen stagnant.',
+    comment: 'Score = semantic matching (40+ règles tags→mots-clés produit) + bonuses contexte (voyage +20, sport +15, professionnel +18, cadeau +15) + texte client + genre + iconic bonus (Speedy, Neverfull…). Cache Map 50 entrées. Seuil ≥ 15.',
+    tags: ['Filtres catégorie', 'Tri personnalisé', 'engine.js', 'Cache 50 entrées']
+  },
+  {
+    phase: 'Feature — Phase 1',
+    phaseClass: 'phase1',
+    title: 'NBA + Uplift',
+    subtitle: 'Quoi faire maintenant avec ce client',
+    quoi: 'Génère 3 Next Best Actions personnalisées par client via Mistral AI. Classifie chaque client dans un segment Uplift pour prioriser l\'effort commercial.',
+    pourquoi: 'Sans guidage, les CA improvisent ou répètent les mêmes actions. Le NBA structure l\'action commerciale avec ROI estimé pour chaque recommandation.',
+    comment: 'uplift = (sentimentScore/100) × tagDensity × eventBoost − 0.3. Segments : Persuadables (uplift>0.3) → Valeurs Sûres → Chiens Dormants → Cas Perdus. Icônes SVG + badges catégorie (Engagement/Vente/Service/Invitation).',
+    tags: ['Mistral AI', 'ROI Badge', '4 segments', 'engine.js']
+  },
+  {
+    phase: 'Feature — Phase 1',
+    phaseClass: 'phase1',
+    title: 'Dashboard Cockpit',
+    subtitle: 'Le poste de pilotage du manager',
+    quoi: 'Dashboard analytique avec KPIs business temps réel, visualisations segments, trend sentiment 30j, performance vendeurs et alertes actives.',
+    pourquoi: 'L\'ancienne version affichait "nombre de tags extraits" — zéro valeur business. Un manager LVMH pilote en termes de santé portefeuille, risque client et conformité.',
+    comment: 'Santé Portefeuille = (avgSentiment×0.4) + ((1-churnRate)×100×0.35) + (privacyAvg×0.25). + Donut segments SVG + area chart sentiment 30j + team list + alert feed. Namespace CSS ck-*.',
+    tags: ['4 KPIs business', 'SVG charts', 'Morning Briefing', 'Alertes temps réel']
+  },
+  {
+    phase: 'Feature — Phase 1',
+    phaseClass: 'phase1',
+    title: 'Privacy Score',
+    subtitle: 'La note RGPD de chaque vendeur',
+    quoi: 'Score 0-100 par vendeur mesurant la qualité RGPD de ses notes. Coaching ciblé par catégorie de violation (santé, orientation, religion, politique…).',
+    pourquoi: 'Art. 9 RGPD interdit les données sensibles dans les fiches clients. Un CA peut être en infraction sans le savoir → risque légal pour LVMH.',
+    comment: 'Violations détectées par RGPD.scanText() depuis rgpd.js (patterns FR/EN/ES/IT/DE par catégorie). Score = 100 − (violations/totalNotes×100). Barre segmentée 5 blocs. Vue par vendeur + coaching micro-learning.',
+    tags: ['RGPD Art.9', '8 catégories', 'Namespace prv-*', 'Coaching intégré']
+  },
+  {
+    phase: 'Feature — Phase 1',
+    phaseClass: 'phase1',
+    title: 'Coach RGPD',
+    subtitle: 'Former les CA à la conformité',
+    quoi: 'Module de formation interactif : scénarios guidés à corriger, détection en temps réel, système de niveaux avec progression, 8 flip cards de référence RGPD.',
+    pourquoi: 'La détection seule ne suffit pas. Les CA doivent comprendre pourquoi certains mots sont interdits et comment reformuler. Formation = prévention.',
+    comment: '10 scénarios avec violations connues (Facile/Intermédiaire/Expert) + détection live debounce 400ms via RGPD.scanText() + localStorage lvmh_coach_progress (Novice→Certifié RGPD) + 8 flip cards CSS (recto/verso).',
+    tags: ['10 scénarios', 'Détection live', '4 niveaux', '8 flip cards']
+  },
+  {
+    phase: 'Feature — Phase 1',
+    phaseClass: 'phase1',
+    title: 'Sentiment & Retention',
+    subtitle: 'L\'état émotionnel du portefeuille',
+    quoi: 'Analyse sentiment client (positif/neutre/négatif) avec alertes churn, service recovery et opportunités commerciales basées sur les signaux émotionnels.',
+    pourquoi: 'Un client insatisfait qui part chez un concurrent coûte 5× plus cher à récupérer qu\'à retenir. Détecter les signaux négatifs à temps est critique.',
+    comment: 'Layout 2 panneaux (360px alertes | 1fr clients). Smart Triggers : gifting (positif + occasion) / VIC upsell / escalade manager (négatif + Feedback_Négatif) / churn précoce. Optimal Outreach Window : 24h/48h/3j/7j/14j.',
+    tags: ['Smart Triggers', 'Churn Risk', 'Outreach Window', 'Namespace snt-*']
+  },
+  {
+    phase: 'Feature — Phase 1',
+    phaseClass: 'phase1',
+    title: 'Client Readiness Brief',
+    subtitle: 'La fiche de préparation RDV',
+    quoi: 'Fiche synthétique auto-générée avant chaque rendez-vous : profil complet, centres d\'intérêt, produits matchés, NBA et points d\'attention.',
+    pourquoi: 'Aucun outil LVMH ne fait ça aujourd\'hui. Un CA passe 5-10 min à préparer mentalement chaque RDV — ce brief le fait automatiquement en 2 secondes.',
+    comment: 'Agrège DATA existant côté client. 6 sections : Profil / Intérêts / Historique / Produits matchés (top 3 + images) / NBA / Points d\'attention (restrictions, confidentialité, churn risk). Bouton exporter/imprimer.',
+    tags: ['Vendeur + Manager', 'Génération < 2s', 'Produits + images', 'Exportable']
+  },
+  {
+    phase: 'Feature — Phase 2',
+    phaseClass: 'phase2',
+    title: 'Occasion Radar',
+    subtitle: 'Ne jamais rater une fenêtre d\'achat',
+    quoi: 'Scanne automatiquement toutes les notes clients pour détecter les occasions imminentes (anniversaire, mariage, Noël, diplôme…) et affiche un countdown avec ROI estimé.',
+    pourquoi: '~40% des fenêtres d\'occasion sont ratées sans outil de détection. C\'est la fenêtre d\'achat la plus convertissante (+15-25% vs. une relance classique).',
+    comment: '10 types d\'occasions × 15 patterns temporels (mois + dates relatives). 5 niveaux d\'urgence : rouge ≤7j / orange ≤14j / ambre ≤30j / vert ≤90j / gris >90j. ROI calculé via estimateClientROI(). Message générable en 1 clic.',
+    tags: ['Vendeur + Manager', 'v-occasions', 'Countdown live', 'ROI estimé']
+  },
+  {
+    phase: 'Feature — Phase 2',
+    phaseClass: 'phase2',
+    title: 'Collection Match',
+    subtitle: 'Les bons clients pour chaque collection',
+    quoi: 'Un manager saisit le nom d\'une collection LV + mots-clés → liste des clients dont le profil correspond, classée par score de pertinence, exportable.',
+    pourquoi: 'Aujourd\'hui : newsletter identique à tous les clients. Résultat : 2-3% de taux d\'ouverture. Avec ciblage précis → engagement ×3. Économie : 2-3h de travail par lancement.',
+    comment: 'Score par client = mots-clés dans tags (×3) + texte nettoyé (×1) + NBA (×2). Top 20 affichés. Bouton "Exporter" → copie CSV presse-papiers. État persistant window._lastCollectionSearch après navigation.',
+    tags: ['Manager uniquement', 'm-collection', 'Export CSV', 'Top 20 clients']
+  },
+  {
+    phase: 'Feature — Phase 2',
+    phaseClass: 'phase2',
+    title: 'Churn Alert Réel',
+    subtitle: 'Voir les clients qui s\'en vont',
+    quoi: 'Section automatiquement injectée en haut de la page Clients avec les profils à risque de churn, calculé avec une formule réelle basée sur plusieurs signaux.',
+    pourquoi: 'Récupérer un client coûte 5× moins cher qu\'en acquérir un nouveau. L\'alerte est visible dès l\'ouverture de la page → aucun client à risque ne passe inaperçu.',
+    comment: 'Score 0-100 : base 100 − 35 (négatif) − 25 (>90j sans note) − 8/signal négatif (concurrent mentionné, plainte) + 5 (Key_Account). Seuils : critique <30 / élevé <50 / surveillance <70. Card scrollable avec bouton Action → Follow-up.',
+    tags: ['Auto-injectée', 'Clients page', 'Score churn réel', '3 niveaux de risque']
+  },
+  {
+    phase: 'Feature — Phase 2',
+    phaseClass: 'phase2',
+    title: 'Morning Briefing',
+    subtitle: 'Le briefing manager en 30 secondes',
+    quoi: 'Modal qui s\'ouvre automatiquement une fois par jour quand un manager accède au Dashboard, résumant les métriques clés et alertes prioritaires.',
+    pourquoi: 'Un manager passe en moyenne 20 min à "faire le point" le matin. Le Morning Briefing compresse ça à 30 secondes = gain de 1h30/semaine par manager.',
+    comment: 'Déclenché par renderDashboard() au premier chargement. Persistance localStorage lvmh_briefing_${date} — s\'affiche une seule fois par jour. KPI grid : clients à risque / score RGPD / occasions cette semaine / sentiment moyen. dismissBriefing() → fade out.',
+    tags: ['Dashboard Manager', '1 fois/jour', 'localStorage', 'KPIs temps réel']
+  },
+  {
+    phase: 'Feature — Phase 2',
+    phaseClass: 'phase2',
+    title: 'ROI Badge NBA',
+    subtitle: 'Mettre un prix sur chaque action',
+    quoi: 'Badge "€ XXX potentiel" affiché sur chaque card d\'action NBA, permettant au CA de prioriser immédiatement les actions à valeur maximale.',
+    pourquoi: 'Les CA ont 3 actions NBA mais le même temps limité. Afficher le ROI estimé → ils exécutent d\'abord les actions les plus rentables. Augmentation taux d\'exécution estimée : +30%.',
+    comment: 'estimateClientROI() : base €800 × 2.5 (VIC/Key_Account) × 2.8 (horlogerie/joaillerie) × 1.8 (occasion détectée) × 1.6 (CEO/dirigeant) × 1.3 (sentiment positif). Même fonction utilisée par Occasion Radar et Leaderboard.',
+    tags: ['Page NBA', 'estimateClientROI()', 'Base €800', '5 multiplicateurs']
+  },
+  {
+    phase: 'Feature — Phase 2',
+    phaseClass: 'phase2',
+    title: 'Leaderboard Équipe',
+    subtitle: 'La compétition saine entre vendeurs',
+    quoi: 'Classement des vendeurs par score composite avec podium top 3 et tableau complet. Gamification de la qualité des notes et de la conformité.',
+    pourquoi: 'La compétition saine améliore les comportements. Réduction attendue des violations RGPD de 20-30%. Identifie les meilleurs profils à promouvoir et ceux qui ont besoin de coaching.',
+    comment: 'Score composite = RGPD (40%) + Sentiment moyen des clients (35%) + % clients avec NBA (25%). Podium visuel avec barres proportionnelles. Sources : PRIVACY_SCORES + DATA + SENTIMENT_DATA. Namespace CSS leaderboard-*.',
+    tags: ['Manager uniquement', 'm-leaderboard', 'Score composite', 'Podium top 3']
+  },
+  {
+    phase: 'Feature — Phase 2',
+    phaseClass: 'phase2',
+    title: 'Client Journey Map',
+    subtitle: 'La mémoire de la relation client',
+    quoi: 'Modal pleine page avec timeline de l\'évolution de la relation client, sparkline du sentiment, tags récurrents et accès direct aux actions (Follow-up, Brief).',
+    pourquoi: 'Un CA qui reprend contact après 6 mois contextualise en 30 secondes sans relire toutes les notes. Économie : 3-5 min de préparation par RDV + historique préservé.',
+    comment: 'Accessible via bouton "Parcours" dans le panneau détail client. Sparkline SVG générée par buildSentimentSparkline() avec courbe de Bézier cubique. Historique synthétisé depuis DATA. CTA intégrés : Générer Follow-up + Ouvrir Brief.',
+    tags: ['Toutes pages client', 'SVG Bézier', 'openJourneyMap()', 'Modal animé']
+  },
+  {
+    phase: 'Feature transversale',
+    phaseClass: 'cross',
+    title: 'Smart Triggers',
+    subtitle: 'Les opportunités commerciales automatiques',
+    quoi: '4 déclencheurs d\'opportunités calculés en croisant sentiment et tags : l\'outil détecte automatiquement quand agir et comment, sans analyse manuelle.',
+    pourquoi: 'L\'intelligence CRM n\'a de valeur que si elle déclenche une action concrète. Ces triggers transforment des données passives en opportunités de revenus actives.',
+    comment: '① Gifting (sentiment positif + tag occasion) → proposer emballage cadeau. ② VIC Upsell (positif + Key_Account) → invitation private sale. ③ Escalade (négatif + Feedback_Négatif) → alert manager. ④ Churn précoce (neutre + Churn_Risk) → relance douce.',
+    tags: ['Page Sentiment', 'Sentiment × Tags', '4 déclencheurs', 'engine.js']
+  },
+  {
+    phase: 'Feature transversale',
+    phaseClass: 'cross',
+    title: 'Optimal Outreach Window',
+    subtitle: 'Contacter au bon moment',
+    quoi: 'Badge sur chaque card client indiquant la fenêtre d\'intervention optimale calculée par type de situation. Le CA sait exactement dans combien de temps agir.',
+    pourquoi: 'Un contact trop tôt est intrusif. Trop tard, le client est perdu. Le bon timing dépend du contexte — gifting vs. service recovery vs. upsell ne se gèrent pas de la même façon.',
+    comment: 'getOutreachWindow() calcule depuis tags + sentiment : 24h gifting / 48h service recovery / 3j VIC invitation / 7j upsell / 14j relance douce. Badge coloré sur chaque card de la page Clients.',
+    tags: ['Page Clients', 'getOutreachWindow()', '5 fenêtres', 'Badge coloré']
+  }
+];
+
+let currentIdx = 0;
+let isFlipped = false;
+let currentView = 'focus';
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('focusView').classList.toggle('hidden', view !== 'focus');
+  document.getElementById('gridView').classList.toggle('hidden', view !== 'grid');
+  document.getElementById('btnFocus').classList.toggle('active', view === 'focus');
+  document.getElementById('btnGrid').classList.toggle('active', view === 'grid');
+  if (view === 'grid') renderGrid();
+}
+
+function renderCard(idx) {
+  const c = CARDS[idx];
+  isFlipped = false;
+  document.getElementById('focusInner').classList.remove('flipped');
+
+  // Front
+  document.getElementById('focusFront').innerHTML = `
+    <div class="card-phase">${c.phase}</div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;">
+      <div class="card-title">${c.title}</div>
+      <div class="card-subtitle">${c.subtitle}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;">
+      <div class="flip-hint">Cliquer pour voir les détails</div>
+      <div class="card-number">${String(idx + 1).padStart(2,'0')}</div>
+    </div>
+  `;
+
+  // Back
+  const tagsHtml = c.tags.map(t => `<span class="highlight">${t}</span>`).join('');
+  document.getElementById('focusBack').innerHTML = `
+    <div class="back-header">
+      <div class="back-title">${c.title}</div>
+      <div class="back-phase">${c.phase}</div>
+    </div>
+    <div class="back-section">
+      <div class="back-section-label">Ce que c'est</div>
+      <p>${c.quoi}</p>
+    </div>
+    <div class="back-section">
+      <div class="back-section-label">Pourquoi</div>
+      <p>${c.pourquoi}</p>
+    </div>
+    <div class="back-section">
+      <div class="back-section-label">Comment ça marche</div>
+      <p>${c.comment}</p>
+    </div>
+    <div class="back-section" style="margin-bottom:0;">
+      <div class="back-section-label">Mots-clés</div>
+      <div>${tagsHtml}</div>
+    </div>
+  `;
+
+  document.getElementById('focusCounter').textContent = `${idx + 1} / ${CARDS.length}`;
+  document.getElementById('progressFill').style.width = `${((idx + 1) / CARDS.length) * 100}%`;
+  document.getElementById('prevBtn').disabled = idx === 0;
+  document.getElementById('nextBtn').disabled = idx === CARDS.length - 1;
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('focusInner').classList.toggle('flipped', isFlipped);
+}
+
+function prevCard() {
+  if (currentIdx > 0) { currentIdx--; renderCard(currentIdx); }
+}
+
+function nextCard() {
+  if (currentIdx < CARDS.length - 1) { currentIdx++; renderCard(currentIdx); }
+}
+
+function renderGrid() {
+  const grid = document.getElementById('gridView');
+  grid.innerHTML = CARDS.map((c, i) => `
+    <div class="grid-card" onclick="setView('focus');currentIdx=${i};renderCard(${i});">
+      <div class="phase-bar ${c.phaseClass}"></div>
+      <div class="grid-card-top">
+        <div class="g-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="g-phase">${c.phase}</div>
+        <div class="g-title">${c.title}</div>
+        <div class="g-sub">${c.subtitle}</div>
+      </div>
+      <div class="grid-card-body">
+        <div class="g-row">
+          <div class="g-row-label">Quoi</div>
+          <div class="g-row-val">${c.quoi.substring(0,90)}…</div>
+        </div>
+        <div class="g-row">
+          <div class="g-row-label">Pourquoi</div>
+          <div class="g-row-val">${c.pourquoi.substring(0,80)}…</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;">
+          ${c.tags.map(t => `<span class="g-tag">${t}</span>`).join('')}
+        </div>
+        <button class="g-open-btn">Voir en détail →</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (currentView !== 'focus') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); nextCard(); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prevCard(); }
+  if (e.key === ' ') { e.preventDefault(); flipCard(); }
+  if (e.key === 'g' || e.key === 'G') setView('grid');
+});
+document.addEventListener('keydown', e => {
+  if (currentView === 'grid' && (e.key === 'g' || e.key === 'G' || e.key === 'Escape')) setView('focus');
+});
+
+// Init
+renderCard(0);
+</script>
+</body>
+</html>

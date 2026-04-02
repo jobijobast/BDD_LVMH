@@ -144,301 +144,1259 @@ function calcPrivacyTrend(data) {
     return Math.round(avgScore(second) - avgScore(first));
 }
 
+// ===== HELPER: CLIENT ROI ESTIMATE =====
+function estimateClientROI(client) {
+    const tags = (client.tags || []).map(t => (t.t || '').toLowerCase());
+    let base = 800;
+
+    if (tags.some(t => t.includes('vip') || t.includes('vvip') || t.includes('prestige'))) base *= 2.5;
+    if (tags.some(t => t.includes('horlogerie') || t.includes('joaillerie') || t.includes('bijoux'))) base *= 2.8;
+    if (tags.some(t => t.includes('cadeau') || t.includes('occasion') || t.includes('anniversaire') || t.includes('mariage'))) base *= 1.8;
+    if (tags.some(t => t.includes('collection') || t.includes('iconique'))) base *= 1.4;
+    if (tags.some(t => t.includes('professionnel') || t.includes('executive') || t.includes('ceo'))) base *= 1.6;
+
+    const sentiment = client.sentiment || {};
+    if (sentiment.level === 'positive') base *= 1.3;
+    if (sentiment.level === 'negative') base *= 0.5;
+
+    const min = Math.round(base * 0.6 / 100) * 100;
+    const max = Math.round(base * 1.5 / 100) * 100;
+    return { min: Math.max(200, min), max: Math.max(400, max) };
+}
+
+// ===== FEATURE: OCCASION RADAR =====
+const OCCASION_PATTERNS = [
+    { regex: /anniversaire|fête d[eu]|célèbre|souffle (ses|[0-9]+) bougies/i, type: 'Anniversaire', icon: '🎂', color: '#E84393', urgency: 3 },
+    { regex: /mariage|se marie|noces|futur[se] épou/i, type: 'Mariage', icon: '💍', color: '#7C3AED', urgency: 4 },
+    { regex: /naissance|bébé|enceinte|grossesse|attend un enfant|accouche/i, type: 'Naissance', icon: '👶', color: '#10B981', urgency: 3 },
+    { regex: /noël|cadeau de noël|fêtes de fin d'année/i, type: 'Noël', icon: '🎄', color: '#DC2626', urgency: 2 },
+    { regex: /diplôme|graduation|licence|master|bac\b|promotion scolaire/i, type: 'Diplôme', icon: '🎓', color: '#2563EB', urgency: 2 },
+    { regex: /retraite|départ en retraite/i, type: 'Retraite', icon: '🌴', color: '#D97706', urgency: 2 },
+    { regex: /saint-valentin|valentines|st-valentin/i, type: 'Saint-Valentin', icon: '❤️', color: '#E84393', urgency: 4 },
+    { regex: /fête des mères|fête des pères|mother.s day|father.s day/i, type: 'Fête familiale', icon: '🌸', color: '#D97706', urgency: 3 },
+    { regex: /cadeau|offrir|offert|surprise|gâter/i, type: 'Cadeau', icon: '🎁', color: '#6B7280', urgency: 1 },
+    { regex: /pendaison de crémaillère|emménage|nouvelle maison/i, type: 'Emménagement', icon: '🏡', color: '#2563EB', urgency: 2 },
+];
+
+const TIME_PATTERNS = [
+    { regex: /la semaine prochaine|semaine prochaine/i, daysUntil: 7 },
+    { regex: /le mois prochain|mois prochain/i, daysUntil: 30 },
+    { regex: /prochainement|bientôt|dans quelques semaines/i, daysUntil: 21 },
+    { regex: /en janvier/i, daysUntil: () => estimateDaysUntilMonth(1) },
+    { regex: /en février/i, daysUntil: () => estimateDaysUntilMonth(2) },
+    { regex: /en mars/i, daysUntil: () => estimateDaysUntilMonth(3) },
+    { regex: /en avril/i, daysUntil: () => estimateDaysUntilMonth(4) },
+    { regex: /en mai/i, daysUntil: () => estimateDaysUntilMonth(5) },
+    { regex: /en juin/i, daysUntil: () => estimateDaysUntilMonth(6) },
+    { regex: /en juillet/i, daysUntil: () => estimateDaysUntilMonth(7) },
+    { regex: /en août/i, daysUntil: () => estimateDaysUntilMonth(8) },
+    { regex: /en septembre/i, daysUntil: () => estimateDaysUntilMonth(9) },
+    { regex: /en octobre/i, daysUntil: () => estimateDaysUntilMonth(10) },
+    { regex: /en novembre/i, daysUntil: () => estimateDaysUntilMonth(11) },
+    { regex: /en décembre/i, daysUntil: () => estimateDaysUntilMonth(12) },
+];
+
+function estimateDaysUntilMonth(month) {
+    const today = new Date();
+    const targetYear = today.getMonth() + 1 > month ? today.getFullYear() + 1 : today.getFullYear();
+    const target = new Date(targetYear, month - 1, 15);
+    return Math.round((target - today) / (1000 * 60 * 60 * 24));
+}
+
+function detectOccasions(client) {
+    const text = ((client.orig || '') + ' ' + (client.clean || '')).toLowerCase();
+    const occasions = [];
+
+    for (const pattern of OCCASION_PATTERNS) {
+        if (pattern.regex.test(text)) {
+            let daysUntil = null;
+            for (const tp of TIME_PATTERNS) {
+                if (tp.regex.test(text)) {
+                    daysUntil = typeof tp.daysUntil === 'function' ? tp.daysUntil() : tp.daysUntil;
+                    break;
+                }
+            }
+            const dateMatch = text.match(/(?:le\s+)?(\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)/i);
+            if (dateMatch) {
+                const months = {janvier:1,février:2,mars:3,avril:4,mai:5,juin:6,juillet:7,août:8,septembre:9,octobre:10,novembre:11,décembre:12};
+                daysUntil = estimateDaysUntilMonth(months[dateMatch[2].toLowerCase()]);
+            }
+            occasions.push({ ...pattern, daysUntil });
+        }
+    }
+    return occasions;
+}
+
+function buildOccasionCard(client, occ) {
+    const p = getAvatarPalette(client.ca);
+    const initials = getInitials(client.ca);
+    const daysUntil = occ.daysUntil;
+    const urgencyClass = daysUntil !== null ? (daysUntil <= 7 ? 'urgent-red' : daysUntil <= 14 ? 'urgent-orange' : daysUntil <= 30 ? 'urgent-amber' : 'urgent-green') : 'urgent-gray';
+    const daysLabel = daysUntil !== null ? (daysUntil <= 0 ? "Aujourd'hui !" : `Dans ${daysUntil}j`) : 'Date non précisée';
+    const roi = estimateClientROI(client);
+
+    return `
+        <div class="occasion-card">
+            <div class="occasion-card-header">
+                <div class="occasion-badge" style="background:${occ.color}20;color:${occ.color};border-color:${occ.color}40">
+                    ${occ.icon} ${occ.type}
+                </div>
+                <div class="occasion-countdown ${urgencyClass}">${daysLabel}</div>
+            </div>
+            <div class="occasion-card-client">
+                <div class="occasion-avatar" style="background:${p.bg};color:${p.color}">${initials}</div>
+                <div>
+                    <div class="occasion-client-name">${client.ca || 'Client inconnu'}</div>
+                    <div class="occasion-client-meta">${client.store || ''} · ${client.lang || 'FR'}</div>
+                </div>
+            </div>
+            <div class="occasion-tags">
+                ${(client.tags || []).slice(0, 3).map(buildTag).join('')}
+            </div>
+            <div class="occasion-roi">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v14M5 4h4.5a2.5 2.5 0 010 5H5M5 9h5a2.5 2.5 0 010 5H5"/></svg>
+                Potentiel estimé : <strong>€${roi.min.toLocaleString()} – €${roi.max.toLocaleString()}</strong>
+            </div>
+            <div class="occasion-actions">
+                <button class="occasion-copy-btn" onclick="copyOccasionMessage('${(client.ca || '').replace(/'/g,"\\'")}','${occ.type}')">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="10" rx="1"/><path d="M11 4V3a1 1 0 00-1-1H3a1 1 0 00-1 1v9a1 1 0 001 1h1"/></svg>
+                    Copier message
+                </button>
+                <button class="occasion-brief-btn" onclick="if(typeof navigateTo==='function'){window._briefClientId='${client.id}';navigateTo('brief');}">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1"/><path d="M5 5h6M5 8h6M5 11h3"/></svg>
+                    Voir brief
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+window.copyOccasionMessage = function(clientName, occasionType) {
+    const msg = `Bonjour ${clientName || 'cher(e) client(e)'}, j'espère que vous allez bien ! À l'occasion de votre ${occasionType.toLowerCase()}, j'ai pensé à vous et souhaite vous présenter quelques pièces qui correspondent parfaitement à cet événement. N'hésitez pas à me contacter pour organiser une visite — il me ferait plaisir de vous accueillir.`;
+    navigator.clipboard.writeText(msg).then(() => showToast('Message copié !', 'success'));
+};
+
+function renderOccasionRadar() {
+    const root = document.getElementById('occasions-root');
+    if (!root) return;
+
+    const allOccasions = [];
+    DATA.forEach(client => {
+        const detected = detectOccasions(client);
+        detected.forEach(occ => {
+            allOccasions.push({ client, occ });
+        });
+    });
+
+    allOccasions.sort((a, b) => {
+        const aDays = a.occ.daysUntil !== null ? a.occ.daysUntil : 999;
+        const bDays = b.occ.daysUntil !== null ? b.occ.daysUntil : 999;
+        if (aDays !== bDays) return aDays - bDays;
+        return b.occ.urgency - a.occ.urgency;
+    });
+
+    const roiTotal = allOccasions.length * 1800;
+    const urgentCount = allOccasions.filter(o => o.occ.daysUntil !== null && o.occ.daysUntil <= 14).length;
+
+    const activeFilter = window._occasionFilter || 'all';
+    let filtered = allOccasions;
+    if (activeFilter === 'urgent') filtered = allOccasions.filter(o => o.occ.daysUntil !== null && o.occ.daysUntil <= 14);
+    else if (activeFilter === 'month') filtered = allOccasions.filter(o => o.occ.daysUntil !== null && o.occ.daysUntil <= 30);
+    else if (activeFilter === 'gift') filtered = allOccasions.filter(o => o.occ.type === 'Cadeau');
+
+    root.innerHTML = `
+        <div class="occasion-hero">
+            <div class="occasion-hero-left">
+                <div class="occasion-hero-title">Occasion Radar</div>
+                <div class="occasion-hero-sub">Occasions détectées dans les notes clients</div>
+            </div>
+            <div class="occasion-hero-kpis">
+                <div class="occasion-kpi">
+                    <div class="occasion-kpi-val">${allOccasions.length}</div>
+                    <div class="occasion-kpi-label">occasions détectées</div>
+                </div>
+                <div class="occasion-kpi occasion-kpi--urgent">
+                    <div class="occasion-kpi-val">${urgentCount}</div>
+                    <div class="occasion-kpi-label">urgentes (14j)</div>
+                </div>
+                <div class="occasion-kpi occasion-kpi--roi">
+                    <div class="occasion-kpi-val">€${(roiTotal / 1000).toFixed(0)}k</div>
+                    <div class="occasion-kpi-label">CA potentiel</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="occasion-filters">
+            <button class="occasion-filter-btn ${activeFilter === 'all' ? 'active' : ''}" onclick="window._occasionFilter='all';renderOccasionRadar()">Toutes (${allOccasions.length})</button>
+            <button class="occasion-filter-btn ${activeFilter === 'urgent' ? 'active' : ''}" onclick="window._occasionFilter='urgent';renderOccasionRadar()">Urgentes — 14j (${allOccasions.filter(o=>o.occ.daysUntil!==null&&o.occ.daysUntil<=14).length})</button>
+            <button class="occasion-filter-btn ${activeFilter === 'month' ? 'active' : ''}" onclick="window._occasionFilter='month';renderOccasionRadar()">Ce mois (${allOccasions.filter(o=>o.occ.daysUntil!==null&&o.occ.daysUntil<=30).length})</button>
+            <button class="occasion-filter-btn ${activeFilter === 'gift' ? 'active' : ''}" onclick="window._occasionFilter='gift';renderOccasionRadar()">Cadeaux (${allOccasions.filter(o=>o.occ.type==='Cadeau').length})</button>
+        </div>
+
+        ${filtered.length === 0 ? `
+            <div class="occasion-empty">
+                <div style="font-size:32px;margin-bottom:12px">🎯</div>
+                <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px">Aucune occasion dans ce filtre</div>
+                <div style="font-size:12px;color:var(--text-secondary)">Importez plus de notes clients pour détecter des occasions</div>
+            </div>
+        ` : `
+            <div class="occasion-cards-grid">
+                ${filtered.map(({ client, occ }) => buildOccasionCard(client, occ)).join('')}
+            </div>
+        `}
+    `;
+}
+
+// ===== FEATURE: CHURN ALERT =====
+function computeChurnScore(client) {
+    let score = 100;
+    const sentiment = client.sentiment || {};
+
+    if (sentiment.level === 'negative') score -= 35;
+    else if (sentiment.level === 'neutral') score -= 10;
+
+    const noteDate = client.date ? new Date(client.date) : null;
+    if (noteDate) {
+        const daysSince = Math.round((new Date() - noteDate) / (1000 * 60 * 60 * 24));
+        if (daysSince > 90) score -= 25;
+        else if (daysSince > 60) score -= 15;
+        else if (daysSince > 30) score -= 5;
+    }
+
+    const negSignals = ['concurrent', 'hermès', 'chanel', 'gucci', 'pas intéressé', 'trop cher', 'ailleurs', 'déçu', 'mécontent', 'déçue'];
+    const text = ((client.orig || '') + ' ' + (client.clean || '')).toLowerCase();
+    let negPenalty = 0;
+    negSignals.forEach(s => { if (text.includes(s)) negPenalty = Math.min(24, negPenalty + 8); });
+    score -= negPenalty;
+
+    const posSignals = ['fidèle', 'régulier', 'régulière', 'toujours', 'adore', 'fan', 'ambassadeur', 'habituel'];
+    posSignals.forEach(s => { if (text.includes(s)) score = Math.min(100, score + 5); });
+
+    if ((client.nba || []).length >= 2) score += 5;
+
+    return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function renderChurnAlert() {
+    const clientsPage = document.getElementById('page-clients');
+    if (!clientsPage) return;
+
+    const existing = document.getElementById('churn-alert-section');
+    if (existing) existing.remove();
+
+    const atRisk = DATA.map(c => ({ client: c, score: computeChurnScore(c) }))
+        .filter(r => r.score < 65)
+        .sort((a, b) => a.score - b.score)
+        .slice(0, 6);
+
+    if (atRisk.length === 0) return;
+
+    const critical = atRisk.filter(r => r.score < 40);
+    const warning = atRisk.filter(r => r.score >= 40 && r.score < 65);
+
+    const section = document.createElement('div');
+    section.id = 'churn-alert-section';
+    section.className = 'churn-alert-section';
+    section.innerHTML = `
+        <div class="churn-header">
+            <div class="churn-header-left">
+                <span class="churn-header-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </span>
+                <div>
+                    <div class="churn-header-title">Alerte Rétention</div>
+                    <div class="churn-header-sub">${critical.length} critique${critical.length !== 1 ? 's' : ''} · ${warning.length} à surveiller</div>
+                </div>
+            </div>
+            <button class="churn-dismiss-btn" onclick="document.getElementById('churn-alert-section').style.display='none'">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+            </button>
+        </div>
+        <div class="churn-cards-row">
+            ${atRisk.map(({ client, score }) => {
+                const p = getAvatarPalette(client.ca);
+                const initials = getInitials(client.ca);
+                const riskLevel = score < 40 ? 'critical' : 'warning';
+                const riskLabel = score < 40 ? 'Risque critique' : 'À surveiller';
+                const riskColor = score < 40 ? 'var(--color-negative)' : 'var(--color-warning)';
+                const recovery = score < 40
+                    ? 'Appel personnel urgent + invitation exclusive requise'
+                    : 'Follow-up personnalisé recommandé dans les 7 jours';
+                const noteDate = client.date ? new Date(client.date).toLocaleDateString('fr-FR', {day:'2-digit',month:'short'}) : '—';
+                return `
+                    <div class="churn-card churn-card--${riskLevel}" onclick="openDetailPanel(DATA.find(c=>c.id==='${client.id}'))">
+                        <div class="churn-card-header">
+                            <div class="churn-avatar" style="background:${p.bg};color:${p.color}">${initials}</div>
+                            <div class="churn-ring" style="--score:${score}%;--color:${riskColor}">
+                                <svg viewBox="0 0 36 36" class="churn-ring-svg">
+                                    <path d="M18 2a16 16 0 1 1 0 32 16 16 0 0 1 0-32" fill="none" stroke="var(--border)" stroke-width="3"/>
+                                    <path d="M18 2a16 16 0 1 1 0 32 16 16 0 0 1 0-32" fill="none" stroke="${riskColor}" stroke-width="3" stroke-dasharray="${Math.round(score)} 100" stroke-linecap="round"/>
+                                </svg>
+                                <span class="churn-ring-val">${score}</span>
+                            </div>
+                        </div>
+                        <div class="churn-card-name">${client.ca || 'Client'}</div>
+                        <div class="churn-risk-badge" style="color:${riskColor}">${riskLabel}</div>
+                        <div class="churn-last-contact">Dernière note : ${noteDate}</div>
+                        <div class="churn-recovery">${recovery}</div>
+                        <button class="churn-action-btn" onclick="event.stopPropagation();if(typeof navigateTo==='function'){window._selectedClient=DATA.find(c=>c.id==='${client.id}');navigateTo('followup');}">
+                            Action →
+                        </button>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+
+    // Insert before the search-filter-bar (first child of page-clients)
+    clientsPage.insertBefore(section, clientsPage.firstChild);
+}
+
+// ===== FEATURE: MORNING BRIEFING =====
+function showMorningBriefing() {
+    if ((typeof currentUser !== 'undefined' ? (currentUser?.role || '') : '').toLowerCase() !== 'manager') return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const key = `lvmh_briefing_${today}`;
+    if (localStorage.getItem(key)) return;
+
+    const churnAtRisk = DATA.filter(c => computeChurnScore(c) < 40).length;
+    const occasionsThisWeek = DATA.reduce((count, c) => {
+        const occ = detectOccasions(c);
+        return count + occ.filter(o => o.daysUntil !== null && o.daysUntil <= 7).length;
+    }, 0);
+
+    const sentimentAvg = DATA.length
+        ? Math.round(DATA.reduce((a, c) => a + (c.sentiment?.score || 50), 0) / DATA.length)
+        : 0;
+
+    const worstSeller = PRIVACY_SCORES.length ? [...PRIVACY_SCORES].sort((a, b) => a.score - b.score)[0] : null;
+
+    let actionOfDay = '';
+    if (churnAtRisk > 0) actionOfDay = `${churnAtRisk} client${churnAtRisk > 1 ? 's' : ''} en risque critique de churn — contactez-les aujourd'hui.`;
+    else if (occasionsThisWeek > 0) actionOfDay = `${occasionsThisWeek} occasion${occasionsThisWeek > 1 ? 's' : ''} cette semaine — préparez vos messages personnalisés.`;
+    else if (worstSeller && worstSeller.score < 70) actionOfDay = `Score RGPD de ${worstSeller.ca} à ${worstSeller.score}/100 — formation recommandée.`;
+    else actionOfDay = `Bonne journée — tous vos indicateurs sont au vert.`;
+
+    const firstName = (typeof currentUser !== 'undefined' ? currentUser?.first_name : '') || 'Manager';
+    const dateLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    const weekOccasions = DATA.flatMap(c => detectOccasions(c).filter(o => o.daysUntil !== null && o.daysUntil <= 7).map(o => ({client:c, occ:o}))).slice(0, 3);
+
+    const modal = document.createElement('div');
+    modal.id = 'morning-briefing-modal';
+    modal.className = 'briefing-overlay';
+    modal.innerHTML = `
+        <div class="briefing-modal">
+            <div class="briefing-modal-header">
+                <div>
+                    <div class="briefing-greeting">Bonjour, ${firstName}</div>
+                    <div class="briefing-date">${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</div>
+                </div>
+                <button class="briefing-close" onclick="dismissBriefing()">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+                </button>
+            </div>
+
+            <div class="briefing-kpi-grid">
+                <div class="briefing-kpi">
+                    <div class="briefing-kpi-val">${DATA.length}</div>
+                    <div class="briefing-kpi-label">Clients en base</div>
+                </div>
+                <div class="briefing-kpi briefing-kpi--alert" style="${churnAtRisk > 0 ? '' : 'opacity:0.5'}">
+                    <div class="briefing-kpi-val">${churnAtRisk}</div>
+                    <div class="briefing-kpi-label">Clients à risque</div>
+                </div>
+                <div class="briefing-kpi briefing-kpi--opportunity">
+                    <div class="briefing-kpi-val">${occasionsThisWeek}</div>
+                    <div class="briefing-kpi-label">Occasions cette sem.</div>
+                </div>
+                <div class="briefing-kpi">
+                    <div class="briefing-kpi-val">${STATS.privacyAvg || 0}</div>
+                    <div class="briefing-kpi-label">Score RGPD moy.</div>
+                </div>
+                <div class="briefing-kpi briefing-kpi--sentiment">
+                    <div class="briefing-kpi-val">${sentimentAvg}</div>
+                    <div class="briefing-kpi-label">Sentiment client</div>
+                </div>
+            </div>
+
+            <div class="briefing-action-spotlight">
+                <div class="briefing-action-label">ACTION DU JOUR</div>
+                <div class="briefing-action-text">${actionOfDay}</div>
+            </div>
+
+            ${weekOccasions.length > 0 ? `
+            <div class="briefing-occasions-preview">
+                <div class="briefing-section-title">Occasions cette semaine</div>
+                ${weekOccasions.map(({client, occ}) => `
+                    <div class="briefing-occasion-row">
+                        <span class="briefing-occ-icon" style="color:${occ.color}">${occ.icon}</span>
+                        <span class="briefing-occ-name">${client.ca}</span>
+                        <span class="briefing-occ-type">${occ.type}</span>
+                        <span class="briefing-occ-days">Dans ${occ.daysUntil}j</span>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
+            <button class="briefing-start-btn" onclick="dismissBriefing()">
+                Commencer la journée
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('briefing-overlay--visible'));
+}
+
+window.dismissBriefing = function() {
+    const today = new Date().toISOString().split('T')[0];
+    localStorage.setItem(`lvmh_briefing_${today}`, '1');
+    const modal = document.getElementById('morning-briefing-modal');
+    if (modal) {
+        modal.classList.remove('briefing-overlay--visible');
+        setTimeout(() => modal.remove(), 300);
+    }
+};
+
+// ===== FEATURE: COLLECTION MATCH =====
+function renderCollectionMatch() {
+    const root = document.getElementById('collection-root');
+    if (!root) return;
+
+    const lastCollection = window._lastCollectionSearch || null;
+
+    root.innerHTML = `
+        <div class="collection-hero">
+            <div class="collection-hero-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            </div>
+            <div>
+                <div class="collection-hero-title">Collection Match</div>
+                <div class="collection-hero-sub">Identifiez quels clients contacter pour une nouvelle collection</div>
+            </div>
+        </div>
+
+        <div class="collection-search-panel">
+            <div class="collection-field">
+                <label class="collection-label">Nom de la collection</label>
+                <input type="text" id="collectionName" class="collection-input" placeholder="Ex: Capucines Brodée Printemps 2026" value="${lastCollection?.name || ''}">
+            </div>
+            <div class="collection-field">
+                <label class="collection-label">Mots-clés associés <span style="font-weight:400;color:var(--text-secondary)">(séparés par des virgules)</span></label>
+                <input type="text" id="collectionKeywords" class="collection-input" placeholder="Ex: broderie, coloris pastel, sac, cérémonie, printemps, floral" value="${lastCollection?.keywords || ''}">
+            </div>
+            <button class="collection-search-btn" onclick="runCollectionMatch()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                Trouver mes clients cibles
+            </button>
+        </div>
+
+        <div id="collection-results"></div>
+    `;
+
+    if (lastCollection?.results) {
+        renderCollectionResults(lastCollection.results, lastCollection.name);
+    }
+}
+
+window.runCollectionMatch = function() {
+    const name = document.getElementById('collectionName')?.value?.trim();
+    const keywords = document.getElementById('collectionKeywords')?.value?.trim();
+    if (!name || !keywords) { showToast('Renseignez le nom et les mots-clés', 'error'); return; }
+
+    const kws = keywords.toLowerCase().split(',').map(k => k.trim()).filter(Boolean);
+
+    const results = DATA.map(client => {
+        let score = 0;
+        const reasons = [];
+        const clientText = ((client.orig || '') + ' ' + (client.clean || '')).toLowerCase();
+        const clientTags = (client.tags || []).map(t => t.t.toLowerCase());
+
+        kws.forEach(kw => {
+            if (clientTags.some(t => t.includes(kw) || kw.includes(t.replace(/[^a-z]/g,'')))) {
+                score += 5;
+                const matchedTag = (client.tags || []).find(t => t.t.toLowerCase().includes(kw));
+                if (matchedTag) reasons.push(matchedTag.t);
+            }
+            if (clientText.includes(kw)) {
+                score += 2;
+                if (!reasons.includes(kw)) reasons.push(kw);
+            }
+        });
+
+        return { client, score, reasons: [...new Set(reasons)] };
+    })
+    .filter(r => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20);
+
+    window._lastCollectionSearch = { name, keywords, results };
+    renderCollectionResults(results, name);
+};
+
+function renderCollectionResults(results, collectionName) {
+    const container = document.getElementById('collection-results');
+    if (!container) return;
+
+    if (results.length === 0) {
+        container.innerHTML = `<div class="collection-empty">Aucun client ne correspond à ces mots-clés. Essayez des termes plus généraux.</div>`;
+        return;
+    }
+
+    const roiTotal = results.length * 2200;
+    const maxScore = results[0]?.score || 1;
+
+    container.innerHTML = `
+        <div class="collection-results-header">
+            <div class="collection-results-title">${results.length} clients ciblés pour « ${collectionName} »</div>
+            <div class="collection-roi-badge">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v14M5 4h4.5a2.5 2.5 0 010 5H5M5 9h5a2.5 2.5 0 010 5H5"/></svg>
+                CA potentiel estimé : €${(roiTotal/1000).toFixed(0)}k
+            </div>
+            <button class="collection-export-btn" onclick="exportCollectionList()">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 11V1M4 7l4 4 4-4M14 13H2"/></svg>
+                Exporter CSV
+            </button>
+        </div>
+        <div class="collection-list">
+            ${results.map((r, i) => {
+                const p = getAvatarPalette(r.client.ca);
+                const initials = getInitials(r.client.ca);
+                const pct = Math.round((r.score / maxScore) * 100);
+                const roi = estimateClientROI(r.client);
+                const safeCollectionName = collectionName.replace(/`/g, "'");
+                const safeClientName = (r.client.ca || 'cher(e) client(e)').replace(/`/g, "'");
+                return `
+                    <div class="collection-match-card">
+                        <div class="collection-match-rank">#${i + 1}</div>
+                        <div class="collection-match-avatar" style="background:${p.bg};color:${p.color}">${initials}</div>
+                        <div class="collection-match-info">
+                            <div class="collection-match-name">${r.client.ca || 'Client inconnu'}</div>
+                            <div class="collection-match-tags">
+                                ${r.reasons.slice(0, 3).map(reason => `<span class="collection-match-reason">${reason}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="collection-match-score-bar">
+                            <div class="collection-match-bar-fill" style="width:${pct}%"></div>
+                            <span class="collection-match-pct">${pct}%</span>
+                        </div>
+                        <div class="collection-match-roi">€${roi.min.toLocaleString()}–€${roi.max.toLocaleString()}</div>
+                        <button class="collection-copy-msg" title="Copier le message" onclick="navigator.clipboard.writeText('Bonjour ${safeClientName}, je pense à vous ! La nouvelle collection ${safeCollectionName} vient d\\'arriver et certaines pièces m\\'ont immédiatement fait penser à vous. Je serais ravie de vous les présenter lors d\\'une prochaine visite.').then(()=>showToast('Message copié !','success'))">
+                            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="9" height="10" rx="1"/><path d="M11 4V3a1 1 0 00-1-1H3a1 1 0 00-1 1v9a1 1 0 001 1h1"/></svg>
+                        </button>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+window.exportCollectionList = function() {
+    const data = window._lastCollectionSearch;
+    if (!data?.results) return;
+    const lines = ['Rang,Client,Score,Raisons du match,Boutique'];
+    data.results.forEach((r, i) => {
+        lines.push([i+1, r.client.ca, r.score, '"' + r.reasons.join(', ') + '"', r.client.store].join(','));
+    });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+    a.download = `collection_match_${(data.name || 'export').replace(/\s+/g,'_')}.csv`;
+    a.click();
+};
+
+// ===== FEATURE: LEADERBOARD =====
+function computeLeaderboard() {
+    const sellersMap = {};
+
+    PRIVACY_SCORES.forEach(p => {
+        sellersMap[p.ca] = {
+            name: p.ca,
+            rgpdScore: p.score,
+            violations: p.violations || 0,
+            level: p.level,
+            notes: 0,
+            sentimentScores: [],
+            nbas: 0
+        };
+    });
+
+    DATA.forEach(client => {
+        const sellerKey = client.ca || 'Inconnu';
+        if (!sellersMap[sellerKey]) {
+            sellersMap[sellerKey] = { name: sellerKey, rgpdScore: 85, violations: 0, notes: 0, sentimentScores: [], nbas: 0 };
+        }
+        sellersMap[sellerKey].notes++;
+        sellersMap[sellerKey].sentimentScores.push(client.sentiment?.score || 50);
+        sellersMap[sellerKey].nbas += (client.nba || []).length;
+    });
+
+    return Object.values(sellersMap).map(s => {
+        const avgSentiment = s.sentimentScores.length
+            ? Math.round(s.sentimentScores.reduce((a, b) => a + b, 0) / s.sentimentScores.length)
+            : 50;
+        const rgpd = s.rgpdScore || 85;
+        const nbaScore = Math.min(100, (s.nbas / Math.max(1, s.notes)) * 50);
+        const composite = Math.round(rgpd * 0.4 + avgSentiment * 0.35 + nbaScore * 0.25);
+        return { ...s, avgSentiment, rgpd, nbaScore: Math.round(nbaScore), composite };
+    }).sort((a, b) => b.composite - a.composite);
+}
+
+function renderLeaderboard() {
+    const root = document.getElementById('leaderboard-root');
+    if (!root) return;
+
+    const rankings = computeLeaderboard();
+    if (rankings.length === 0) {
+        root.innerHTML = `<div class="leaderboard-empty">Aucune donnée disponible. Importez des notes pour voir le classement.</div>`;
+        return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉'];
+    const top3 = rankings.slice(0, 3);
+    const rest = rankings.slice(3);
+    const heights = ['80px', '110px', '60px'];
+    const podiumOrder = [1, 0, 2];
+
+    root.innerHTML = `
+        <div class="leaderboard-hero">
+            <div class="leaderboard-hero-title">Leaderboard Équipe</div>
+            <div class="leaderboard-hero-sub">Classement basé sur RGPD (40%) · Sentiment client (35%) · NBAs générés (25%)</div>
+        </div>
+
+        <div class="leaderboard-podium">
+            ${top3.map((seller, i) => {
+                const p = getAvatarPalette(seller.name);
+                const initials = getInitials(seller.name);
+                return `
+                    <div class="leaderboard-podium-item" style="order:${podiumOrder[i]}">
+                        <div class="leaderboard-podium-avatar" style="background:${p.bg};color:${p.color}">
+                            ${initials}
+                            ${i === 0 ? '<div class="leaderboard-crown">👑</div>' : ''}
+                        </div>
+                        <div class="leaderboard-podium-name">${seller.name.split(' ')[0]}</div>
+                        <div class="leaderboard-podium-score">${seller.composite}</div>
+                        <div class="leaderboard-podium-bar" style="height:${heights[i]};background:${i === 0 ? 'var(--carbon)' : 'var(--border-strong)'}">
+                            <span class="leaderboard-podium-rank">${medals[i]}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+
+        ${rest.length > 0 ? `
+        <div class="leaderboard-table">
+            <div class="leaderboard-table-header">
+                <span>Rang</span><span>Conseiller</span><span>Score global</span><span>RGPD</span><span>Sentiment</span><span>NBA</span>
+            </div>
+            ${rest.map((seller, i) => {
+                const p = getAvatarPalette(seller.name);
+                const initials = getInitials(seller.name);
+                const isCurrentUser = typeof currentUser !== 'undefined' && currentUser && seller.name.toLowerCase().includes((currentUser.first_name || '').toLowerCase());
+                return `
+                    <div class="leaderboard-row ${isCurrentUser ? 'leaderboard-row--you' : ''}">
+                        <span class="leaderboard-row-rank">#${i + 4}</span>
+                        <div class="leaderboard-row-seller">
+                            <div class="leaderboard-row-avatar" style="background:${p.bg};color:${p.color}">${initials}</div>
+                            <span>${seller.name}</span>
+                            ${isCurrentUser ? '<span class="leaderboard-you-badge">Vous</span>' : ''}
+                        </div>
+                        <div class="leaderboard-row-composite">
+                            <div class="leaderboard-composite-bar" style="width:${seller.composite}%"></div>
+                            <span>${seller.composite}</span>
+                        </div>
+                        <span class="leaderboard-metric ${seller.rgpd >= 80 ? 'metric-good' : seller.rgpd >= 60 ? 'metric-mid' : 'metric-bad'}">${seller.rgpd}</span>
+                        <span class="leaderboard-metric ${seller.avgSentiment >= 65 ? 'metric-good' : seller.avgSentiment >= 45 ? 'metric-mid' : 'metric-bad'}">${seller.avgSentiment}</span>
+                        <span class="leaderboard-metric">${seller.nbaScore}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+        ` : ''}
+
+        <div class="leaderboard-legend">
+            <div class="leaderboard-legend-item"><span class="metric-good">■</span> Excellent (80+)</div>
+            <div class="leaderboard-legend-item"><span class="metric-mid">■</span> Bon (60-79)</div>
+            <div class="leaderboard-legend-item"><span class="metric-bad">■</span> À améliorer (&lt;60)</div>
+        </div>
+    `;
+}
+
+// ===== FEATURE: CLIENT JOURNEY MAP =====
+function buildSentimentSparkline(scores) {
+    if (!scores || scores.length < 2) return '';
+    const W = 300, H = 60, P = 8;
+    const W2 = W - P * 2, H2 = H - P * 2;
+    const max = Math.max(...scores, 100);
+    const min = Math.min(...scores, 0);
+    const range = max - min || 1;
+
+    const cx = (i) => P + (i / (scores.length - 1)) * W2;
+    const cy = (v) => P + H2 - ((v - min) / range) * H2;
+
+    const path = scores.map((v, i) => `${i === 0 ? 'M' : 'L'} ${cx(i)} ${cy(v)}`).join(' ');
+    const area = path + ` L ${cx(scores.length-1)} ${P+H2} L ${P} ${P+H2} Z`;
+
+    return `<svg class="journey-sparkline" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <defs><linearGradient id="journeyGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#1A1A1A" stop-opacity="0.1"/>
+            <stop offset="100%" stop-color="#1A1A1A" stop-opacity="0"/>
+        </linearGradient></defs>
+        <path d="${area}" fill="url(#journeyGrad)"/>
+        <path d="${path}" fill="none" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+        ${scores.map((v, i) => `<circle cx="${cx(i)}" cy="${cy(v)}" r="3" fill="#1A1A1A"/>`).join('')}
+    </svg>`;
+}
+
+window.openJourneyMap = function(clientId) {
+    const client = DATA.find(c => c.id === clientId);
+    if (!client) return;
+
+    const allNotes = DATA.filter(c =>
+        c.ca === client.ca || c.id === clientId
+    ).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const p = getAvatarPalette(client.ca);
+    const initials = getInitials(client.ca);
+
+    const sentimentHistory = allNotes.map(n => ({
+        date: n.date,
+        level: n.sentiment?.level || 'neutral',
+        score: n.sentiment?.score || 50,
+        tags: (n.tags || []).slice(0, 4),
+        nbas: (n.nba || []).slice(0, 2),
+    }));
+
+    const lastNote = allNotes[allNotes.length - 1];
+    const sentimentTrend = sentimentHistory.length > 1
+        ? (sentimentHistory[sentimentHistory.length - 1].score > sentimentHistory[0].score ? 'improving' : 'declining')
+        : 'stable';
+
+    const relationshipStatus = (() => {
+        const lastScore = lastNote?.sentiment?.score || 50;
+        const churnScore = computeChurnScore(lastNote || client);
+        if (churnScore < 40) return { label: 'Attention requise', color: 'var(--color-negative)', icon: '⚠️' };
+        if (lastScore >= 70) return { label: 'Relation de confiance', color: 'var(--color-positive)', icon: '✦' };
+        if (lastScore >= 50) return { label: 'Relation stable', color: 'var(--color-info)', icon: '◎' };
+        return { label: 'Relation fragile', color: 'var(--color-warning)', icon: '◐' };
+    })();
+
+    const sparkline = buildSentimentSparkline(sentimentHistory.map(s => s.score));
+
+    const modal = document.createElement('div');
+    modal.id = 'journey-modal';
+    modal.className = 'journey-overlay';
+    modal.onclick = e => { if (e.target === modal) closeJourneyMap(); };
+    modal.innerHTML = `
+        <div class="journey-modal">
+            <div class="journey-modal-header">
+                <div class="journey-client-info">
+                    <div class="journey-avatar" style="background:${p.bg};color:${p.color}">${initials}</div>
+                    <div>
+                        <div class="journey-client-name">${client.ca}</div>
+                        <div class="journey-client-meta">${client.store || ''} · ${allNotes.length} note${allNotes.length > 1 ? 's' : ''}</div>
+                    </div>
+                </div>
+                <div class="journey-relation-status" style="color:${relationshipStatus.color}">
+                    ${relationshipStatus.icon} ${relationshipStatus.label}
+                </div>
+                <button class="journey-close" onclick="closeJourneyMap()">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+                </button>
+            </div>
+
+            ${sparkline ? `
+            <div class="journey-sparkline-section">
+                <div class="journey-spark-label">Évolution du sentiment</div>
+                ${sparkline}
+                <div class="journey-trend-label" style="color:${sentimentTrend === 'improving' ? 'var(--color-positive)' : sentimentTrend === 'declining' ? 'var(--color-negative)' : 'var(--text-secondary)'}">
+                    ${sentimentTrend === 'improving' ? '↗ En amélioration' : sentimentTrend === 'declining' ? '↘ En baisse' : '→ Stable'}
+                </div>
+            </div>
+            ` : ''}
+
+            <div class="journey-timeline">
+                ${sentimentHistory.map((note, i) => {
+                    const isFirst = i === 0;
+                    const isLast = i === sentimentHistory.length - 1;
+                    const sentColor = note.level === 'positive' ? 'var(--color-positive)' : note.level === 'negative' ? 'var(--color-negative)' : 'var(--text-secondary)';
+                    const dateLabel = note.date ? new Date(note.date).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+                    return `
+                        <div class="journey-node ${isFirst ? 'journey-node--first' : ''} ${isLast ? 'journey-node--last' : ''}">
+                            <div class="journey-node-dot" style="border-color:${sentColor};background:${isLast ? sentColor : 'var(--bg-surface)'}"></div>
+                            <div class="journey-node-content">
+                                <div class="journey-node-header">
+                                    <span class="journey-node-date">${dateLabel}</span>
+                                    ${isFirst ? '<span class="journey-node-badge">Première visite</span>' : ''}
+                                    ${isLast && !isFirst ? '<span class="journey-node-badge journey-node-badge--last">Dernière visite</span>' : ''}
+                                </div>
+                                <div class="journey-node-sentiment" style="color:${sentColor}">
+                                    ${note.level === 'positive' ? '◆ Positif' : note.level === 'negative' ? '◆ Négatif' : '◆ Neutre'} · Score ${note.score}
+                                </div>
+                                ${note.tags.length > 0 ? `
+                                <div class="journey-node-tags">
+                                    ${note.tags.map(buildTag).join('')}
+                                </div>` : ''}
+                                ${note.nbas.length > 0 ? `
+                                <div class="journey-node-nbas">
+                                    ${note.nbas.map(nba => `<div class="journey-nba-item">→ ${nba.action || nba}</div>`).join('')}
+                                </div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+
+            <div class="journey-footer-actions">
+                <button class="journey-cta" onclick="closeJourneyMap();if(typeof navigateTo==='function'){window._selectedClient=DATA.find(c=>c.id==='${client.id}');navigateTo('followup');}">
+                    Générer Follow-up →
+                </button>
+                <button class="journey-cta journey-cta--secondary" onclick="closeJourneyMap();if(typeof navigateTo==='function'){window._briefClientId='${client.id}';navigateTo('brief');}">
+                    Voir le Brief →
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('journey-overlay--visible'));
+};
+
+window.closeJourneyMap = function() {
+    const modal = document.getElementById('journey-modal');
+    if (modal) {
+        modal.classList.remove('journey-overlay--visible');
+        setTimeout(() => modal.remove(), 300);
+    }
+};
+
 // ===== RENDER: DASHBOARD (Manager - COCKPIT) =====
 function renderDashboard() {
-    // Calculs réels
+    showMorningBriefing();
+
+    var setEl = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // ── TOP BAR ──
     var totalClients = DATA.length;
-    var totalTags = DATA.reduce(function (s, r) { return s + (r.tags || []).length; }, 0);
-    var totalNBA = DATA.reduce(function (s, r) { return s + (r.nba || []).length; }, 0);
+    var totalTags = DATA.reduce(function(s, r) { return s + (r.tags || []).length; }, 0);
+    var totalNBA = DATA.reduce(function(s, r) { return s + (r.nba || []).length; }, 0);
     var privacyAvg = Math.round(STATS.privacyAvg || 0);
 
-    // TOP BAR
-    var setEl = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
     setEl('ck-tb-clients', totalClients.toLocaleString('fr-FR'));
     setEl('ck-tb-tags', totalTags.toLocaleString('fr-FR'));
     setEl('ck-tb-privacy', privacyAvg);
     setEl('ck-tb-nba', totalNBA.toLocaleString('fr-FR'));
     setEl('ck-tb-date', new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
 
-    // HERO
-    setEl('ck-hero-num', totalClients.toLocaleString('fr-FR'));
-    setEl('ck-hs-privacy', privacyAvg + '%');
-    setEl('ck-hs-tags', totalTags > 999 ? (totalTags / 1000).toFixed(1) + 'k' : totalTags);
-    setEl('ck-hs-nba', totalNBA);
+    // ── KPI 1 — SANTE PORTEFEUILLE ──
+    var avgSentimentScore = DATA.length
+        ? Math.round(DATA.reduce(function(s, r) { return s + ((r.sentiment && r.sentiment.score) ? r.sentiment.score : 50); }, 0) / DATA.length)
+        : 50;
+    var negCount = DATA.filter(function(r) { return r.sentiment && r.sentiment.level === 'negative'; }).length;
+    var churnRate = DATA.length ? negCount / DATA.length : 0;
+    var healthScore = Math.round((avgSentimentScore * 0.4) + ((1 - churnRate) * 100 * 0.35) + (privacyAvg * 0.25));
 
-    // KPI CARDS
-    setEl('ck-kval-1', totalClients.toLocaleString('fr-FR'));
-    setEl('ck-kval-2', totalTags > 999 ? (totalTags / 1000).toFixed(1) + 'k' : totalTags);
-    setEl('ck-kval-3', totalNBA);
-    setEl('ck-kval-4', privacyAvg + '%');
-
-    // Privacy bar
-    var bar = document.getElementById('ck-privacy-bar');
-    if (bar) {
-        bar.style.width = privacyAvg + '%';
-        bar.style.background = privacyAvg >= 90 ? '#059669' : privacyAvg >= 75 ? '#2563EB' : privacyAvg >= 60 ? '#D97706' : '#DC2626';
+    var healthBadge, healthClass, healthColor;
+    if (healthScore >= 80) {
+        healthBadge = 'Excellent'; healthClass = 'ok'; healthColor = '#16A34A';
+    } else if (healthScore >= 65) {
+        healthBadge = 'Bon'; healthClass = 'good'; healthColor = '#2563EB';
+    } else if (healthScore >= 50) {
+        healthBadge = 'Attention'; healthClass = 'warn'; healthColor = '#D97706';
+    } else {
+        healthBadge = 'Critique'; healthClass = 'crit'; healthColor = '#DC2626';
     }
 
-    // Sparklines
-    renderSparkline('spark1', lastNDays(groupByDate(DATA), 10), '#B8965A');
-    renderSparkline('spark3', lastNDays(groupByDate(DATA, function (r) { return (r.tags || []).length; }), 10), '#B8965A');
-    renderSparkline('spark4', lastNDays(groupByDate(DATA, function (r) { return (r.nba || []).length; }), 10), '#B8965A');
+    var healthValEl = document.getElementById('ck-health-score');
+    if (healthValEl) {
+        healthValEl.textContent = DATA.length ? healthScore : '—';
+        healthValEl.style.color = DATA.length ? healthColor : '#A8A6A0';
+    }
+    var healthBadgeEl = document.getElementById('ck-health-badge');
+    if (healthBadgeEl) {
+        healthBadgeEl.textContent = DATA.length ? healthBadge : '—';
+        healthBadgeEl.className = 'ck-status-badge' + (DATA.length ? ' ' + healthClass : '');
+    }
+    var healthSubEl = document.getElementById('ck-health-sub');
+    if (healthSubEl) {
+        healthSubEl.textContent = DATA.length
+            ? 'Sentiment ' + avgSentimentScore + ' · Churn ' + Math.round(churnRate * 100) + '% · RGPD ' + privacyAvg + '%'
+            : 'Aucune donnée';
+    }
 
-    // Charts
-    renderCockpitMain();
-    renderPrivacyDonut();
-    renderRadar();
-    renderCalendar();
-    renderCockpitTags();
+    // ── KPI 2 — CLIENTS A RISQUE ──
+    var riskCount = DATA.filter(function(r) {
+        return (r.sentiment && r.sentiment.level === 'negative') || (r.sensitiveCount > 2);
+    }).length;
+    var riskPct = DATA.length ? Math.round(riskCount / DATA.length * 100) : 0;
 
-    // Date
-    var calMonth = document.getElementById('ck-cal-month');
-    if (calMonth) calMonth.textContent = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    var riskCountEl = document.getElementById('ck-risk-count');
+    if (riskCountEl) {
+        riskCountEl.textContent = DATA.length ? riskCount : '—';
+        riskCountEl.style.color = riskCount > 0 ? '#DC2626' : (DATA.length ? '#16A34A' : '#A8A6A0');
+    }
+    setEl('ck-risk-pct', DATA.length ? riskPct + '% du portefeuille' : '');
+
+    // ── KPI 3 — COUVERTURE ACTIVE ──
+    var now = new Date('2026-04-02');
+    var recentCount = DATA.filter(function(r) {
+        if (!r.date) return false;
+        var d = new Date(r.date);
+        return (now - d) / 86400000 < 30;
+    }).length;
+    var coveragePct = DATA.length ? Math.round(recentCount / DATA.length * 100) : 0;
+    var coverageColor = coveragePct >= 70 ? '#16A34A' : coveragePct >= 40 ? '#D97706' : '#DC2626';
+
+    setEl('ck-coverage-pct', DATA.length ? coveragePct + '%' : '—');
+    var covEl = document.getElementById('ck-coverage-pct');
+    if (covEl && DATA.length) covEl.style.color = coverageColor;
+
+    var covBar = document.getElementById('ck-coverage-bar');
+    if (covBar) {
+        covBar.style.width = coveragePct + '%';
+        covBar.style.background = coverageColor;
+    }
+
+    // ── KPI 4 — SCORE RGPD ──
+    var rgpdBadge, rgpdClass;
+    if (privacyAvg >= 80) {
+        rgpdBadge = 'Conforme'; rgpdClass = 'ok';
+    } else if (privacyAvg >= 60) {
+        rgpdBadge = 'Risque'; rgpdClass = 'warn';
+    } else {
+        rgpdBadge = 'Critique'; rgpdClass = 'crit';
+    }
+    setEl('ck-rgpd-score', privacyAvg + '%');
+    var rgpdBadgeEl = document.getElementById('ck-rgpd-badge');
+    if (rgpdBadgeEl) {
+        rgpdBadgeEl.textContent = rgpdBadge;
+        rgpdBadgeEl.className = 'ck-status-badge ' + rgpdClass;
+    }
+
+    // ── CHART ROW ──
+    renderSegmentDonut('ck-seg-chart', 'ck-seg-legend');
+    renderSentimentTrend('ck-trend-chart');
+
+    // ── BOTTOM ROW ──
+    renderTeamList('ck-team-list');
+    renderAlertFeed('ck-alert-feed');
 }
 
-// --- COCKPIT WIDGETS ---
+// ── Segment Donut SVG ──
+function renderSegmentDonut(chartId, legendId) {
+    var chartEl = document.getElementById(chartId);
+    var legendEl = document.getElementById(legendId);
+    if (!chartEl) return;
 
-function renderSparkline(id, data, color) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    var W = 200, H = 40;
-    var max = Math.max.apply(null, data), min = Math.min.apply(null, data);
-    var range = max - min || 1;
-    var PAD = 4;
+    if (!DATA.length) {
+        chartEl.innerHTML = '<div class="ck-empty-state">Aucune donnée</div>';
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
 
-    function px(i) { return PAD + (i / (data.length - 1)) * (W - PAD * 2); }
-    function py(v) { return H - PAD - ((v - min) / range) * (H - PAD * 2); }
+    var avgTags = DATA.reduce(function(s, r) { return s + (r.tags || []).length; }, 0) / DATA.length;
 
-    var path = data.map(function (v, i) {
-        if (i === 0) return 'M ' + px(i) + ' ' + py(v);
-        var cx = (px(i - 1) + px(i)) / 2;
-        return 'C ' + cx + ' ' + py(data[i - 1]) + ' ' + cx + ' ' + py(v) + ' ' + px(i) + ' ' + py(v);
-    }).join(' ');
+    var segs = { persuadables: 0, sures: 0, dormants: 0, perdus: 0 };
+    DATA.forEach(function(r) {
+        var score = (r.sentiment && r.sentiment.score) ? r.sentiment.score : 50;
+        var level = (r.sentiment && r.sentiment.level) ? r.sentiment.level : 'neutral';
+        var tagDensity = (r.tags || []).length / Math.max(avgTags, 1);
+        var uplift = (score / 100) * tagDensity * 1.1 - 0.3;
+        if (uplift > 0.3 && level !== 'negative') segs.persuadables++;
+        else if (uplift > 0 && level === 'positive') segs.sures++;
+        else if (uplift >= -0.2 && uplift <= 0) segs.dormants++;
+        else segs.perdus++;
+    });
 
-    var lastX = px(data.length - 1), lastY = py(data[data.length - 1]);
-    var area = path + ' L ' + (W - PAD) + ' ' + H + ' L ' + PAD + ' ' + H + ' Z';
-    var gid = 'spk_' + id + '_g';
+    var total = DATA.length;
+    var palette = {
+        persuadables: '#2563EB',
+        sures: '#16A34A',
+        dormants: '#D97706',
+        perdus: '#DC2626'
+    };
+    var labels = {
+        persuadables: 'Persuadables',
+        sures: 'Valeurs S\u00fbres',
+        dormants: 'Dormants',
+        perdus: 'Perdus'
+    };
 
-    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
-        + '<defs><linearGradient id="' + gid + '" x1="0" x2="0" y1="0" y2="1">'
-        + '<stop offset="0%" stop-color="' + color + '" stop-opacity="0.35"/>'
-        + '<stop offset="100%" stop-color="' + color + '" stop-opacity="0"/>'
-        + '</linearGradient></defs>'
-        + '<path d="' + area + '" fill="url(#' + gid + ')" stroke="none"/>'
-        + '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
-        + '<circle cx="' + lastX + '" cy="' + lastY + '" r="3" fill="' + color + '" stroke="#0A0A0C" stroke-width="1.5"/>'
+    // SVG donut 130x130, r=48, stroke-width=18
+    var R = 48, SW = 18;
+    var circ = 2 * Math.PI * R;
+    var order = ['persuadables', 'sures', 'dormants', 'perdus'];
+    var offset = 0;
+    var circles = '';
+
+    order.forEach(function(key) {
+        var pct = segs[key] / total;
+        var arc = pct * circ;
+        if (arc < 0.01) { offset += arc; return; }
+        circles += '<circle cx="65" cy="65" r="' + R + '" fill="none"'
+            + ' stroke="' + palette[key] + '"'
+            + ' stroke-width="' + SW + '"'
+            + ' stroke-dasharray="' + arc.toFixed(3) + ' ' + circ.toFixed(3) + '"'
+            + ' stroke-dashoffset="-' + offset.toFixed(3) + '"'
+            + ' stroke-linecap="butt"/>';
+        offset += arc;
+    });
+
+    chartEl.innerHTML = '<svg viewBox="0 0 130 130" style="width:130px;height:130px;transform:rotate(-90deg);display:block">'
+        + '<circle cx="65" cy="65" r="' + R + '" fill="none" stroke="#F0EDE8" stroke-width="' + SW + '"/>'
+        + circles
         + '</svg>';
+
+    if (legendEl) {
+        legendEl.innerHTML = order.map(function(key) {
+            var count = segs[key];
+            var pct = Math.round(count / total * 100);
+            return '<div class="ck-seg-leg-row">'
+                + '<span class="ck-seg-leg-dot" style="background:' + palette[key] + '"></span>'
+                + '<span class="ck-seg-leg-name">' + labels[key] + '</span>'
+                + '<span class="ck-seg-leg-count">' + count + '</span>'
+                + '<span class="ck-seg-leg-pct">' + pct + '%</span>'
+                + '</div>';
+        }).join('');
+    }
 }
 
-function renderCockpitMain() {
-    var el = document.getElementById('cockpitMainChart');
+// ── Sentiment Trend dual-line SVG (30 jours) ──
+function renderSentimentTrend(containerId) {
+    var el = document.getElementById(containerId);
     if (!el) return;
 
-    var dayMapNotes = groupByDate(DATA);
-    var dayMapTags = groupByDate(DATA, function (r) { return (r.tags || []).length; });
-    var allDays = Array.from(new Set(Object.keys(dayMapNotes).concat(Object.keys(dayMapTags)))).sort().slice(-14);
-    var dataA = allDays.length ? allDays.map(function (d) { return dayMapNotes[d] || 0; }) : [0, 0, 0, 0, 0, 0, 0];
-    var dataB = allDays.length ? allDays.map(function (d) { return dayMapTags[d] || 0; }) : [0, 0, 0, 0, 0, 0, 0];
-    var labels = allDays.length ? allDays.map(function (d) {
-        var dt = new Date(d);
-        return dt.getDate() + '/' + (dt.getMonth() + 1);
-    }) : ['1', '2', '3', '4', '5', '6', '7'];
+    var DAYS = 30;
+    var refDate = new Date('2026-04-02');
+    var allKeys = [];
+    for (var i = DAYS - 1; i >= 0; i--) {
+        var d = new Date(refDate);
+        d.setDate(d.getDate() - i);
+        allKeys.push(d.toISOString().substring(0, 10));
+    }
 
-    var W = 600, H = 180, PL = 32, PR = 16, PT = 16, PB = 28;
+    var posMap = {}, negMap = {};
+    DATA.forEach(function(r) {
+        var key = (r.date || '').substring(0, 10);
+        if (!key) return;
+        var level = (r.sentiment && r.sentiment.level) ? r.sentiment.level : 'neutral';
+        if (level === 'positive') posMap[key] = (posMap[key] || 0) + 1;
+        if (level === 'negative') negMap[key] = (negMap[key] || 0) + 1;
+    });
+
+    var posData = allKeys.map(function(k) { return posMap[k] || 0; });
+    var negData = allKeys.map(function(k) { return negMap[k] || 0; });
+
+    var W = 560, H = 140, PL = 24, PR = 12, PT = 10, PB = 22;
     var W2 = W - PL - PR, H2 = H - PT - PB;
-    var allVals = dataA.concat(dataB);
+    var allVals = posData.concat(negData);
     var maxVal = Math.max.apply(null, allVals) || 1;
 
-    function cx(i, len) { return PL + (i / (len - 1)) * W2; }
+    function cx(i) { return PL + (i / Math.max(allKeys.length - 1, 1)) * W2; }
     function cy(v) { return PT + H2 - (v / maxVal) * H2; }
 
-    function smoothPath(data) {
-        return data.map(function (v, i) {
-            if (i === 0) return 'M ' + cx(i, data.length) + ' ' + cy(v);
-            var cpx = (cx(i - 1, data.length) + cx(i, data.length)) / 2;
-            return 'C ' + cpx + ' ' + cy(data[i - 1]) + ' ' + cpx + ' ' + cy(v) + ' ' + cx(i, data.length) + ' ' + cy(v);
+    function buildPath(data) {
+        return data.map(function(v, i) {
+            if (i === 0) return 'M ' + cx(i).toFixed(1) + ' ' + cy(v).toFixed(1);
+            var cpx = ((cx(i - 1) + cx(i)) / 2).toFixed(1);
+            return 'C ' + cpx + ' ' + cy(data[i - 1]).toFixed(1) + ' ' + cpx + ' ' + cy(v).toFixed(1) + ' ' + cx(i).toFixed(1) + ' ' + cy(v).toFixed(1);
         }).join(' ');
     }
 
-    function areaPath(data) {
-        var last = data.length - 1;
-        return smoothPath(data) + ' L ' + cx(last, data.length) + ' ' + (PT + H2) + ' L ' + PL + ' ' + (PT + H2) + ' Z';
+    function buildArea(path, data) {
+        return path + ' L ' + cx(data.length - 1).toFixed(1) + ' ' + (PT + H2).toFixed(1)
+            + ' L ' + PL.toFixed(1) + ' ' + (PT + H2).toFixed(1) + ' Z';
     }
 
-    // Grid
+    var posPath = buildPath(posData);
+    var negPath = buildPath(negData);
+    var posArea = buildArea(posPath, posData);
+    var negArea = buildArea(negPath, negData);
+
+    // Grid horizontal lines
     var grids = '';
-    for (var gi = 0; gi <= 4; gi++) {
-        var gy = PT + (gi / 4) * H2;
-        var gVal = Math.round(maxVal - (gi / 4) * maxVal);
-        grids += '<line x1="' + PL + '" y1="' + gy + '" x2="' + (W - PR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>';
-        grids += '<text x="' + (PL - 4) + '" y="' + (gy + 4) + '" fill="rgba(255,255,255,0.25)" font-size="8" text-anchor="end" font-family="DM Sans,sans-serif">' + gVal + '</text>';
+    for (var gi = 0; gi <= 3; gi++) {
+        var gy = PT + (gi / 3) * H2;
+        grids += '<line x1="' + PL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + gy.toFixed(1)
+            + '" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>';
     }
 
-    // X Labels
-    var step = Math.ceil(labels.length / 7);
-    var xlabels = labels.map(function (l, i) {
-        if (i % step !== 0 && i !== labels.length - 1) return '';
-        return '<text x="' + cx(i, labels.length) + '" y="' + (H - 4) + '" fill="rgba(255,255,255,0.3)" font-size="9" text-anchor="middle" font-family="DM Sans,sans-serif">' + l + '</text>';
+    // X labels: first, mid, last
+    var xLabelIndices = [0, Math.floor(allKeys.length / 2), allKeys.length - 1];
+    var xlabels = xLabelIndices.map(function(i) {
+        var dt = new Date(allKeys[i]);
+        var label = dt.getDate() + '/' + (dt.getMonth() + 1);
+        return '<text x="' + cx(i).toFixed(1) + '" y="' + (H - 4) + '" fill="#A8A6A0" font-size="8"'
+            + ' text-anchor="middle" font-family="DM Sans,sans-serif">' + label + '</text>';
     }).join('');
 
     el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
         + '<defs>'
-        + '<linearGradient id="gradMain_A" x1="0" x2="0" y1="0" y2="1">'
-        + '<stop offset="0%" stop-color="#B8965A" stop-opacity="0.4"/>'
-        + '<stop offset="100%" stop-color="#B8965A" stop-opacity="0"/>'
+        + '<linearGradient id="gradPos" x1="0" x2="0" y1="0" y2="1">'
+        + '<stop offset="0%" stop-color="#16A34A" stop-opacity="0.08"/>'
+        + '<stop offset="100%" stop-color="#16A34A" stop-opacity="0"/>'
         + '</linearGradient>'
-        + '<linearGradient id="gradMain_B" x1="0" x2="0" y1="0" y2="1">'
-        + '<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.2"/>'
-        + '<stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>'
+        + '<linearGradient id="gradNeg" x1="0" x2="0" y1="0" y2="1">'
+        + '<stop offset="0%" stop-color="#DC2626" stop-opacity="0.08"/>'
+        + '<stop offset="100%" stop-color="#DC2626" stop-opacity="0"/>'
         + '</linearGradient>'
         + '</defs>'
         + grids
-        + '<path d="' + areaPath(dataA) + '" fill="url(#gradMain_A)"/>'
-        + '<path d="' + smoothPath(dataA) + '" fill="none" stroke="#B8965A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
-        + '<path d="' + areaPath(dataB) + '" fill="url(#gradMain_B)"/>'
-        + '<path d="' + smoothPath(dataB) + '" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>'
+        + '<path d="' + posArea + '" fill="url(#gradPos)"/>'
+        + '<path d="' + negArea + '" fill="url(#gradNeg)"/>'
+        + '<path d="' + posPath + '" fill="none" stroke="#16A34A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '<path d="' + negPath + '" fill="none" stroke="#DC2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
         + xlabels
         + '</svg>';
 }
 
-function renderCalendar() {
-    var el = document.getElementById('cockpitCalendar');
+// ── Team List ──
+function renderTeamList(containerId) {
+    var el = document.getElementById(containerId);
     if (!el) return;
-    var now = new Date();
-    var year = now.getFullYear(), month = now.getMonth();
-    var firstDay = new Date(year, month, 1).getDay();
-    var daysInMonth = new Date(year, month + 1, 0).getDate();
-    var today = now.getDate();
 
-    // Event dates from DATA
-    var eventDays = {};
-    DATA.forEach(function (row) {
-        if (!row.date) return;
-        var d = new Date(row.date);
-        if (d.getFullYear() === year && d.getMonth() === month) eventDays[d.getDate()] = true;
-    });
-
-    var dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-    var html = dayNames.map(function (d) { return '<div class="ck-cal-head">' + d + '</div>'; }).join('');
-
-    // Offset (lundi=0)
-    var offset = firstDay === 0 ? 6 : firstDay - 1;
-    for (var o = 0; o < offset; o++) html += '<div class="ck-cal-day empty"></div>';
-
-    for (var day = 1; day <= daysInMonth; day++) {
-        var cls = 'ck-cal-day';
-        if (day === today) cls += ' today';
-        if (eventDays[day]) cls += ' has-event';
-        html += '<div class="' + cls + '">' + day + '</div>';
+    if (!DATA.length) {
+        el.innerHTML = '<div class="ck-empty-state">Aucune donnée</div>';
+        return;
     }
 
-    el.innerHTML = html;
-}
-
-function renderRadar() {
-    var el = document.getElementById('cockpitRadar');
-    if (!el) return;
-    var axes = 5, r = 36, cx2 = 50, cy2 = 50;
-    var cats = ['profil', 'interet', 'voyage', 'contexte', 'service'];
-    var catLabels = ['Profil', 'Intérêts', 'Voyage', 'Contexte', 'Service'];
-    var totalTags = DATA.reduce(function (s, row) { return s + (row.tags || []).length; }, 0);
-    var data = cats.map(function (cat) {
-        if (!totalTags) return 0.15;
-        var count = DATA.reduce(function (s, row) { return s + (row.tags || []).filter(function (t) { return t.c === cat; }).length; }, 0);
-        return Math.min(count / totalTags * cats.length, 1);
+    // Agréger par seller_id ou ca
+    var sellerMap = {};
+    DATA.forEach(function(r) {
+        var key = r.seller_id || r.ca || 'Inconnu';
+        var name = r.ca || r.seller_id || 'Inconnu';
+        if (!sellerMap[key]) sellerMap[key] = { name: name, count: 0, posCount: 0, negCount: 0, neuCount: 0 };
+        sellerMap[key].count++;
+        var level = (r.sentiment && r.sentiment.level) ? r.sentiment.level : 'neutral';
+        if (level === 'positive') sellerMap[key].posCount++;
+        else if (level === 'negative') sellerMap[key].negCount++;
+        else sellerMap[key].neuCount++;
     });
 
-    function pt(val, i) {
-        var angle = (Math.PI * 2 * i / axes) - Math.PI / 2;
-        return [cx2 + val * r * Math.cos(angle), cy2 + val * r * Math.sin(angle)];
-    }
-    function ptStr(val, i) { var p = pt(val, i); return p[0] + ',' + p[1]; }
+    var sorted = Object.values(sellerMap)
+        .sort(function(a, b) { return b.count - a.count; })
+        .slice(0, 5);
 
-    var webs = '';
-    [0.25, 0.5, 0.75, 1].forEach(function (sc) {
-        webs += '<polygon points="' + Array.from({ length: axes }).map(function (_, i) { return ptStr(sc, i); }).join(' ') + '" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>';
-    });
-    var axLines = Array.from({ length: axes }).map(function (_, i) {
-        var p = pt(1, i); return '<line x1="' + cx2 + '" y1="' + cy2 + '" x2="' + p[0] + '" y2="' + p[1] + '" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>';
-    }).join('');
+    el.innerHTML = sorted.map(function(s) {
+        var parts = s.name.trim().split(/\s+/);
+        var initials = parts.length >= 2
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : s.name.substring(0, 2).toUpperCase();
+        var name = s.name.length > 24 ? s.name.substring(0, 23) + '\u2026' : s.name;
 
-    var polygon = '<polygon points="' + data.map(function (v, i) { return ptStr(v, i); }).join(' ') + '" fill="rgba(184,150,90,0.2)" stroke="#B8965A" stroke-width="1.5"/>';
+        var dominant = s.posCount >= s.negCount && s.posCount >= s.neuCount ? 'positive'
+            : s.negCount >= s.posCount && s.negCount >= s.neuCount ? 'negative' : 'neutral';
+        var dotColor = dominant === 'positive' ? '#16A34A' : dominant === 'negative' ? '#DC2626' : '#D4D0CA';
+        var dotLabel = dominant === 'positive' ? 'Positif' : dominant === 'negative' ? 'N\u00e9gatif' : 'Neutre';
 
-    var lbls = catLabels.map(function (l, i) {
-        var p = pt(1.35, i);
-        return '<text x="' + p[0] + '" y="' + (p[1] + 3) + '" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="6" font-family="DM Sans,sans-serif">' + l + '</text>';
-    }).join('');
-
-    el.innerHTML = '<svg viewBox="0 0 100 100" class="ck-radar-svg">'
-        + webs + axLines + polygon + lbls + '</svg>';
-}
-
-function renderPrivacyDonut() {
-    var el = document.getElementById('cockpitPrivacyDonut');
-    if (!el) return;
-    var val = Math.round(STATS.privacyAvg || 0);
-    var col = val >= 90 ? '#059669' : val >= 75 ? '#2563EB' : val >= 60 ? '#D97706' : '#DC2626';
-    var label = val >= 90 ? 'Excellent' : val >= 75 ? 'Bon' : val >= 60 ? 'Moyen' : 'Critique';
-    var r = 42, circ = 2 * Math.PI * r;
-    var offset = circ - (val / 100) * circ;
-
-    el.innerHTML = '<div class="ck-donut-inner">'
-        + '<svg viewBox="0 0 100 100" class="ck-donut-svg">'
-        + '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>'
-        + '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="10"'
-        + ' stroke-dasharray="' + circ + '" stroke-dashoffset="' + offset + '"'
-        + ' transform="rotate(-90 50 50)" stroke-linecap="round"/>'
-        + '</svg>'
-        + '<div class="ck-donut-center">'
-        + '<div class="ck-donut-val">' + val + '</div>'
-        + '<div class="ck-donut-pct">/ 100</div>'
-        + '</div>'
-        + '</div>'
-        + '<div class="ck-donut-label" style="color:' + col + '">' + label + '</div>'
-        + '<div class="ck-donut-sub">Score RGPD moyen</div>';
-}
-
-function renderTagsCockpit() {
-    renderCockpitTags();
-}
-
-function renderCockpitTags() {
-    var el = document.getElementById('cockpitTags');
-    if (!el) return;
-    var cats = ['profil', 'interet', 'voyage', 'contexte', 'service', 'marque', 'crm'];
-    var catNames = { 'profil': 'Profil', 'interet': 'Intérêts', 'voyage': 'Voyage', 'contexte': 'Contexte', 'service': 'Service', 'marque': 'Marque', 'crm': 'CRM' };
-    var catColors = { 'profil': '#60a5fa', 'interet': '#B8965A', 'voyage': '#34d399', 'contexte': '#c084fc', 'service': '#f472b6', 'marque': '#fb923c', 'crm': '#facc15' };
-
-    var totals = {};
-    var grand = 0;
-    DATA.forEach(function (row) {
-        (row.tags || []).forEach(function (t) {
-            totals[t.c] = (totals[t.c] || 0) + 1;
-            grand++;
-        });
-    });
-
-    if (!grand) { el.innerHTML = '<div style="color:rgba(255,255,255,0.3);font-size:13px;padding:16px 0">Aucune donnée</div>'; return; }
-
-    var sorted = cats.filter(function (c) { return totals[c]; }).sort(function (a, b) { return (totals[b] || 0) - (totals[a] || 0); });
-    var maxV = totals[sorted[0]] || 1;
-
-    el.innerHTML = sorted.map(function (cat) {
-        var count = totals[cat] || 0;
-        var pct = Math.round(count / grand * 100);
-        var w = Math.round(count / maxV * 100);
-        var col = catColors[cat] || '#B8965A';
-        return '<div class="ck-tag-bar-row">'
-            + '<div class="ck-tag-bar-label">' + catNames[cat] + '</div>'
-            + '<div class="ck-tag-bar-track"><div class="ck-tag-bar-fill" style="width:' + w + '%;background:' + col + '"></div></div>'
-            + '<div class="ck-tag-bar-val">' + pct + '%</div>'
+        return '<div class="ck-team-row">'
+            + '<div class="ck-team-avatar">' + initials + '</div>'
+            + '<div class="ck-team-info">'
+            + '<div class="ck-team-name">' + name + '</div>'
+            + '<div class="ck-team-meta">' + s.count + ' note' + (s.count > 1 ? 's' : '') + '</div>'
+            + '</div>'
+            + '<div class="ck-team-badge">'
+            + '<span class="ck-team-badge-dot" style="background:' + dotColor + '"></span>'
+            + dotLabel
+            + '</div>'
             + '</div>';
     }).join('');
 }
 
+// ── Alert Feed ──
+function renderAlertFeed(containerId) {
+    var el = document.getElementById(containerId);
+    if (!el) return;
+
+    var today = '02/04/2026';
+    var alerts = [];
+    var privacyAvg = Math.round(STATS.privacyAvg || 0);
+
+    // Clients à risque négatifs
+    var riskNeg = DATA.filter(function(r) { return r.sentiment && r.sentiment.level === 'negative'; }).length;
+    if (riskNeg > 0) {
+        alerts.push({ level: 'crit', text: riskNeg + ' client' + (riskNeg > 1 ? 's' : '') + ' négatif' + (riskNeg > 1 ? 's' : '') + ' — relance urgente', date: today });
+    }
+
+    // RGPD sous seuil
+    if (privacyAvg < 70) {
+        alerts.push({ level: 'warn', text: 'Conformité RGPD sous seuil (' + privacyAvg + '%) — action requise', date: today });
+    }
+
+    // Couverture faible
+    var now = new Date('2026-04-02');
+    var recentCount = DATA.filter(function(r) {
+        if (!r.date) return false;
+        return (now - new Date(r.date)) / 86400000 < 30;
+    }).length;
+    var coveragePct = DATA.length ? Math.round(recentCount / DATA.length * 100) : 100;
+    if (coveragePct < 50 && DATA.length > 0) {
+        alerts.push({ level: 'warn', text: coveragePct + '% seulement du portefeuille couvert (30j)', date: today });
+    }
+
+    // Vendeurs RGPD critiques
+    var critSellers = PRIVACY_SCORES.filter(function(p) { return p.score < 60; });
+    critSellers.slice(0, 2).forEach(function(p) {
+        var name = p.ca || p.seller_id || 'Vendeur';
+        alerts.push({ level: 'crit', text: name + ' — risque RGPD élevé (' + Math.round(p.score) + '%)', date: today });
+    });
+
+    // Clients sensibles (sensitiveCount > 2)
+    var sensitiveCount = DATA.filter(function(r) { return r.sensitiveCount > 2; }).length;
+    if (sensitiveCount > 0 && !alerts.find(function(a) { return a.text.indexOf('négatif') > -1; })) {
+        alerts.push({ level: 'warn', text: sensitiveCount + ' note' + (sensitiveCount > 1 ? 's' : '') + ' avec données sensibles élevées', date: today });
+    }
+
+    if (alerts.length === 0) {
+        if (DATA.length === 0) {
+            el.innerHTML = '<div class="ck-alert-row">'
+                + '<span class="ck-alert-dot warn"></span>'
+                + '<div class="ck-alert-body">'
+                + '<div class="ck-alert-text">Aucune donnée chargée</div>'
+                + '<div class="ck-alert-date">' + today + '</div>'
+                + '</div>'
+                + '</div>';
+        } else {
+            el.innerHTML = '<div class="ck-alert-row">'
+                + '<span class="ck-alert-dot ok"></span>'
+                + '<div class="ck-alert-body">'
+                + '<div class="ck-alert-text">Aucune alerte active — portefeuille sain</div>'
+                + '<div class="ck-alert-date">' + today + '</div>'
+                + '</div>'
+                + '</div>';
+        }
+        return;
+    }
+
+    el.innerHTML = alerts.slice(0, 5).map(function(a) {
+        return '<div class="ck-alert-row">'
+            + '<span class="ck-alert-dot ' + a.level + '"></span>'
+            + '<div class="ck-alert-body">'
+            + '<div class="ck-alert-text">' + a.text + '</div>'
+            + '<div class="ck-alert-date">' + a.date + '</div>'
+            + '</div>'
+            + '</div>';
+    }).join('');
+}
+
+// Stubs preserved for any external callers
+function renderSparkline(id, data, color) {}
+function renderTopVendeurs() {}
+function renderStoreList() {}
+function renderSentimentDonut() {}
+function renderRGPDDonut() {}
+function renderEvolutionChart(days) {}
+function renderTagsCockpit() {}
+function renderCockpitTags() {}
+
 // ===== RENDER: CLIENTS (shared) =====
 function renderClients(filteredData) {
     const data = filteredData || DATA;
+
+    // Churn Alert section
+    renderChurnAlert();
 
     // Légende catégories
     const legend = $('tagLegend');
@@ -728,6 +1686,11 @@ function openDetailPanel(client) {
           ✦ Générer Follow-up IA
         </button>
 
+        <button class="dp-journey-btn" onclick="openJourneyMap('${client.id}')">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 12s3-7 7-7 7 7 7 7"/><circle cx="8" cy="5" r="2"/></svg>
+            Voir le parcours client
+        </button>
+
       </div>
     </div>
   `;
@@ -988,6 +1951,7 @@ function renderNBA() {
         const sentScore = (p.sentiment && p.sentiment.score) ? p.sentiment.score : 50;
         const av = getAvatarPalette(p.ca);
         const initials = getInitials(p.ca);
+        const roi = estimateClientROI(p);
 
         const card = document.createElement('div');
         card.className = `nba-card segment-${p.segment.segment}`;
@@ -1044,6 +2008,11 @@ function renderNBA() {
                             </div>
                         </div>`;
         }).join('')}
+                </div>
+
+                <div class="nba-roi-badge">
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v14M5 4h4.5a2.5 2.5 0 010 5H5M5 9h5a2.5 2.5 0 010 5H5"/></svg>
+                    €${roi.min.toLocaleString()} – €${roi.max.toLocaleString()}
                 </div>
 
                 <div class="nba-card-footer">
@@ -1186,6 +2155,10 @@ function renderPrivacy() {
     const totalViolations = PRIVACY_SCORES.reduce((s, p) => s + p.violations, 0);
     const criticalCount = PRIVACY_SCORES.filter(p => p.level === 'critical').length;
     const avgLevel = STATS.privacyAvg >= 90 ? 'excellent' : STATS.privacyAvg >= 75 ? 'good' : STATS.privacyAvg >= 60 ? 'warning' : 'critical';
+    const levelLabels = { excellent: 'Excellent', good: 'Bon', warning: 'Attention', critical: 'Critique' };
+    const levelLabel = levelLabels[avgLevel] || avgLevel;
+    const scoreColors = { excellent: '#10b981', good: '#3b82f6', warning: '#f59e0b', critical: '#ef4444' };
+    const scoreColor = scoreColors[avgLevel] || '#888880';
 
     // Calculate trend — compare première moitié vs score actuel (sans Math.random)
     let previousAvg = STATS.privacyAvg;
@@ -1197,55 +2170,62 @@ function renderPrivacy() {
         previousAvg = firstHalf.length > 0 ? firstHalfSum / firstHalf.length : STATS.privacyAvg;
     }
     const trend = previousAvg ? Math.round(STATS.privacyAvg - previousAvg) : 0;
-    const trendIcon = trend > 0 ? '📈' : trend < 0 ? '📉' : '➡️';
+    const trendIcon = trend > 0 ? '↑' : trend < 0 ? '↓' : '→';
     const trendText = trend > 0 ? `+${trend.toFixed(1)}%` : `${trend.toFixed(1)}%`;
 
-    overview.innerHTML = `
-        <div class="privacy-overview-grid">
-            <div class="privacy-gauge-container">
-                <div class="privacy-gauge-visual">
-                    <svg width="180" height="180" viewBox="0 0 180 180">
-                        <circle cx="90" cy="90" r="70" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
-                        <circle cx="90" cy="90" r="70" fill="none" stroke="${avgLevel === 'excellent' ? '#10b981' : avgLevel === 'good' ? '#3b82f6' : avgLevel === 'warning' ? '#fb923c' : '#ef4444'}" stroke-width="12" stroke-dasharray="${(STATS.privacyAvg / 100) * 440} 440" stroke-linecap="round" transform="rotate(-90 90 90)"/>
-                        <text x="90" y="85" text-anchor="middle" font-size="32" font-weight="700" fill="#f1e5ac">${STATS.privacyAvg}%</text>
-                        <text x="90" y="105" text-anchor="middle" font-size="12" fill="rgba(241,229,172,0.6)">Score Global</text>
-                    </svg>
-                </div>
-                <div class="privacy-trend">
-                    ${trendIcon} ${trendText} vs période précédente
-                </div>
-            </div>
-            <div class="privacy-violations-chart">
-                <div class="privacy-chart-title">Répartition des violations</div>
-                <div class="privacy-violations-bars">
-                    ${Object.entries(violationsByType).map(([type, count]) => {
-        const labels = { orientation: 'Orientation', politics: 'Politique', religion: 'Religion', health: 'Santé', other: 'Autres' };
-        const colors = { orientation: '#ef4444', politics: '#f97316', religion: '#fb923c', health: '#fbbf24', other: '#94a3b8' };
-        const maxCount = Math.max(...Object.values(violationsByType), 1);
-        const percent = (count / maxCount) * 100;
-        return count > 0 ? `
-                            <div class="privacy-violation-bar-item">
-                                <div class="privacy-violation-bar-label">${labels[type]}</div>
-                                <div class="privacy-violation-bar-container">
-                                    <div class="privacy-violation-bar-fill" style="width:${percent}%;background:${colors[type]}"></div>
-                                    <span class="privacy-violation-bar-value">${count}</span>
-                                </div>
-                            </div>
-                        ` : '';
+    const violationBreakdownHTML = totalViolations > 0 ? `
+        <div class="prv-violations">
+            <div class="prv-violations-title">Répartition des violations RGPD</div>
+            <div class="prv-violations-bars">
+                ${Object.entries(violationsByType).filter(([, v]) => v > 0).map(([type, count]) => {
+        const vLabels = { orientation: 'Orientation sexuelle', politics: 'Politique', religion: 'Religion', health: 'Santé', other: 'Autres' };
+        const vColors = { orientation: '#ef4444', politics: '#f97316', religion: '#fb923c', health: '#fbbf24', other: '#94a3b8' };
+        const pct = Math.round((count / totalViolations) * 100);
+        return `
+                    <div class="prv-vbar-row">
+                        <span class="prv-vbar-label">${vLabels[type] || type}</span>
+                        <div class="prv-vbar-track">
+                            <div class="prv-vbar-fill" style="width:${pct}%;background:${vColors[type] || '#94a3b8'}"></div>
+                        </div>
+                        <span class="prv-vbar-count">${count}</span>
+                    </div>
+                `;
     }).join('')}
-                </div>
-            </div>
-            <div class="privacy-stats-cards">
-                <div class="privacy-stat-mini">
-                    <div class="privacy-stat-mini-value" style="color:${totalViolations > 0 ? '#ef4444' : '#10b981'}">${totalViolations}</div>
-                    <div class="privacy-stat-mini-label">Violations totales</div>
-                </div>
-                <div class="privacy-stat-mini">
-                    <div class="privacy-stat-mini-value" style="color:${criticalCount > 0 ? '#ef4444' : '#10b981'}">${criticalCount}</div>
-                    <div class="privacy-stat-mini-label">CA en alerte</div>
-                </div>
             </div>
         </div>
+    ` : '';
+
+    overview.innerHTML = `
+        <div class="prv-header">
+            <div class="prv-header-text">
+                <h2 class="prv-title">Privacy Score</h2>
+                <p class="prv-subtitle">Conformité RGPD · Analyse par Client Advisor</p>
+            </div>
+            <div class="prv-global-score">
+                <div class="prv-score-num" style="color:${scoreColor}">${STATS.privacyAvg}<span class="prv-score-pct">%</span></div>
+                <div class="prv-score-level prv-level-${avgLevel}">${levelLabel}</div>
+                <div class="prv-trend">${trendIcon} ${trendText} vs période précédente</div>
+            </div>
+        </div>
+        <div class="prv-kpis">
+            <div class="prv-kpi">
+                <div class="prv-kpi-val">${PRIVACY_SCORES.length}</div>
+                <div class="prv-kpi-lbl">Vendeurs analysés</div>
+            </div>
+            <div class="prv-kpi prv-kpi--ok">
+                <div class="prv-kpi-val" style="color:#10b981">${PRIVACY_SCORES.filter(p => p.score >= 75).length}</div>
+                <div class="prv-kpi-lbl">Conformes (≥75%)</div>
+            </div>
+            <div class="prv-kpi ${totalViolations > 0 ? 'prv-kpi--alert' : ''}">
+                <div class="prv-kpi-val" style="color:${totalViolations > 0 ? '#ef4444' : '#10b981'}">${totalViolations}</div>
+                <div class="prv-kpi-lbl">Violations détectées</div>
+            </div>
+            <div class="prv-kpi ${criticalCount > 0 ? 'prv-kpi--alert' : ''}">
+                <div class="prv-kpi-val" style="color:${criticalCount > 0 ? '#ef4444' : '#10b981'}">${criticalCount}</div>
+                <div class="prv-kpi-lbl">CA en alerte critique</div>
+            </div>
+        </div>
+        ${violationBreakdownHTML}
     `;
 
     const grid = $('privacyGrid');
@@ -1253,55 +2233,70 @@ function renderPrivacy() {
     grid.innerHTML = '';
 
     PRIVACY_SCORES.forEach(p => {
-        const badgeClass = p.level === 'critical' ? 'alert' : p.level === 'warning' ? 'warn' : 'ok';
-        const barColor = p.level === 'critical' ? '#ef4444' : p.level === 'warning' ? '#fb923c' : p.level === 'good' ? '#3b82f6' : '#10b981';
+        const lvlColors = { excellent: '#10b981', good: '#3b82f6', warning: '#f59e0b', critical: '#ef4444' };
+        const lvlLabelsMap = { excellent: 'Excellent', good: 'Bon', warning: 'Attention', critical: 'Critique' };
+        const lvlColor = lvlColors[p.level] || '#888880';
+        const lvlLabel = lvlLabelsMap[p.level] || p.level;
 
         const violations = p.violations_detail || { orientation: 0, politics: 0, religion: 0, health: 0 };
         const enhanced = getEnhancedCoaching(violations, p.level);
 
-        let html = `
-            <div class="privacy-card-header">
-                <span class="privacy-ca-name">${p.ca}</span>
-                <span class="privacy-badge ${badgeClass}">${p.score}% — ${p.level.toUpperCase()}</span>
-            </div>
-            <div class="privacy-bar"><div class="privacy-bar-fill" style="width:${p.score}%;background:${barColor}"></div></div>
-            <div class="privacy-detail">${p.total} notes · ${p.violations} violation${p.violations > 1 ? 's' : ''}</div>
-        `;
+        // 5 segments de 20%, colorés selon le score atteint
+        const segmentsHTML = [20, 40, 60, 80, 100].map(threshold => {
+            const filled = p.score >= threshold;
+            const partial = !filled && p.score > threshold - 20;
+            const partialPct = partial ? ((p.score - (threshold - 20)) / 20) * 100 : 0;
+            const style = filled
+                ? `background:${lvlColor}`
+                : partial
+                    ? `background:linear-gradient(to right,${lvlColor} ${partialPct}%,var(--border) ${partialPct}%)`
+                    : '';
+            return `<div class="prv-segment ${filled ? 'filled' : ''}" style="${style}"></div>`;
+        }).join('');
 
-        if (enhanced.coaching.length > 0) {
-            html += '<div class="coaching-section"><div class="coaching-title">🎯 Actions prioritaires</div>';
-            enhanced.coaching.forEach(c => {
-                const priorityColors = { critical: '#ef4444', high: '#fb923c', medium: '#fbbf24' };
-                html += `
-                    <div class="coaching-item" style="border-left:3px solid ${priorityColors[c.priority]}">
-                        <div class="coaching-priority">${c.priority.toUpperCase()}</div>
-                        <div class="coaching-message">${c.message}</div>
-                        <div class="coaching-action">→ ${c.action}</div>
+        const coachingHTML = enhanced.coaching.length > 0 ? `
+            <div class="prv-coaching">
+                <div class="prv-coaching-title">Actions prioritaires</div>
+                ${enhanced.coaching.map(c => `
+                    <div class="prv-coaching-item" style="border-left-color:${{ critical: '#ef4444', high: '#f97316', medium: '#f59e0b' }[c.priority] || '#94a3b8'}">
+                        <span class="prv-coaching-priority prv-priority-${c.priority}">${c.priority}</span>
+                        <div class="prv-coaching-msg">${c.message}</div>
+                        <div class="prv-coaching-action">→ ${c.action}</div>
                     </div>
-                `;
-            });
-            html += '</div>';
-        }
+                `).join('')}
+            </div>
+        ` : '';
 
-        if (enhanced.microLearning.length > 0) {
-            html += '<div class="microlearning-section"><div class="microlearning-title">📚 Micro-learning recommandé</div>';
-            enhanced.microLearning.forEach(ml => {
-                html += `
-                    <a href="${ml.url}" class="microlearning-card">
-                        <span class="microlearning-icon">${ml.icon}</span>
-                        <div class="microlearning-info">
-                            <div class="microlearning-name">${ml.title}</div>
-                            <div class="microlearning-duration">${ml.duration}</div>
+        const microLearningHTML = enhanced.microLearning.length > 0 ? `
+            <div class="prv-learning">
+                <div class="prv-learning-title">Formation recommandée</div>
+                ${enhanced.microLearning.map(ml => `
+                    <a href="${ml.url}" class="prv-learning-item" target="_blank" rel="noopener">
+                        <span class="prv-learning-icon">${ml.icon}</span>
+                        <div>
+                            <div class="prv-learning-name">${ml.title}</div>
+                            <div class="prv-learning-dur">${ml.duration}</div>
                         </div>
                     </a>
-                `;
-            });
-            html += '</div>';
-        }
+                `).join('')}
+            </div>
+        ` : '';
 
         const card = document.createElement('div');
-        card.className = 'privacy-card privacy-card-enhanced';
-        card.innerHTML = html;
+        card.className = 'prv-card';
+        card.innerHTML = `
+            <div class="prv-card-top">
+                <div class="prv-card-info">
+                    <div class="prv-card-name">${p.ca}</div>
+                    <span class="prv-card-badge" style="color:${lvlColor};border-color:${lvlColor}33;background:${lvlColor}0D">${lvlLabel}</span>
+                </div>
+                <div class="prv-card-score" style="color:${lvlColor}">${p.score}<span class="prv-card-score-pct">%</span></div>
+            </div>
+            <div class="prv-segments">${segmentsHTML}</div>
+            <div class="prv-card-meta">${p.total} notes analysées · ${p.violations} violation${p.violations !== 1 ? 's' : ''}</div>
+            ${coachingHTML}
+            ${microLearningHTML}
+        `;
         grid.appendChild(card);
     });
 }
@@ -2445,34 +3440,36 @@ async function renderProducts() {
 }
 
 // ===== CHURN RISK CALCULATION =====
-function calculateChurnRisk(sentimentScore, sentimentLevel, visitFrequency = 1) {
-    // visitFrequency: mocked as 1 (average) - in real system, would come from CRM
+function calculateChurnRisk(sentimentScore, sentimentLevel, tagCount = 0, isKeyAccount = false, hasNegativeFeedback = false) {
     let churnScore = 0;
 
-    // Sentiment impact (60% weight)
+    // Base sentiment (recalibré — moins agressif)
     if (sentimentLevel === 'negative') {
-        churnScore += 60;
+        churnScore += 45;
     } else if (sentimentLevel === 'neutral') {
-        churnScore += 30;
+        churnScore += 18;
     } else {
-        churnScore += Math.max(0, (100 - sentimentScore) * 0.4);
+        // positive : risque résiduel si score faible
+        churnScore += Math.max(0, (100 - sentimentScore) * 0.2);
     }
 
-    // Visit frequency impact (40% weight)
-    const frequencyScore = Math.max(0, (1 - visitFrequency) * 40);
-    churnScore += frequencyScore;
+    // Feedback négatif explicite aggrave
+    if (hasNegativeFeedback) churnScore += 20;
 
-    churnScore = Math.min(100, Math.round(churnScore));
+    // Engagement client (plus de tags = plus engagé = moins de churn)
+    if (tagCount >= 10)     churnScore -= 20;
+    else if (tagCount >= 6) churnScore -= 12;
+    else if (tagCount >= 3) churnScore -= 5;
 
-    if (churnScore >= 70) {
-        return { risk: 'critical', label: 'Critique', color: '#ef4444', icon: '🔴' };
-    } else if (churnScore >= 50) {
-        return { risk: 'high', label: 'Élevé', color: '#fb923c', icon: '🟠' };
-    } else if (churnScore >= 30) {
-        return { risk: 'medium', label: 'Modéré', color: '#fbbf24', icon: '🟡' };
-    } else {
-        return { risk: 'low', label: 'Faible', color: '#10b981', icon: '🟢' };
-    }
+    // Key Account à risque → escalade en critique
+    if (isKeyAccount && churnScore >= 35) churnScore += 15;
+
+    churnScore = Math.min(100, Math.max(0, Math.round(churnScore)));
+
+    if (churnScore >= 65) return { risk: 'critical', label: 'Critique', color: '#ef4444' };
+    if (churnScore >= 40) return { risk: 'high',     label: 'Élevé',    color: '#fb923c' };
+    if (churnScore >= 20) return { risk: 'medium',   label: 'Modéré',   color: '#fbbf24' };
+    return                       { risk: 'low',      label: 'Faible',   color: '#10b981' };
 }
 
 function getServiceRecoveryActions(churnRisk) {
@@ -2516,6 +3513,27 @@ function getServiceRecoveryActions(churnRisk) {
     return actions;
 }
 
+// ===== OPTIMAL OUTREACH WINDOW =====
+function getOutreachWindow(sentimentLevel, sentimentScore, clientTags) {
+    const tags = clientTags || [];
+    const hasGifting   = tags.some(t => ['Anniversaire','Union','Naissance','Cadeau_Proche','Cadeau_Famille','Cadeau_Lui','Cadeau_Elle'].includes(t.t));
+    const isKeyAccount = tags.some(t => t.t === 'Key_Account');
+    const hasEvent     = tags.some(t => t.c === 'contexte');
+    const hasNegFeed   = tags.some(t => t.t === 'Feedback_Negatif');
+
+    if (sentimentLevel === 'negative' || hasNegFeed)
+        return { window: '48h',     action: 'Service Recovery',          urgency: 'urgent',  color: '#ef4444' };
+    if (sentimentLevel === 'positive' && hasGifting)
+        return { window: '24h',     action: 'Opportunité gifting',        urgency: 'urgent',  color: '#f59e0b' };
+    if (sentimentLevel === 'positive' && isKeyAccount)
+        return { window: '3 jours', action: 'Private viewing VIC',        urgency: 'haute',   color: '#B8965A' };
+    if (sentimentLevel === 'positive')
+        return { window: '7 jours', action: 'Upsell · Programme VIC',     urgency: 'normale', color: '#10b981' };
+    if (sentimentLevel === 'neutral' && hasEvent)
+        return { window: '7 jours', action: 'Relance occasion détectée',  urgency: 'normale', color: '#f59e0b' };
+    return   { window: '14 jours', action: 'Relance douce',              urgency: 'basse',   color: '#6b7280' };
+}
+
 // ===== RENDER: SENTIMENT WITH SERVICE RECOVERY =====
 function renderSentiment() {
     const overview = $('sentimentOverview');
@@ -2529,111 +3547,174 @@ function renderSentiment() {
     // Calculate churn stats
     const clientsWithChurn = SENTIMENT_DATA.map(s => ({
         ...s,
-        churn: calculateChurnRisk(s.score, s.level, DATA.filter(d => d.ca === s.ca && s.ca).length || 1)
+        churn: (() => {
+            const clientData = DATA.find(d => d.id === s.id || d.ca === s.id);
+            const tags = clientData ? (clientData.tags || []) : [];
+            const tagCount = tags.length;
+            const isKeyAccount = tags.some(t => t.t === 'Key_Account');
+            const hasNegFeedback = tags.some(t => t.t === 'Feedback_Negatif');
+            return calculateChurnRisk(s.score, s.level, tagCount, isKeyAccount, hasNegFeedback);
+        })()
     }));
 
     const criticalChurn = clientsWithChurn.filter(c => c.churn.risk === 'critical').length;
     const highChurn = clientsWithChurn.filter(c => c.churn.risk === 'high').length;
 
+    const scoreColor = avgScore >= 60 ? '#10b981' : avgScore >= 40 ? '#f59e0b' : '#ef4444';
     overview.innerHTML = `
-        <div class="sentiment-overview-grid">
-            <div class="sentiment-distribution-chart">
-                <div class="sentiment-chart-title">Distribution des sentiments</div>
-                <svg width="200" height="200" viewBox="0 0 200 200">
-                    <circle cx="100" cy="100" r="80" fill="none" stroke="#ef4444" stroke-width="40" stroke-dasharray="${(negCount / SENTIMENT_DATA.length) * 503} 503" transform="rotate(-90 100 100)"/>
-                    <circle cx="100" cy="100" r="80" fill="none" stroke="#888" stroke-width="40" stroke-dasharray="${(neuCount / SENTIMENT_DATA.length) * 503} 503" stroke-dashoffset="${-(negCount / SENTIMENT_DATA.length) * 503}" transform="rotate(-90 100 100)"/>
-                    <circle cx="100" cy="100" r="80" fill="none" stroke="#10b981" stroke-width="40" stroke-dasharray="${(posCount / SENTIMENT_DATA.length) * 503} 503" stroke-dashoffset="${-((negCount + neuCount) / SENTIMENT_DATA.length) * 503}" transform="rotate(-90 100 100)"/>
-                    <text x="100" y="95" text-anchor="middle" font-size="36" font-weight="700" fill="#f1e5ac">${avgScore}%</text>
-                    <text x="100" y="115" text-anchor="middle" font-size="12" fill="rgba(241,229,172,0.6)">Score moyen</text>
-                </svg>
-                <div class="sentiment-legend">
-                    <div class="sentiment-legend-item"><span class="sentiment-legend-dot" style="background:#10b981"></span>Positifs: ${posCount}</div>
-                    <div class="sentiment-legend-item"><span class="sentiment-legend-dot" style="background:#888"></span>Neutres: ${neuCount}</div>
-                    <div class="sentiment-legend-item"><span class="sentiment-legend-dot" style="background:#ef4444"></span>Négatifs: ${negCount}</div>
-                </div>
+        <div class="snt-header">
+            <div class="snt-header-text">
+                <h2 class="snt-title">Sentiment &amp; Retention</h2>
+                <p class="snt-subtitle">Analyse émotionnelle · Alertes churn · Service Recovery</p>
             </div>
-            <div class="sentiment-stats-grid">
-                <div class="sentiment-stat-card">
-                    <div class="sentiment-stat-value" style="color:#10b981">${posCount}</div>
-                    <div class="sentiment-stat-label">Positifs</div>
-                </div>
-                <div class="sentiment-stat-card">
-                    <div class="sentiment-stat-value" style="color:#888">${neuCount}</div>
-                    <div class="sentiment-stat-label">Neutres</div>
-                </div>
-                <div class="sentiment-stat-card">
-                    <div class="sentiment-stat-value" style="color:#ef4444">${negCount}</div>
-                    <div class="sentiment-stat-label">Négatifs</div>
-                </div>
-                <div class="sentiment-stat-card">
-                    <div class="sentiment-stat-value" style="color:#ef4444">${criticalChurn}</div>
-                    <div class="sentiment-stat-label">Churn Critique</div>
-                </div>
-                <div class="sentiment-stat-card">
-                    <div class="sentiment-stat-value" style="color:#fb923c">${highChurn}</div>
-                    <div class="sentiment-stat-label">Churn Élevé</div>
-                </div>
+            <div class="snt-avg-score" style="color:${scoreColor}">
+                <span class="snt-avg-num">${avgScore}</span><span class="snt-avg-pct">%</span>
+                <div class="snt-avg-label">Score moyen</div>
+            </div>
+        </div>
+        <div class="snt-kpis">
+            <div class="snt-kpi snt-kpi--positive">
+                <div class="snt-kpi-val">${posCount}</div>
+                <div class="snt-kpi-lbl">Positifs</div>
+            </div>
+            <div class="snt-kpi snt-kpi--neutral">
+                <div class="snt-kpi-val">${neuCount}</div>
+                <div class="snt-kpi-lbl">Neutres</div>
+            </div>
+            <div class="snt-kpi snt-kpi--negative">
+                <div class="snt-kpi-val">${negCount}</div>
+                <div class="snt-kpi-lbl">Négatifs</div>
+            </div>
+            <div class="snt-kpi ${criticalChurn > 0 ? 'snt-kpi--alert' : ''}">
+                <div class="snt-kpi-val" style="color:${criticalChurn > 0 ? '#ef4444' : '#10b981'}">${criticalChurn}</div>
+                <div class="snt-kpi-lbl">Churn critique</div>
+            </div>
+            <div class="snt-kpi ${highChurn > 0 ? 'snt-kpi--warn' : ''}">
+                <div class="snt-kpi-val" style="color:${highChurn > 0 ? '#f59e0b' : '#10b981'}">${highChurn}</div>
+                <div class="snt-kpi-lbl">Churn élevé</div>
+            </div>
+        </div>
+        <div class="snt-distrib">
+            <div class="snt-distrib-label">Distribution</div>
+            <div class="snt-distrib-bar">
+                ${SENTIMENT_DATA.length > 0 ? `
+                <div class="snt-distrib-seg snt-seg--positive" style="width:${Math.round(posCount / SENTIMENT_DATA.length * 100)}%" title="Positifs: ${posCount}"></div>
+                <div class="snt-distrib-seg snt-seg--neutral"  style="width:${Math.round(neuCount / SENTIMENT_DATA.length * 100)}%" title="Neutres: ${neuCount}"></div>
+                <div class="snt-distrib-seg snt-seg--negative" style="width:${Math.round(negCount / SENTIMENT_DATA.length * 100)}%" title="Négatifs: ${negCount}"></div>
+                ` : ''}
+            </div>
+            <div class="snt-distrib-legend">
+                <span class="snt-leg-dot snt-leg--positive"></span> Positif (${posCount})
+                <span class="snt-leg-dot snt-leg--neutral" style="margin-left:16px"></span> Neutre (${neuCount})
+                <span class="snt-leg-dot snt-leg--negative" style="margin-left:16px"></span> Négatif (${negCount})
             </div>
         </div>
     `;
 
-    // Enhanced alerts with priority
     const alerts = $('sentimentAlerts');
     if (alerts) {
         alerts.innerHTML = '';
 
+        // Build smart triggers
+        const triggers = [];
+        SENTIMENT_DATA.forEach(s => {
+            const cd = DATA.find(d => d.id === s.id || d.ca === s.id);
+            if (!cd) return;
+            const tags = cd.tags || [];
+
+            if (s.level === 'positive' && tags.some(t => ['Anniversaire','Union','Naissance'].includes(t.t)))
+                triggers.push({ type: 'gifting',    client: s.id, ca: s.ca,
+                    msg: 'Opportunité gifting',
+                    detail: 'Sentiment positif + occasion — service emballage cadeau recommandé',
+                    urgency: 'haute', color: '#f59e0b' });
+
+            if (s.level === 'positive' && tags.some(t => t.t === 'Key_Account'))
+                triggers.push({ type: 'vic',        client: s.id, ca: s.ca,
+                    msg: 'VIC en disposition d\'achat',
+                    detail: 'Key Account + sentiment positif — proposer private viewing ou pré-commande',
+                    urgency: 'haute', color: '#B8965A' });
+
+            if (s.level === 'negative' && tags.some(t => t.t === 'Feedback_Negatif'))
+                triggers.push({ type: 'escalation', client: s.id, ca: s.ca,
+                    msg: 'Escalade Store Manager',
+                    detail: 'Feedback négatif explicite — intervention dans les 24h requise',
+                    urgency: 'critique', color: '#ef4444' });
+
+            if (s.level === 'neutral' && tags.some(t => t.t === 'Churn_Risk'))
+                triggers.push({ type: 'churn',      client: s.id, ca: s.ca,
+                    msg: 'Signal churn précoce',
+                    detail: 'Client neutre avec signal churn — follow-up prioritaire sous 7j',
+                    urgency: 'modérée', color: '#fb923c' });
+        });
+
+        if (triggers.length > 0) {
+            const triggersEl = document.createElement('div');
+            triggersEl.className = 'snt-triggers';
+            triggersEl.innerHTML = `
+                <div class="snt-triggers-header">
+                    <div class="snt-triggers-title">Opportunités commerciales</div>
+                    <div class="snt-triggers-sub">${triggers.length} déclencheur${triggers.length > 1 ? 's' : ''} détecté${triggers.length > 1 ? 's' : ''} — Sentiment × Tags</div>
+                </div>
+                <div class="snt-triggers-grid">
+                    ${triggers.map(tr => `
+                        <div class="snt-trigger" style="border-left-color:${tr.color}">
+                            <div class="snt-trigger-top">
+                                <span class="snt-trigger-urgency" style="color:${tr.color}">${tr.urgency.toUpperCase()}</span>
+                                <span class="snt-trigger-client">${tr.client}</span>
+                                <span class="snt-trigger-ca">CA : ${tr.ca}</span>
+                            </div>
+                            <div class="snt-trigger-msg">${tr.msg}</div>
+                            <div class="snt-trigger-detail">${tr.detail}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            alerts.appendChild(triggersEl);
+        }
+
         const sortedByChurn = clientsWithChurn
             .filter(c => c.churn.risk === 'critical' || c.churn.risk === 'high')
-            .sort((a, b) => {
-                const priority = { critical: 3, high: 2, medium: 1, low: 0 };
-                return priority[b.churn.risk] - priority[a.churn.risk];
-            });
+            .sort((a, b) => ({ critical: 2, high: 1 }[b.churn.risk] - { critical: 2, high: 1 }[a.churn.risk]));
 
         if (sortedByChurn.length > 0) {
-            alerts.innerHTML = '<h3 style="margin-bottom:16px;font-size:1.1rem;color:#ef4444">🚨 Service Recovery - Actions Prioritaires</h3>';
+            const alertsSection = document.createElement('div');
+            alertsSection.className = 'snt-recovery';
+            alertsSection.innerHTML = `
+                <div class="snt-recovery-header">
+                    <div class="snt-recovery-title">Service Recovery</div>
+                    <div class="snt-recovery-sub">Actions prioritaires — ${sortedByChurn.length} client${sortedByChurn.length > 1 ? 's' : ''} à risque</div>
+                </div>
+            `;
 
             sortedByChurn.forEach(s => {
                 const recoveryActions = getServiceRecoveryActions(s.churn.risk);
                 const al = document.createElement('div');
-                al.className = `sentiment-alert-enhanced priority-${s.churn.risk}`;
+                al.className = `snt-alert snt-alert--${s.churn.risk}`;
 
-                let actionsHTML = '';
-                if (recoveryActions.length > 0) {
-                    actionsHTML = '<div class="recovery-actions">';
-                    recoveryActions.forEach(action => {
-                        actionsHTML += `
-                            <div class="recovery-action" style="border-left-color:${action.color}">
-                                <span class="recovery-icon">${action.icon}</span>
-                                <div class="recovery-action-text">
-                                    <div class="recovery-action-priority">${action.priority.toUpperCase()}</div>
-                                    <div class="recovery-action-desc">${action.action}</div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    actionsHTML += '</div>';
-                }
+                const actionsHTML = recoveryActions.map(action => `
+                    <div class="snt-action" style="border-left-color:${action.color}">
+                        <span class="snt-action-priority">${action.priority.toUpperCase()}</span>
+                        <span class="snt-action-desc">${action.action}</span>
+                    </div>
+                `).join('');
 
                 al.innerHTML = `
-                    <div class="sentiment-alert-header">
-                        <div class="sentiment-alert-client-info">
-                            <span class="sentiment-alert-client-name">${s.id}</span>
-                            <span class="sentiment-alert-score" style="color:${s.level === 'negative' ? '#ef4444' : '#fb923c'}">${s.score}%</span>
+                    <div class="snt-alert-top">
+                        <div class="snt-alert-client">
+                            <div class="snt-alert-name">${s.id}</div>
+                            <div class="snt-alert-meta">CA: ${s.ca} · Score: <span style="color:${s.level === 'negative' ? '#ef4444' : '#f59e0b'};font-weight:600">${s.score}%</span></div>
                         </div>
-                        <div class="sentiment-alert-badges">
-                            <span class="churn-risk-badge" style="background:${s.churn.color}">${s.churn.icon} ${s.churn.label}</span>
-                        </div>
+                        <div class="snt-churn-badge snt-churn--${s.churn.risk}">${s.churn.label}</div>
                     </div>
-                    <div class="sentiment-alert-details">
-                        <div class="sentiment-alert-keywords">Signaux: ${s.negFound.join(', ')}</div>
-                        <div class="sentiment-alert-ca">CA: ${s.ca}</div>
-                    </div>
-                    ${actionsHTML}
+                    ${s.negFound.length > 0 ? `<div class="snt-alert-signals">Signaux : ${s.negFound.join(' · ')}</div>` : ''}
+                    ${actionsHTML ? `<div class="snt-actions">${actionsHTML}</div>` : ''}
                 `;
-                alerts.appendChild(al);
+                alertsSection.appendChild(al);
             });
+
+            alerts.appendChild(alertsSection);
         } else {
-            alerts.innerHTML = '<p style="color:#10b981;font-size:.9rem">✅ Aucun client à risque critique actuellement.</p>';
+            alerts.innerHTML = '<div class="snt-no-alert">Aucun client à risque critique actuellement</div>';
         }
     }
 
@@ -2642,30 +3723,41 @@ function renderSentiment() {
     grid.innerHTML = '';
 
     clientsWithChurn.sort((a, b) => a.score - b.score).forEach(s => {
-        const color = s.level === 'positive' ? '#10b981' : s.level === 'negative' ? '#ef4444' : '#888';
+        const color = s.level === 'positive' ? '#10b981' : s.level === 'negative' ? '#ef4444' : '#6b7280';
+        const lvlLabel = s.level === 'positive' ? 'Positif' : s.level === 'negative' ? 'Négatif' : 'Neutre';
+        const clientData = DATA.find(d => d.id === s.id || d.ca === s.id);
+        const clientTags = clientData ? (clientData.tags || []) : [];
+        const outreach = getOutreachWindow(s.level, s.score, clientTags);
         const card = document.createElement('div');
-        card.className = 'sentiment-card-enhanced';
+        card.className = 'snt-card';
         card.innerHTML = `
-            <div class="sentiment-card-header">
-                <span class="sentiment-client">${s.id}</span>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <span class="churn-risk-badge-mini" style="background:${s.churn.color}">${s.churn.icon}</span>
-                    <div class="sentiment-gauge">
-                        <div class="sentiment-gauge-bar">
-                            <div class="sentiment-gauge-fill" style="width:${s.score}%;background:${color}"></div>
-                        </div>
-                        <span class="sentiment-gauge-label" style="color:${color}">${s.score}%</span>
-                    </div>
+            <div class="snt-card-top">
+                <div class="snt-card-info">
+                    <div class="snt-card-name">${s.id}</div>
+                    <span class="snt-card-badge" style="color:${color};border-color:${color}20;background:${color}0D">${lvlLabel}</span>
                 </div>
+                <div class="snt-card-score" style="color:${color}">${s.score}<span class="snt-card-score-pct">%</span></div>
             </div>
-            <div class="sentiment-keywords">${s.posFound.map(k => `<span class="sentiment-kw positive">${k}</span>`).join('')}${s.negFound.map(k => `<span class="sentiment-kw negative">${k}</span>`).join('')}${s.posFound.length === 0 && s.negFound.length === 0 ? '<span class="sentiment-kw neutral">neutre</span>' : ''}</div>
-            <div class="sentiment-excerpt">"${s.excerpt}..."</div>
-            <div class="sentiment-recommendations">
-                <div class="sentiment-rec-title">💡 Recommandations</div>
-                ${s.churn.risk === 'critical' ? '<div class="sentiment-rec">→ Intervention immédiate requise</div>' : ''}
-                ${s.level === 'negative' ? '<div class="sentiment-rec">→ Privilégier le contact personnel</div>' : ''}
-                ${s.level === 'neutral' ? '<div class="sentiment-rec">→ Proposer une expérience différenciante</div>' : ''}
-                ${s.level === 'positive' ? '<div class="sentiment-rec">→ Fidéliser avec programme VIC</div>' : ''}
+            <div class="snt-card-bar">
+                <div class="snt-card-bar-fill" style="width:${s.score}%;background:${color}"></div>
+            </div>
+            <div class="snt-card-ca">CA : ${s.ca} · Churn : <span style="color:${s.churn.color};font-weight:600">${s.churn.label}</span></div>
+            <div class="snt-outreach snt-outreach--${outreach.urgency}" style="border-left-color:${outreach.color}">
+                <span class="snt-outreach-window" style="color:${outreach.color}">${outreach.window}</span>
+                <span class="snt-outreach-sep">·</span>
+                <span class="snt-outreach-action">${outreach.action}</span>
+            </div>
+            ${(s.posFound.length > 0 || s.negFound.length > 0) ? `
+            <div class="snt-card-kws">
+                ${s.posFound.map(k => `<span class="snt-kw snt-kw--pos">${k}</span>`).join('')}
+                ${s.negFound.map(k => `<span class="snt-kw snt-kw--neg">${k}</span>`).join('')}
+            </div>` : ''}
+            ${s.excerpt ? `<div class="snt-card-excerpt">"${s.excerpt}..."</div>` : ''}
+            <div class="snt-card-rec">
+                ${s.churn.risk === 'critical' ? '→ Intervention immédiate requise' :
+                  s.level === 'negative' ? '→ Privilégier le contact personnel' :
+                  s.level === 'neutral' ? '→ Proposer une expérience différenciante' :
+                  '→ Fidéliser avec programme VIC'}
             </div>
         `;
         grid.appendChild(card);
@@ -2992,14 +4084,327 @@ function dl(content, name, type) {
     a.click();
 }
 
-// ===== COACH RGPD =====
+// ===== COACH RGPD — FORMATION COMPLÈTE =====
+
+const COACH_SCENARIOS = [
+    { id:1, level:'facile', levelLabel:'Facile', levelColor:'#22c55e',
+      title:'Prénom d\'un tiers',
+      note:"Cliente Mme Laurent est venue avec son mari Jean-Pierre qui souhaitait lui choisir un sac pour leur anniversaire de mariage. Elle a finalement opté pour le Neverfull en cuir.",
+      violations:['Jean-Pierre'],
+      hint:"Un prénom de tiers (conjoint, enfant, ami) est une donnée personnelle tierce. Remplacez par « son mari » ou « son compagnon ».",
+      category:'Tiers' },
+    { id:2, level:'facile', levelLabel:'Facile', levelColor:'#22c55e',
+      title:'Âge exact',
+      note:"Cliente de 47 ans cherche un cadeau pour ses 48 ans en juin. Intéressée par la maroquinerie iconique, budget autour de 2000€.",
+      violations:['47 ans','48 ans'],
+      hint:"L'âge exact est une donnée biométrique. Préférez des tranches générationnelles : « quadragénaire », « génération X », « femme d'une quarantaine d'années ».",
+      category:'Biométrique' },
+    { id:3, level:'facile', levelLabel:'Facile', levelColor:'#22c55e',
+      title:'Profession + lieu de travail',
+      note:"Cliente chirurgienne à l'Hôpital Lariboisière, venue dans notre boutique après une longue journée. Cherche un sac professionnel élégant. Budget illimité.",
+      violations:['chirurgienne','Hôpital Lariboisière'],
+      hint:"Le lieu de travail précis combiné à la profession permet d'identifier la personne. Préférez : « cliente du secteur médical », supprimez le nom de l'établissement.",
+      category:'Identification' },
+    { id:4, level:'intermediaire', levelLabel:'Intermédiaire', levelColor:'#f59e0b',
+      title:'Origine ethnique',
+      note:"Cliente d'origine chinoise, en visite depuis Shanghai pour 3 jours à Paris. Parle peu français. Très intéressée par les modèles Speedy et Alma. Fort pouvoir d'achat.",
+      violations:["d'origine chinoise"],
+      hint:"L'origine ethnique est une donnée sensible Art. 9 RGPD. Notez les préférences linguistiques sans mentionner l'origine : « parle mandarin », « cliente internationale ».",
+      category:'Origine' },
+    { id:5, level:'intermediaire', levelLabel:'Intermédiaire', levelColor:'#f59e0b',
+      title:'Situation familiale douloureuse',
+      note:"Cliente récemment divorcée souhaitant se faire plaisir. Budget important, environ 5000€. Vient régulièrement depuis sa séparation il y a 6 mois. Intéressée par la bijouterie.",
+      violations:['récemment divorcée','depuis sa séparation il y a 6 mois'],
+      hint:"La situation matrimoniale et les événements de vie privée sont des données sensibles. Notez simplement « cliente régulière » et le budget sans contexte personnel.",
+      category:'Vie privée' },
+    { id:6, level:'intermediaire', levelLabel:'Intermédiaire', levelColor:'#f59e0b',
+      title:'Religion',
+      note:"Cliente très pieuse, musulmane pratiquante qui fait le ramadan. Souhaite un cadeau pour l'Aïd. Préfère les articles sans cuir d'origine porcine. Intéressée par la toile Monogram.",
+      violations:['très pieuse','musulmane pratiquante','fait le ramadan'],
+      hint:"La religion est une donnée sensible Art. 9. Vous pouvez noter la préférence matière (évite cuir porcin) et l'occasion (fête) sans mentionner la religion.",
+      category:'Religion' },
+    { id:7, level:'avance', levelLabel:'Avancé', levelColor:'#ef4444',
+      title:'Données de santé implicites',
+      note:"Cliente enceinte de 6 mois cherche un sac pratique mais élégant. Préfère les modèles portés épaule pour soulager son dos. Budget 1500€. A mentionné un suivi médical à Paris.",
+      violations:['enceinte de 6 mois','soulager son dos'],
+      hint:"La grossesse est une donnée de santé. Reformulez : « cherche un sac ergonomique à porter épaule » sans mentionner la grossesse ni les symptômes physiques.",
+      category:'Santé' },
+    { id:8, level:'avance', levelLabel:'Avancé', levelColor:'#ef4444',
+      title:'Données financières précises',
+      note:"Client PDG d'une PME, chiffre d'affaires annuel de 2M€. A mentionné investir dans l'immobilier de luxe à Neuilly. Cherche une montre Tambour. Achète 3-4 fois par an.",
+      violations:["chiffre d'affaires annuel de 2M€","investir dans l'immobilier de luxe à Neuilly"],
+      hint:"Les données financières précises (revenus, investissements) sont des données sensibles. Notez simplement le segment (« HNWI », « grand compte ») et la fréquence d'achat.",
+      category:'Finance' },
+    { id:9, level:'avance', levelLabel:'Avancé', levelColor:'#ef4444',
+      title:'Vie sexuelle et tiers identifié',
+      note:"Cliente venue avec sa partenaire Sophie pour choisir des cadeaux assortis pour leur PACS le mois prochain. Budget 3000€ chacune. Intérêt fort pour les accessoires en toile.",
+      violations:['partenaire Sophie','leur PACS'],
+      hint:"Supprimez le prénom « Sophie » (tiers identifié) et reformulez « PACS » en « célébration importante » ou « événement personnel » sans révéler la nature du lien.",
+      category:'Vie sexuelle / Tiers' },
+    { id:10, level:'expert', levelLabel:'Expert', levelColor:'#7c3aed',
+      title:'Violations multiples — cas réel',
+      note:"M. Ahmed Bensalem, 52 ans, directeur d'une clinique privée à Neuilly, d'origine tunisienne. Sa femme Samira l'accompagnait. Il est diabétique et cherche un portefeuille léger. Budget 2500€. Vote habituellement à gauche selon ses propres mots.",
+      violations:['Ahmed Bensalem','52 ans',"d'origine tunisienne",'Samira','diabétique','Vote habituellement à gauche'],
+      hint:"6 violations : nom+prénom (identifiant), âge (biométrique), origine (Art.9), prénom conjoint (tiers), santé (Art.9), opinion politique (Art.9). Tout doit être reformulé ou supprimé.",
+      category:'Multiple' }
+];
+
+const RGPD_REFERENCE_CARDS = [
+    { icon:'🧬', title:'Origine ethnique', article:'Art. 9 RGPD',
+      forbidden:'"d\'origine marocaine", "cliente asiatique", "d\'origine africaine"',
+      allowed:'"Cliente internationale", "parle mandarin", "en visite de Shanghai"',
+      color:'#ef4444', why:'Révèle l\'origine raciale ou ethnique. Aucune finalité CRM légitime.' },
+    { icon:'⛪', title:'Religion', article:'Art. 9 RGPD',
+      forbidden:'"musulmane pratiquante", "fait le ramadan", "va à la messe"',
+      allowed:'"Évite le cuir porcin", "célèbre une fête religieuse", "régime halal"',
+      color:'#f97316', why:'Les croyances religieuses sont strictement protégées. Seules les contraintes pratiques (régime, matière) sont notables.' },
+    { icon:'🏥', title:'Santé', article:'Art. 9 RGPD',
+      forbidden:'"diabétique", "enceinte de 6 mois", "souffre de dos", "sous traitement"',
+      allowed:'"Préfère les sacs légers", "préfère porter à l\'épaule", "évite le cuir épais"',
+      color:'#ec4899', why:'Les données de santé sont les plus sensibles du RGPD. Notez uniquement les contraintes pratiques, jamais le diagnostic.' },
+    { icon:'💑', title:'Vie sexuelle', article:'Art. 9 RGPD',
+      forbidden:'"homosexuelle", "partenaire du même sexe", "PACS avec"',
+      allowed:'"Venue avec son partenaire", "achat pour une célébration", "cadeau pour son partenaire"',
+      color:'#a855f7', why:'L\'orientation sexuelle ne peut jamais être enregistrée. Notez l\'occasion sans préciser la nature du lien.' },
+    { icon:'🗳️', title:'Opinion politique', article:'Art. 9 RGPD',
+      forbidden:'"vote à gauche", "militant pour...", "soutient Macron", "manifestant"',
+      allowed:'— Aucune formulation acceptable. Supprimer entièrement.',
+      color:'#6366f1', why:'Les opinions politiques sont totalement interdites en CRM. Aucune finalité commerciale ne justifie leur collecte.' },
+    { icon:'👥', title:'Tiers identifiés', article:'Art. 5 RGPD',
+      forbidden:'"venue avec son mari Jean-Pierre", "sa fille Emma, 8 ans", "son ami Marco"',
+      allowed:'"Venue avec son conjoint", "accompagnée de sa fille", "en compagnie d\'un ami"',
+      color:'#0ea5e9', why:'Les tiers n\'ont pas consenti à être dans votre CRM. Mentionnez le lien (conjoint, enfant) mais jamais leur prénom.' },
+    { icon:'📅', title:'Âge exact', article:'Art. 5 RGPD',
+      forbidden:'"47 ans", "née en 1976", "fête ses 50 ans en mars prochain"',
+      allowed:'"Génération X", "quinquagénaire", "femme d\'une quarantaine d\'années", "senior"',
+      color:'#14b8a6', why:'L\'âge exact permet d\'identifier une personne. Utilisez des tranches générationnelles qui préservent l\'utilité CRM sans être précis.' },
+    { icon:'💰', title:'Finance détaillée', article:'Art. 9 RGPD',
+      forbidden:'"gagne 15k/mois", "CA de 2M€", "en faillite", "surendetté"',
+      allowed:'"Segment HNWI", "budget premium", "profil grand compte", "achète régulièrement"',
+      color:'#84cc16', why:'Les données financières précises (revenus, dettes) révèlent la situation patrimoniale. Utilisez des segments ou des comportements d\'achat.' }
+];
+
+function loadCoachProgress() {
+    try {
+        const s = localStorage.getItem('lvmh_coach_progress');
+        return s ? JSON.parse(s) : { perfect: 0, attempts: 0, scenariosDone: [], streak: 0 };
+    } catch(e) { return { perfect: 0, attempts: 0, scenariosDone: [], streak: 0 }; }
+}
+
+function saveCoachProgress(data) {
+    try { localStorage.setItem('lvmh_coach_progress', JSON.stringify(data)); } catch(e) {}
+}
+
+function getCoachLevel(perfect) {
+    if (perfect >= 20) return { label:'Certifié RGPD', color:'#B8965A', next: Infinity, stars:4 };
+    if (perfect >= 10) return { label:'Expert', color:'#3b82f6', next: 20, stars:3 };
+    if (perfect >= 4)  return { label:'Confirmé', color:'#10b981', next: 10, stars:2 };
+    return { label:'Novice', color:'#9ca3af', next: 4, stars:1 };
+}
+
 function renderCoach() {
-    const btn = document.getElementById('coachAnalyze');
+    const container = document.querySelector('#page-coach .coach-container');
+    if (!container) return;
+
+    const prog = loadCoachProgress();
+    const lvl = getCoachLevel(prog.perfect);
+    const nextTarget = lvl.next === Infinity ? prog.perfect : lvl.next;
+    const fillPct = lvl.next === Infinity ? 100 : Math.min(100, Math.round((prog.perfect / lvl.next) * 100));
+
+    container.innerHTML = `
+        <div class="coach-progress-banner">
+            <div class="coach-level-badge" style="border-color:${lvl.color};color:${lvl.color}">
+                <span class="coach-level-stars">${Array(lvl.stars).fill('◈').join('')}</span>
+                <span class="coach-level-label">${lvl.label}</span>
+            </div>
+            <div class="coach-progress-track">
+                <div class="coach-progress-fill" style="width:${fillPct}%;background:${lvl.color}"></div>
+            </div>
+            <div class="coach-progress-info">
+                <span class="coach-perfect-count">${prog.perfect} note${prog.perfect !== 1 ? 's' : ''} parfaite${prog.perfect !== 1 ? 's' : ''}</span>
+                ${lvl.next !== Infinity ? `<span class="coach-next-level">encore ${lvl.next - prog.perfect} pour <strong>${getCoachLevel(lvl.next).label}</strong></span>` : `<span class="coach-next-level" style="color:${lvl.color}">Niveau maximum atteint !</span>`}
+            </div>
+            ${prog.streak > 1 ? `<div class="coach-streak-badge">🔥 ${prog.streak} sessions</div>` : ''}
+        </div>
+
+        <div class="coach-tabs">
+            <button class="coach-tab coach-tab--active" data-tab="train" onclick="switchCoachTab(this,'train')">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8l3.5 3.5L14 3"/></svg>
+                Entraînement
+            </button>
+            <button class="coach-tab" data-tab="reference" onclick="switchCoachTab(this,'reference')">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="9" height="13" rx="1"/><path d="M5 5h5M5 8h4M5 11h3"/><path d="M13 7l2 2-2 2"/></svg>
+                Référence RGPD
+            </button>
+        </div>
+
+        <div id="coach-panel-train" class="coach-tab-panel">
+            <div class="coach-mode-switcher">
+                <button class="coach-mode-btn coach-mode-btn--active" data-mode="free" onclick="switchCoachMode(this,'free')">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14l1-4L11 2l3 3-8 8-4 1z"/></svg>
+                    Mode Libre
+                </button>
+                <button class="coach-mode-btn" data-mode="scenario" onclick="switchCoachMode(this,'scenario')">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="1"/><path d="M1 6h14M5 2v4M11 2v4"/></svg>
+                    Scénarios guidés
+                    <span class="coach-mode-count">${COACH_SCENARIOS.length}</span>
+                </button>
+            </div>
+
+            <div id="coach-mode-free">
+                <div class="coach-input-section">
+                    <label class="coach-label">Votre note (fictive)</label>
+                    <div class="coach-textarea-wrap">
+                        <textarea id="coachInput" class="coach-textarea" placeholder="Tapez ou dictez une note fictive... Ex: « Cliente d'origine japonaise, 43 ans, enceinte de 5 mois, cherche un sac léger pour son mari Jean-Luc »"></textarea>
+                        <button id="coachMic" class="coach-mic-btn" title="Dicter">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        </button>
+                    </div>
+                    <div id="coach-live-violations" class="coach-live-violations coach-live-violations--empty">
+                        <span class="coach-live-idle">Commencez à taper — les violations s'afficheront en direct</span>
+                    </div>
+                    <button id="coachAnalyze" class="coach-analyze-btn">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+                        Analyser avec l'IA
+                    </button>
+                </div>
+                <div id="coachResults" class="coach-results"></div>
+            </div>
+
+            <div id="coach-mode-scenario" style="display:none">
+                ${buildScenarioPanel(prog)}
+            </div>
+        </div>
+
+        <div id="coach-panel-reference" class="coach-tab-panel" style="display:none">
+            <div class="coach-ref-intro">
+                <p>Les <strong>8 catégories interdites</strong> selon l'Art. 9 du RGPD. Cliquez sur une carte pour voir comment reformuler.</p>
+            </div>
+            <div class="coach-ref-grid">
+                ${RGPD_REFERENCE_CARDS.map((card, i) => `
+                    <div class="coach-ref-card" onclick="this.classList.toggle('coach-ref-card--flipped')">
+                        <div class="coach-ref-card-inner">
+                            <div class="coach-ref-front" style="border-top:3px solid ${card.color}">
+                                <div class="coach-ref-icon">${card.icon}</div>
+                                <div class="coach-ref-title">${card.title}</div>
+                                <div class="coach-ref-article" style="color:${card.color}">${card.article}</div>
+                                <div class="coach-ref-flip-hint">Cliquer pour voir →</div>
+                            </div>
+                            <div class="coach-ref-back" style="border-top:3px solid ${card.color}">
+                                <div class="coach-ref-back-section">
+                                    <div class="coach-ref-back-label" style="color:#ef4444">❌ Interdit</div>
+                                    <div class="coach-ref-back-text">${card.forbidden}</div>
+                                </div>
+                                <div class="coach-ref-back-section">
+                                    <div class="coach-ref-back-label" style="color:#22c55e">✓ Reformuler</div>
+                                    <div class="coach-ref-back-text">${card.allowed}</div>
+                                </div>
+                                <div class="coach-ref-back-why">${card.why}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    setupCoachFreeMode();
+}
+
+function buildScenarioPanel(prog) {
+    const idx = window._coachScenarioIdx || 0;
+    const sc = COACH_SCENARIOS[idx];
+    const doneScenariosCount = (prog.scenariosDone || []).length;
+    const allDots = COACH_SCENARIOS.map((s, i) => {
+        const done = (prog.scenariosDone || []).includes(s.id);
+        return `<span class="coach-sc-dot ${done ? 'done' : ''} ${i === idx ? 'active' : ''}"></span>`;
+    }).join('');
+
+    return `
+        <div class="coach-scenario-wrap">
+            <div class="coach-sc-header">
+                <button class="coach-sc-nav" onclick="moveScenario(-1)" ${idx === 0 ? 'disabled' : ''}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10 12 6 8 10 4"/></svg>
+                </button>
+                <div class="coach-sc-meta">
+                    <span class="coach-sc-counter">${idx + 1} / ${COACH_SCENARIOS.length}</span>
+                    <span class="coach-sc-level-badge" style="background:${sc.levelColor}20;color:${sc.levelColor};border-color:${sc.levelColor}40">${sc.levelLabel}</span>
+                    <span class="coach-sc-category">${sc.category}</span>
+                </div>
+                <button class="coach-sc-nav" onclick="moveScenario(1)" ${idx === COACH_SCENARIOS.length - 1 ? 'disabled' : ''}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 12 10 8 6 4"/></svg>
+                </button>
+            </div>
+            <div class="coach-sc-dots">${allDots}</div>
+
+            <div class="coach-sc-title">${sc.title}</div>
+
+            <div class="coach-sc-original-label">Note originale (avec violations)</div>
+            <div class="coach-sc-original">${escapeHtml(sc.note)}</div>
+
+            <div class="coach-sc-instruction">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 4 4.5.7-3.25 3.15.77 4.5L8 11.25 3.98 13.35l.77-4.5L1.5 5.7 6 5z"/></svg>
+                Corrigez la note ci-dessous — supprimez ou reformulez les violations RGPD
+            </div>
+
+            <div class="coach-textarea-wrap">
+                <textarea id="scenarioInput" class="coach-textarea coach-scenario-textarea" spellcheck="false">${escapeHtml(sc.note)}</textarea>
+            </div>
+
+            <div class="coach-sc-actions">
+                <button class="coach-hint-btn" onclick="toggleScenarioHint()">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 5h.01"/></svg>
+                    Indice
+                </button>
+                <button class="coach-validate-btn" onclick="validateScenario(${sc.id})">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8l4 4 8-8"/></svg>
+                    Valider ma correction
+                </button>
+            </div>
+
+            <div id="coach-sc-hint" class="coach-sc-hint" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 5h.01"/></svg>
+                ${sc.hint}
+            </div>
+
+            <div id="coach-sc-result" class="coach-sc-result" style="display:none"></div>
+        </div>
+    `;
+}
+
+function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function switchCoachTab(btn, tab) {
+    document.querySelectorAll('.coach-tab').forEach(t => t.classList.remove('coach-tab--active'));
+    btn.classList.add('coach-tab--active');
+    document.getElementById('coach-panel-train').style.display = tab === 'train' ? '' : 'none';
+    document.getElementById('coach-panel-reference').style.display = tab === 'reference' ? '' : 'none';
+}
+
+function switchCoachMode(btn, mode) {
+    document.querySelectorAll('.coach-mode-btn').forEach(b => b.classList.remove('coach-mode-btn--active'));
+    btn.classList.add('coach-mode-btn--active');
+    document.getElementById('coach-mode-free').style.display = mode === 'free' ? '' : 'none';
+    document.getElementById('coach-mode-scenario').style.display = mode === 'scenario' ? '' : 'none';
+    if (mode === 'scenario') refreshScenarioPanel();
+}
+
+function setupCoachFreeMode() {
     const input = document.getElementById('coachInput');
     const results = document.getElementById('coachResults');
+    const analyzeBtn = document.getElementById('coachAnalyze');
     const micBtn = document.getElementById('coachMic');
+    let liveTimer = null;
 
-    // Micro — Web Speech API
+    if (input) {
+        input.addEventListener('input', () => {
+            clearTimeout(liveTimer);
+            liveTimer = setTimeout(() => updateLiveViolations(input.value), 400);
+        });
+    }
+
     if (micBtn) {
         micBtn.onclick = () => {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -3012,32 +4417,200 @@ function renderCoach() {
             rec.onresult = e => {
                 input.value = e.results[0][0].transcript;
                 micBtn.classList.remove('recording');
+                updateLiveViolations(input.value);
             };
             rec.onerror = () => micBtn.classList.remove('recording');
             rec.onend = () => micBtn.classList.remove('recording');
         };
     }
 
-    if (!btn) return;
-    btn.onclick = async () => {
+    if (!analyzeBtn) return;
+    analyzeBtn.onclick = async () => {
         const text = (input ? input.value : '').trim();
         if (!text) { showToast('Entrez une note à analyser', 'error'); return; }
-
-        results.innerHTML = '<div class="coach-spinner-wrap"><div class="coach-spinner"></div><span>Analyse en cours...</span></div>';
-
+        results.innerHTML = '<div class="coach-spinner-wrap"><div class="coach-spinner"></div><span>Analyse IA en cours...</span></div>';
         try {
             const res = await fetch(`${API_BASE}/api/coach-rgpd`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, language: 'FR' })
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ text, language:'FR' })
             });
             if (!res.ok) throw new Error('Erreur serveur');
             const data = await res.json();
             renderCoachResults(results, text, data);
-        } catch (e) {
+            // Update progress if no violations
+            if ((data.rgpd_score || 0) >= 100 || (data.violations || []).length === 0) {
+                const prog = loadCoachProgress();
+                prog.perfect = (prog.perfect || 0) + 1;
+                prog.attempts = (prog.attempts || 0) + 1;
+                saveCoachProgress(prog);
+                updateCoachProgressBanner();
+                showToast('Note parfaite ! Progression mise à jour.', 'success');
+            } else {
+                const prog = loadCoachProgress();
+                prog.attempts = (prog.attempts || 0) + 1;
+                saveCoachProgress(prog);
+            }
+        } catch(e) {
             results.innerHTML = `<div class="coach-error">Erreur lors de l'analyse. Vérifiez que le serveur est lancé.</div>`;
         }
     };
+}
+
+function updateLiveViolations(text) {
+    const panel = document.getElementById('coach-live-violations');
+    if (!panel) return;
+    if (!text || text.trim().length < 5) {
+        panel.className = 'coach-live-violations coach-live-violations--empty';
+        panel.innerHTML = '<span class="coach-live-idle">Commencez à taper — les violations s\'afficheront en direct</span>';
+        return;
+    }
+    let detections = [];
+    if (typeof RGPD !== 'undefined' && RGPD.scanText) {
+        const res = RGPD.scanText(text, 'FR');
+        detections = res.detections || [];
+    }
+    const catLabels = {
+        accessCodes:'Codes d\'accès', identity:'Identité', orientation:'Vie sexuelle',
+        politics:'Opinion politique', religion:'Religion', familyConflict:'Conflit familial',
+        finance:'Finance', appearance:'Apparence dégradante'
+    };
+    if (detections.length === 0) {
+        panel.className = 'coach-live-violations coach-live-violations--clean';
+        panel.innerHTML = `<span class="coach-live-ok"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8l4 4 8-8"/></svg> Aucune violation détectée pour l'instant</span>`;
+    } else {
+        panel.className = 'coach-live-violations coach-live-violations--violations';
+        panel.innerHTML = `
+            <div class="coach-live-header">
+                <span class="coach-live-count">${detections.length}</span>
+                <span class="coach-live-label">violation${detections.length > 1 ? 's' : ''} détectée${detections.length > 1 ? 's' : ''} en direct</span>
+            </div>
+            <div class="coach-live-list">
+                ${detections.map(d => `
+                    <div class="coach-live-item">
+                        <span class="coach-live-word">"${d.match}"</span>
+                        <span class="coach-live-cat">${catLabels[d.category] || d.category}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+}
+
+function updateCoachProgressBanner() {
+    const prog = loadCoachProgress();
+    const lvl = getCoachLevel(prog.perfect);
+    const fillPct = lvl.next === Infinity ? 100 : Math.min(100, Math.round((prog.perfect / lvl.next) * 100));
+    const badge = document.querySelector('.coach-level-badge');
+    const fill = document.querySelector('.coach-progress-fill');
+    const info = document.querySelector('.coach-progress-info');
+    if (badge) { badge.style.borderColor = lvl.color; badge.style.color = lvl.color; badge.querySelector('.coach-level-label').textContent = lvl.label; }
+    if (fill) { fill.style.width = fillPct + '%'; fill.style.background = lvl.color; }
+    if (info) {
+        const pc = info.querySelector('.coach-perfect-count');
+        if (pc) pc.textContent = `${prog.perfect} note${prog.perfect !== 1 ? 's' : ''} parfaite${prog.perfect !== 1 ? 's' : ''}`;
+    }
+}
+
+function moveScenario(delta) {
+    window._coachScenarioIdx = Math.max(0, Math.min(COACH_SCENARIOS.length - 1, (window._coachScenarioIdx || 0) + delta));
+    refreshScenarioPanel();
+}
+
+function refreshScenarioPanel() {
+    const wrap = document.getElementById('coach-mode-scenario');
+    if (!wrap) return;
+    const prog = loadCoachProgress();
+    wrap.innerHTML = buildScenarioPanel(prog);
+}
+
+function toggleScenarioHint() {
+    const hint = document.getElementById('coach-sc-hint');
+    if (!hint) return;
+    hint.style.display = hint.style.display === 'none' ? 'flex' : 'none';
+}
+
+function validateScenario(scenarioId) {
+    const sc = COACH_SCENARIOS.find(s => s.id === scenarioId);
+    if (!sc) return;
+    const input = document.getElementById('scenarioInput');
+    const result = document.getElementById('coach-sc-result');
+    if (!input || !result) return;
+
+    const reformulation = input.value;
+    const lowerRef = reformulation.toLowerCase();
+    const remaining = sc.violations.filter(v => lowerRef.includes(v.toLowerCase()));
+    const fixed = sc.violations.filter(v => !lowerRef.includes(v.toLowerCase()));
+    const passed = remaining.length === 0;
+    const score = Math.round((fixed.length / sc.violations.length) * 100);
+
+    result.style.display = 'block';
+    if (passed) {
+        result.className = 'coach-sc-result coach-sc-result--pass';
+        result.innerHTML = `
+            <div class="coach-sc-result-icon">✓</div>
+            <div>
+                <div class="coach-sc-result-title">Parfait ! Note conforme RGPD</div>
+                <div class="coach-sc-result-detail">Toutes les violations ont été supprimées ou reformulées.</div>
+            </div>
+        `;
+        // Save progress
+        const prog = loadCoachProgress();
+        if (!(prog.scenariosDone || []).includes(sc.id)) {
+            prog.scenariosDone = [...(prog.scenariosDone || []), sc.id];
+            prog.perfect = (prog.perfect || 0) + 1;
+            prog.attempts = (prog.attempts || 0) + 1;
+            saveCoachProgress(prog);
+            updateCoachProgressBanner();
+            refreshScenarioDots();
+        }
+    } else if (score > 0) {
+        result.className = 'coach-sc-result coach-sc-result--partial';
+        result.innerHTML = `
+            <div class="coach-sc-result-icon">~</div>
+            <div>
+                <div class="coach-sc-result-title">Presque ! ${fixed.length}/${sc.violations.length} violation${fixed.length > 1 ? 's' : ''} corrigée${fixed.length > 1 ? 's' : ''}</div>
+                <div class="coach-sc-result-detail">Il reste encore : ${remaining.map(r => `<strong>"${r}"</strong>`).join(', ')}</div>
+            </div>
+        `;
+        const prog = loadCoachProgress();
+        prog.attempts = (prog.attempts || 0) + 1;
+        saveCoachProgress(prog);
+    } else {
+        result.className = 'coach-sc-result coach-sc-result--fail';
+        result.innerHTML = `
+            <div class="coach-sc-result-icon">✗</div>
+            <div>
+                <div class="coach-sc-result-title">Les violations sont toujours présentes</div>
+                <div class="coach-sc-result-detail">Retrouvez : ${sc.violations.map(v => `<strong>"${v}"</strong>`).join(', ')}</div>
+            </div>
+        `;
+        const prog = loadCoachProgress();
+        prog.attempts = (prog.attempts || 0) + 1;
+        saveCoachProgress(prog);
+    }
+
+    if (passed) {
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'coach-next-scenario-btn';
+        nextBtn.innerHTML = `Scénario suivant <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 12 10 8 6 4"/></svg>`;
+        nextBtn.onclick = () => {
+            const maxIdx = COACH_SCENARIOS.length - 1;
+            window._coachScenarioIdx = Math.min(maxIdx, (window._coachScenarioIdx || 0) + 1);
+            refreshScenarioPanel();
+        };
+        result.appendChild(nextBtn);
+    }
+}
+
+function refreshScenarioDots() {
+    const prog = loadCoachProgress();
+    const idx = window._coachScenarioIdx || 0;
+    const dotsEl = document.querySelector('.coach-sc-dots');
+    if (!dotsEl) return;
+    dotsEl.innerHTML = COACH_SCENARIOS.map((s, i) => {
+        const done = (prog.scenariosDone || []).includes(s.id);
+        return `<span class="coach-sc-dot ${done ? 'done' : ''} ${i === idx ? 'active' : ''}"></span>`;
+    }).join('');
 }
 
 function renderCoachResults(container, originalText, data) {
@@ -3049,27 +4622,23 @@ function renderCoachResults(container, originalText, data) {
     const feedback = data.feedback || '';
     const suggestions = data.suggestions || [];
 
-    // Couleur barre RGPD
     const rgpdColor = rgpd_score >= 80 ? '#22c55e' : rgpd_score >= 50 ? '#f59e0b' : '#ef4444';
 
-    // Texte surligné : wrap les violations dans des spans rouges
-    let highlighted = originalText;
-    const sortedV = [...violations].sort((a, b) => ((b.word || b.text || b.value || '').length) - ((a.word || a.text || a.value || '').length));
+    let highlighted = escapeHtml(originalText);
+    const sortedV = [...violations].sort((a, b) => ((b.word || b.text || '').length) - ((a.word || a.text || '').length));
     sortedV.forEach(v => {
         const word = v.word || v.text || v.value || v.found || '';
         if (!word) return;
         const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         highlighted = highlighted.replace(new RegExp(escaped, 'gi'), match =>
-            `<span class="coach-violation-hl" title="${v.cat || v.category || v.type || 'Donnée sensible'}">${match}</span>`
+            `<span class="coach-violation-hl" title="${v.cat || v.category || 'Donnée sensible'}">${match}</span>`
         );
     });
 
-    // Pills tags
     const tagPills = tags.map(tg =>
         `<span class="coach-tag-pill tag-${(tg.c || '').toLowerCase()}">${tg.t || tg}</span>`
     ).join('');
 
-    // Suggestions Mistral
     const suggestionsHTML = suggestions.length ? `
         <div class="coach-section">
             <h3 class="coach-section-title">Suggestions de reformulation</h3>
@@ -3085,44 +4654,28 @@ function renderCoachResults(container, originalText, data) {
     ` : '';
 
     container.innerHTML = `
+        <div class="coach-results-header">Résultats de l'analyse IA</div>
         <div class="coach-scores">
             <div class="coach-score-item">
                 <div class="coach-score-label">Conformité RGPD</div>
-                <div class="coach-score-bar-wrap">
-                    <div class="coach-score-bar" style="width:${rgpd_score}%;background:${rgpdColor}"></div>
-                </div>
+                <div class="coach-score-bar-wrap"><div class="coach-score-bar" style="width:${rgpd_score}%;background:${rgpdColor}"></div></div>
                 <div class="coach-score-value" style="color:${rgpdColor}">${rgpd_score}%</div>
             </div>
             <div class="coach-score-item">
                 <div class="coach-score-label">Richesse de la note</div>
-                <div class="coach-score-bar-wrap">
-                    <div class="coach-score-bar" style="width:${quality_score}%;background:#3b82f6"></div>
-                </div>
+                <div class="coach-score-bar-wrap"><div class="coach-score-bar" style="width:${quality_score}%;background:#3b82f6"></div></div>
                 <div class="coach-score-value" style="color:#3b82f6">${quality_score}%</div>
             </div>
         </div>
-
         <div class="coach-section">
             <h3 class="coach-section-title">Votre note analysée</h3>
             <div class="coach-highlighted-text">${highlighted}</div>
-            ${violations.length ? `<p class="coach-violation-count">${violations.length} violation(s) RGPD détectée(s)</p>` : '<p class="coach-ok">Aucune violation RGPD détectée</p>'}
+            ${violations.length ? `<p class="coach-violation-count">${violations.length} violation(s) RGPD détectée(s)</p>` : '<p class="coach-ok">✓ Aucune violation RGPD détectée</p>'}
         </div>
-
         ${suggestionsHTML}
-
-        ${feedback ? `
-        <div class="coach-section">
-            <h3 class="coach-section-title">Feedback</h3>
-            <p class="coach-feedback">${feedback}</p>
-        </div>` : ''}
-
-        ${tags.length ? `
-        <div class="coach-section">
-            <h3 class="coach-section-title">Tags extractibles (${extractable_tags_count})</h3>
-            <div class="coach-tags-wrap">${tagPills}</div>
-        </div>` : ''}
-
-        <button class="coach-retry-btn" onclick="document.getElementById('coachInput').value='';document.getElementById('coachResults').innerHTML='';document.getElementById('coachInput').focus()">
+        ${feedback ? `<div class="coach-section"><h3 class="coach-section-title">Feedback IA</h3><p class="coach-feedback">${feedback}</p></div>` : ''}
+        ${tags.length ? `<div class="coach-section"><h3 class="coach-section-title">Tags CRM extractibles (${extractable_tags_count})</h3><div class="coach-tags-wrap">${tagPills}</div></div>` : ''}
+        <button class="coach-retry-btn" onclick="document.getElementById('coachInput').value='';document.getElementById('coachResults').innerHTML='';document.getElementById('coach-live-violations').innerHTML='<span class=coach-live-idle>Commencez à taper — les violations s\\'afficheront en direct</span>';document.getElementById('coach-live-violations').className='coach-live-violations coach-live-violations--empty';document.getElementById('coachInput').focus()">
             Réessayer
         </button>
     `;

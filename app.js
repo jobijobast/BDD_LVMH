@@ -6,8 +6,8 @@
 // ===== CONFIG =====
 const SUPABASE_URL = 'https://vgkklymckkwrcpjrnzhr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZna2tseW1ja2t3cmNwanJuemhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MDY2ODMsImV4cCI6MjA4NjM4MjY4M30.xSXtpyfaPSVkqVFDN8lDV-rzgQVgOWbVgdi5GfXmPkI';
-// Backend API : si l'app est servie sur le port 8000 (serveur statique), appeler le Flask sur 5001
-const API_BASE = (typeof window !== 'undefined' && (window.location.port === '8000' || (window.location.port === '' && !window.location.hostname.includes('5001'))))
+// Backend API : si l'app est servie sur un serveur statique (8080, 8000...), appeler le Flask sur 5001
+const API_BASE = (typeof window !== 'undefined' && (window.location.port === '8080' || window.location.port === '8000' || (window.location.port === '' && !window.location.hostname.includes('5001'))))
     ? 'http://localhost:5001'
     : '';
 
@@ -52,6 +52,7 @@ const VENDEUR_NAV = [
     { id: 'brief', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`, label: 'Brief', page: 'page-v-brief', title: 'Client Readiness Brief' },
     { id: 'followup', icon: ICONS.mail, label: 'Follow-up', page: 'page-followup', title: 'Follow-up' },
     { id: 'v-coach', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`, label: 'Coach RGPD', page: 'page-coach', title: 'Coach RGPD' },
+    { id: 'v-occasions', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>`, label: 'Occasions', page: 'page-v-occasions', title: 'Occasion Radar' },
 ];
 
 const MANAGER_NAV = [
@@ -62,15 +63,18 @@ const MANAGER_NAV = [
     { id: 'products', icon: ICONS.bag, label: 'Produits', page: 'page-products', title: 'Product Matcher' },
     { id: 'brief', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`, label: 'Brief', page: 'page-v-brief', title: 'Client Readiness Brief' },
     { id: 'followup', icon: ICONS.mail, label: 'Follow-up', page: 'page-followup', title: 'Follow-up' },
+    { id: 'v-coach', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4M12 14h.01"/></svg>`, label: 'Coach RGPD', page: 'page-coach', title: 'Coach RGPD' },
+    { id: 'v-occasions', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>`, label: 'Occasions', page: 'page-v-occasions', title: 'Occasion Radar' },
     { id: 'sep1', sep: true },
     { id: 'm-privacy', icon: ICONS.shield, label: 'Privacy', page: 'page-m-privacy', title: 'Privacy Score' },
-    { id: 'm-coach', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`, label: 'Coach RGPD', page: 'page-coach', title: 'Coach RGPD' },
     { id: 'm-sentiment', icon: ICONS.chat, label: 'Sentiment', page: 'page-m-sentiment', title: 'Sentiment & Retention' },
     { id: 'm-boutique', icon: ICONS.store, label: 'Boutique', page: 'page-m-boutique', title: 'Dashboard Boutique' },
     { id: 'm-pulse', icon: ICONS.pulse, label: 'Pulse', page: 'page-m-pulse', title: 'The Luxury Pulse' },
     { id: 'sep2', sep: true },
     { id: 'm-import', icon: ICONS.upload, label: 'Import CSV', page: 'page-m-import', title: 'Import CSV' },
     { id: 'm-team', icon: ICONS.users, label: 'Equipe', page: 'page-m-team', title: 'Gestion Equipe' },
+    { id: 'm-collection', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>`, label: 'Collection Match', page: 'page-m-collection', title: 'Collection Match' },
+    { id: 'm-leaderboard', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 9H4.5a2.5 2.5 0 000 5H6"/><path d="M18 9h1.5a2.5 2.5 0 010 5H18"/><path d="M8 9V5"/><path d="M16 9V5"/><path d="M4 5h16"/><path d="M8 18H5v-9h14v9h-3"/><path d="M8 18h8"/><path d="M8 18v2a1 1 0 001 1h6a1 1 0 001-1v-2"/></svg>`, label: 'Leaderboard', page: 'page-m-leaderboard', title: 'Leaderboard Équipe' },
 ];
 
 function isBrunoLopes() {
@@ -257,9 +261,7 @@ function navigateTo(navId) {
     const activeMob = document.querySelector(`.mobile-nav-item[data-nav-id="${navId}"]`);
     if (activeMob) activeMob.classList.add('active');
 
-    // Update page title (legacy element + new layout element)
-    const legacyTitle = $('pageTitle');
-    if (legacyTitle) legacyTitle.textContent = item.title;
+    // Title + badge handled by _updatePageMeta below
     const newTitle = $('page-title');
     if (newTitle) newTitle.textContent = item.title;
 
@@ -329,6 +331,15 @@ function renderPage(navId) {
             case 'v-coach':
             case 'm-coach':
                 renderCoach();
+                break;
+            case 'v-occasions':
+                renderOccasionRadar();
+                break;
+            case 'm-collection':
+                renderCollectionMatch();
+                break;
+            case 'm-leaderboard':
+                renderLeaderboard();
                 break;
             case 'admin':
                 renderAdmin();
@@ -1284,19 +1295,14 @@ function _updatePageMeta(navId) {
     const config = configKey ? PAGE_CONFIG[configKey] : null;
     if (!config) return;
 
-    // 1. Page Title (preserve #page-badge child)
+    // 1. Page Title + badge (navigateTo may have already wiped textContent)
     const titleEl = document.getElementById('pageTitle');
     if (titleEl) {
-        // Set only the text node, keep the badge span
-        const badgeEl = document.getElementById('page-badge');
-        titleEl.textContent = config.title;
-        // Re-inject badge if it existed
-        if (badgeEl) titleEl.appendChild(badgeEl);
-        if (badgeEl && config.badge) {
-            badgeEl.textContent = config.badge;
-            badgeEl.style.display = 'inline-flex';
-        } else if (badgeEl) {
-            badgeEl.style.display = 'none';
+        // Always use innerHTML to rebuild both text and badge atomically
+        if (config.badge) {
+            titleEl.innerHTML = `${config.title} <span id="page-badge" class="page-badge" style="display:inline-flex">${config.badge}</span>`;
+        } else {
+            titleEl.innerHTML = `${config.title} <span id="page-badge" class="page-badge" style="display:none"></span>`;
         }
     }
 
