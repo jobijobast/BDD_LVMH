@@ -239,6 +239,11 @@ function navigateTo(navId) {
 
     if (!item || item.sep) return;
 
+    // Stop recording if navigating away from vocal page
+    if (navId !== 'v-home' && isRecording) {
+        stopRecording();
+    }
+
     // Hide all pages
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
 
@@ -961,6 +966,16 @@ function renderAdmin() {
 
 // ===== VENDEUR HOME =====
 function renderVendeurHome() {
+    // Reset mic UI to clean state (handles stale visual state after navigation)
+    if (!isRecording) {
+        const btn = $('micBtn');
+        if (btn) btn.classList.remove('recording');
+        const status = $('micStatus');
+        if (status) { status.textContent = 'Cliquez pour dicter'; status.classList.remove('active'); }
+        const interim = $('interimDisplay');
+        if (interim) interim.textContent = '';
+    }
+
     // Quick stats
     $('vStatClients').textContent = DATA.length;
     $('vStatTags').textContent = DATA.reduce((s, r) => s + (r.tags || []).length, 0);

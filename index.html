@@ -165,7 +165,10 @@
             white-space: nowrap;
             opacity: 1;
             transition: opacity 0.2s ease-in-out 0.1s;
-            flex-shrink: 0;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Collapsed: icon only */
@@ -474,6 +477,39 @@
         /* Hide menuToggle (replaced by sidebar) */
         .menu-toggle {
             display: none !important;
+        }
+
+        /* ── LVMH Logo — header top right ── */
+        .header-lvmh-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            flex-shrink: 0;
+            gap: 1px;
+            padding-left: 24px;
+            border-left: 1px solid rgba(0,0,0,0.07);
+            margin-left: auto;
+        }
+
+        .header-lvmh-text {
+            font-family: var(--font-display, 'Cormorant Garamond', serif);
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            color: #1A1A1A;
+            line-height: 1;
+            text-transform: uppercase;
+        }
+
+        .header-lvmh-sub {
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.25em;
+            color: #9A9890;
+            text-transform: uppercase;
+            line-height: 1;
         }
 
         /* Page Canvas: fills remaining height, scrolls when content overflows */
@@ -1065,6 +1101,12 @@
 
                 <!-- RIGHT: Action buttons -->
                 <div id="page-header-actions" class="page-header-actions"></div>
+
+                <!-- LVMH Brand mark -->
+                <div class="header-lvmh-logo" aria-hidden="true">
+                    <span class="header-lvmh-text">LVMH</span>
+                    <span class="header-lvmh-sub">Maison</span>
+                </div>
             </header>
 
             <!-- ══ PAGES ══════════════════════════════════════════ -->
